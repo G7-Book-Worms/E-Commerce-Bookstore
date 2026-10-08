@@ -12,6 +12,7 @@
 
 # testing
 /coverage
+/app/playground
 
 # next.js
 /.next/
