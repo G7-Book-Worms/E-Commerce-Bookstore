@@ -9,7 +9,7 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "RowdyBooks",
+  title: "Book Worms",
   description: "UTSA\'s fakest bookstore!",
 };
 
