@@ -175,6 +175,9 @@ importers:
       cn:
         specifier: ^0.4.0
         version: 0.4.0
+      embla-carousel-react:
+        specifier: ^8.6.0
+        version: 8.6.0(react@19.3.0)
       lucide-react:
         specifier: ^1.52.0
         version: 1.52.0(@types/react@19.3.0)(react@19.3.0)
@@ -194,6 +197,9 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
     devDependencies:
+      '@tailwindcss/postcss':
+        specifier: ^4.3.3
+        version: 4.3.3
       '@tailwindcss/turbopack':
         specifier: ^4
         version: 4.3.3
@@ -864,6 +870,9 @@ packages:
     resolution: {integrity: sha512-krXjAikiaFSPaK/FkAQT5UTx3VormQaiZ5hBFlJZ9UFQGB/rwg1MZIhHAG9smMQRTdyJxP6Qt5MwMtdyU5FWrA==}
     engines: {node: '>= 20'}
 
+  '@tailwindcss/postcss@4.3.3':
+    resolution: {integrity: sha512-JTSZZGQi1AyKirbLN3azmjVzef92tcX7h+iSqPdaeStyFpGpDlKvvpxeOE8njhbUanbRwr3z8DyzhICWnMtQeg==}
+
   '@tailwindcss/turbopack@4.3.3':
     resolution: {integrity: sha512-FgL4wRgItNdXcDjcgYUSd59gNsWqNVK4GotjZimZMmt7OOIkRNqH2QEUcRXLdBDXvwTsi5rkYxDxzfrFUkmObQ==}
 
@@ -1450,6 +1459,19 @@ packages:
 
   electron-to-chromium@1.5.448:
     resolution: {integrity: sha512-c3DEaf2iJbLz7XvmYGZQrzaxy6Azt2/NcWAV1r3GkibEyRNkVer6t3JevvwAQ6gW2JBGGY2N/MGMS/QV+77Ldw==}
+
+  embla-carousel-react@8.6.0:
+    resolution: {integrity: sha512-0/PjqU7geVmo6F734pmPqpyHqiM99olvyecY7zdweCw+6tKEXnrE90pBiBbMMU8s5tICemzpQ3hi5EpxzGW+JA==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.1 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc
+
+  embla-carousel-reactive-utils@8.6.0:
+    resolution: {integrity: sha512-fMVUDUEx0/uIEDM0Mz3dHznDhfX+znCCDCeIophYb1QGVM7YThSWX+wz11zlYwWFOr74b4QLGg0hrGPJeG2s4A==}
+    peerDependencies:
+      embla-carousel: 8.6.0
+
+  embla-carousel@8.6.0:
+    resolution: {integrity: sha512-SjWyZBHJPbqxHOzckOfo8lHisEaJWmwd23XppYFYVh10bU66/Pn5tkVkbkCMZVdbUE5eTCI2nD8OyIP4Z+uwkA==}
 
   emoji-regex@10.6.0:
     resolution: {integrity: sha512-toUI84YS5YmxW219erniWD0CIVOo46xGKColeNQRgOzDorgBi1v4D71/OFzgD9GO2UGKIv1C3Sp8DAn0+j5w7A==}
@@ -3722,6 +3744,14 @@ snapshots:
       '@tailwindcss/oxide-win32-arm64-msvc': 4.3.3
       '@tailwindcss/oxide-win32-x64-msvc': 4.3.3
 
+  '@tailwindcss/postcss@4.3.3':
+    dependencies:
+      '@alloc/quick-lru': 5.3.0
+      '@tailwindcss/node': 4.3.3
+      '@tailwindcss/oxide': 4.3.3
+      postcss: 8.5.23
+      tailwindcss: 4.3.3
+
   '@tailwindcss/turbopack@4.3.3':
     dependencies:
       '@alloc/quick-lru': 5.3.0
@@ -4290,6 +4320,18 @@ snapshots:
   ee-first@1.1.1: {}
 
   electron-to-chromium@1.5.448: {}
+
+  embla-carousel-react@8.6.0(react@19.3.0):
+    dependencies:
+      embla-carousel: 8.6.0
+      embla-carousel-reactive-utils: 8.6.0(embla-carousel@8.6.0)
+      react: 19.3.0
+
+  embla-carousel-reactive-utils@8.6.0(embla-carousel@8.6.0):
+    dependencies:
+      embla-carousel: 8.6.0
+
+  embla-carousel@8.6.0: {}
 
   emoji-regex@10.6.0: {}
 

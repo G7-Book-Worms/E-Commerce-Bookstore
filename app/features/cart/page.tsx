@@ -13,9 +13,9 @@ type CartBook = { // formatted for google books api
 };
 
 const initalizeBooks: CartBook[] = [
-  { id: "example", title: "example", author: "placeholder", price: 10.99, quantity: 1, bookCover: "/exampleCover.png" },
-  { id: "example2", title: "example2", author: "placeholder", price: 15.99, quantity: 1, bookCover: "/exampleCover.png" },
-  { id: "example3", title: "example3", author: "placeholder", price: 11.99, quantity: 1, bookCover: "/exampleCover.png" },
+  { id: "example", title: "example", author: "placeholder", price: 10.99, quantity: 1, bookCover: "@/app/exampleCover.png" },
+  { id: "example2", title: "example2", author: "placeholder", price: 15.99, quantity: 1, bookCover: "@/app/exampleCover.png" },
+  { id: "example3", title: "example3", author: "placeholder", price: 11.99, quantity: 1, bookCover: "@/app/exampleCover.png" },
 ];
 
 const money = (n: number) => "$" + n.toFixed(2); // small helper function to format pricing
