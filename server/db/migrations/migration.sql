@@ -98,3 +98,15 @@ CREATE TABLE IF NOT EXISTS payments(
     CONSTRAINT fk_payments_order_id
         FOREIGN KEY (order_id) REFERENCES orders(order_id)
 );
+CREATE TABLE IF NOT EXISTS admins (
+    admin_id      INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    first_name    VARCHAR(50)  NOT NULL,
+    last_name     VARCHAR(50)  NOT NULL,
+    email         VARCHAR(100) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    admin_role    ENUM('admin','employee') NOT NULL DEFAULT 'manager',
+    is_active     BOOLEAN NOT NULL DEFAULT TRUE,
+    last_login    TIMESTAMP NULL,
+    created       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
