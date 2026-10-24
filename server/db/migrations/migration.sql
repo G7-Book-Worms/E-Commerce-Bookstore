@@ -98,7 +98,7 @@ CREATE TABLE IF NOT EXISTS payments(
     CONSTRAINT fk_payments_order_id
         FOREIGN KEY (order_id) REFERENCES orders(order_id)
 );
-CREATE TABLE IF NOT EXISTS admins (
+CREATE TABLE IF NOT EXISTS `admin`(
     admin_id      INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     first_name    VARCHAR(50)  NOT NULL,
     last_name     VARCHAR(50)  NOT NULL,
