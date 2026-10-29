@@ -1,0 +1,1240 @@
+{
+  "version": "6",
+  "dialect": "mysql",
+  "id": "4e87a579-60ba-4f62-b993-92bcb559411c",
+  "prevIds": [
+    "00000000-0000-0000-0000-000000000000"
+  ],
+  "ddl": [
+    {
+      "name": "addresses",
+      "entityType": "tables"
+    },
+    {
+      "name": "admin",
+      "entityType": "tables"
+    },
+    {
+      "name": "book_categories",
+      "entityType": "tables"
+    },
+    {
+      "name": "books",
+      "entityType": "tables"
+    },
+    {
+      "name": "cart_items",
+      "entityType": "tables"
+    },
+    {
+      "name": "carts",
+      "entityType": "tables"
+    },
+    {
+      "name": "events",
+      "entityType": "tables"
+    },
+    {
+      "name": "order_items",
+      "entityType": "tables"
+    },
+    {
+      "name": "orders",
+      "entityType": "tables"
+    },
+    {
+      "name": "payments",
+      "entityType": "tables"
+    },
+    {
+      "name": "users",
+      "entityType": "tables"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "autoIncrement": true,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "address_id",
+      "entityType": "columns",
+      "table": "addresses"
+    },
+    {
+      "type": "int",
+      "notNull": false,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "user_id",
+      "entityType": "columns",
+      "table": "addresses"
+    },
+    {
+      "type": "varchar(100)",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "street",
+      "entityType": "columns",
+      "table": "addresses"
+    },
+    {
+      "type": "varchar(100)",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "city",
+      "entityType": "columns",
+      "table": "addresses"
+    },
+    {
+      "type": "varchar(100)",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "state",
+      "entityType": "columns",
+      "table": "addresses"
+    },
+    {
+      "type": "varchar(20)",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "zip",
+      "entityType": "columns",
+      "table": "addresses"
+    },
+    {
+      "type": "varchar(100)",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "country",
+      "entityType": "columns",
+      "table": "addresses"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "autoIncrement": true,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "admin_id",
+      "entityType": "columns",
+      "table": "admin"
+    },
+    {
+      "type": "varchar(50)",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "first_name",
+      "entityType": "columns",
+      "table": "admin"
+    },
+    {
+      "type": "varchar(50)",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "last_name",
+      "entityType": "columns",
+      "table": "admin"
+    },
+    {
+      "type": "varchar(100)",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "email",
+      "entityType": "columns",
+      "table": "admin"
+    },
+    {
+      "type": "varchar(255)",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "password_hash",
+      "entityType": "columns",
+      "table": "admin"
+    },
+    {
+      "type": "enum('admin','employee','manager')",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": "'manager'",
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "admin_role",
+      "entityType": "columns",
+      "table": "admin"
+    },
+    {
+      "type": "boolean",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": "true",
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "is_active",
+      "entityType": "columns",
+      "table": "admin"
+    },
+    {
+      "type": "timestamp",
+      "notNull": false,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "last_login",
+      "entityType": "columns",
+      "table": "admin"
+    },
+    {
+      "type": "timestamp",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": "(now())",
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "created",
+      "entityType": "columns",
+      "table": "admin"
+    },
+    {
+      "type": "timestamp",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": "(now())",
+      "onUpdateNow": true,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "updated",
+      "entityType": "columns",
+      "table": "admin"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "autoIncrement": true,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "category_id",
+      "entityType": "columns",
+      "table": "book_categories"
+    },
+    {
+      "type": "varchar(50)",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "name",
+      "entityType": "columns",
+      "table": "book_categories"
+    },
+    {
+      "type": "varchar(50)",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "slug",
+      "entityType": "columns",
+      "table": "book_categories"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "autoIncrement": true,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "book_id",
+      "entityType": "columns",
+      "table": "books"
+    },
+    {
+      "type": "int",
+      "notNull": false,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "category_id",
+      "entityType": "columns",
+      "table": "books"
+    },
+    {
+      "type": "varchar(17)",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "isbn",
+      "entityType": "columns",
+      "table": "books"
+    },
+    {
+      "type": "varchar(100)",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "author",
+      "entityType": "columns",
+      "table": "books"
+    },
+    {
+      "type": "varchar(200)",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "title",
+      "entityType": "columns",
+      "table": "books"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "description",
+      "entityType": "columns",
+      "table": "books"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": "0",
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "stock",
+      "entityType": "columns",
+      "table": "books"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "autoIncrement": true,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "cart_item_id",
+      "entityType": "columns",
+      "table": "cart_items"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "cart_id",
+      "entityType": "columns",
+      "table": "cart_items"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "book_id",
+      "entityType": "columns",
+      "table": "cart_items"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "quantity",
+      "entityType": "columns",
+      "table": "cart_items"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "autoIncrement": true,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "cart_id",
+      "entityType": "columns",
+      "table": "carts"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "user_id",
+      "entityType": "columns",
+      "table": "carts"
+    },
+    {
+      "type": "timestamp",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": "(now())",
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "updated",
+      "entityType": "columns",
+      "table": "carts"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "autoIncrement": true,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "event_id",
+      "entityType": "columns",
+      "table": "events"
+    },
+    {
+      "type": "date",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "start_date",
+      "entityType": "columns",
+      "table": "events"
+    },
+    {
+      "type": "date",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "end_date",
+      "entityType": "columns",
+      "table": "events"
+    },
+    {
+      "type": "varchar(8)",
+      "notNull": false,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "promotional_code",
+      "entityType": "columns",
+      "table": "events"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "autoIncrement": true,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "order_item_id",
+      "entityType": "columns",
+      "table": "order_items"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "order_id",
+      "entityType": "columns",
+      "table": "order_items"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "book_id",
+      "entityType": "columns",
+      "table": "order_items"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "quantity",
+      "entityType": "columns",
+      "table": "order_items"
+    },
+    {
+      "type": "decimal(10,2)",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "unit_price",
+      "entityType": "columns",
+      "table": "order_items"
+    },
+    {
+      "type": "decimal(10,2)",
+      "notNull": false,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": {
+        "as": "`quantity` * `unit_price`",
+        "type": "stored"
+      },
+      "name": "unit_total",
+      "entityType": "columns",
+      "table": "order_items"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "autoIncrement": true,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "order_id",
+      "entityType": "columns",
+      "table": "orders"
+    },
+    {
+      "type": "int",
+      "notNull": false,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "user_id",
+      "entityType": "columns",
+      "table": "orders"
+    },
+    {
+      "type": "enum('pending','transit','arrived','cancelled')",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": "'pending'",
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "status",
+      "entityType": "columns",
+      "table": "orders"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "shipping_address_id",
+      "entityType": "columns",
+      "table": "orders"
+    },
+    {
+      "type": "varchar(500)",
+      "notNull": false,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "note",
+      "entityType": "columns",
+      "table": "orders"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "price_cents",
+      "entityType": "columns",
+      "table": "orders"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "autoIncrement": true,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "payment_id",
+      "entityType": "columns",
+      "table": "payments"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "order_id",
+      "entityType": "columns",
+      "table": "payments"
+    },
+    {
+      "type": "varchar(50)",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "card_provider",
+      "entityType": "columns",
+      "table": "payments"
+    },
+    {
+      "type": "decimal(10,2)",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "amount",
+      "entityType": "columns",
+      "table": "payments"
+    },
+    {
+      "type": "enum('pending','processing','completed','failed','cancelled','refunded','chargeback')",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": "'pending'",
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "status",
+      "entityType": "columns",
+      "table": "payments"
+    },
+    {
+      "type": "timestamp",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": "(now())",
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "created",
+      "entityType": "columns",
+      "table": "payments"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "autoIncrement": true,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "user_id",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "type": "varchar(50)",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "first_name",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "type": "varchar(50)",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "last_name",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "type": "varchar(20)",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "phone",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "type": "varchar(100)",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "email",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "type": "timestamp",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": "(now())",
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "created",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "type": "timestamp",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": "(now())",
+      "onUpdateNow": true,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "updated",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "type": "varchar(255)",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "password_hash",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "columns": [
+        "address_id"
+      ],
+      "name": "PRIMARY",
+      "table": "addresses",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "admin_id"
+      ],
+      "name": "PRIMARY",
+      "table": "admin",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "category_id"
+      ],
+      "name": "PRIMARY",
+      "table": "book_categories",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "book_id"
+      ],
+      "name": "PRIMARY",
+      "table": "books",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "cart_item_id"
+      ],
+      "name": "PRIMARY",
+      "table": "cart_items",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "cart_id"
+      ],
+      "name": "PRIMARY",
+      "table": "carts",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "event_id"
+      ],
+      "name": "PRIMARY",
+      "table": "events",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "order_item_id"
+      ],
+      "name": "PRIMARY",
+      "table": "order_items",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "order_id"
+      ],
+      "name": "PRIMARY",
+      "table": "orders",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "payment_id"
+      ],
+      "name": "PRIMARY",
+      "table": "payments",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "user_id"
+      ],
+      "name": "PRIMARY",
+      "table": "users",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        {
+          "value": "email",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "using": null,
+      "algorithm": null,
+      "lock": null,
+      "nameExplicit": false,
+      "name": "email_unique",
+      "table": "admin",
+      "entityType": "indexes"
+    },
+    {
+      "columns": [
+        {
+          "value": "phone",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "using": null,
+      "algorithm": null,
+      "lock": null,
+      "nameExplicit": false,
+      "name": "phone_unique",
+      "table": "users",
+      "entityType": "indexes"
+    },
+    {
+      "columns": [
+        {
+          "value": "email",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "using": null,
+      "algorithm": null,
+      "lock": null,
+      "nameExplicit": false,
+      "name": "email_unique",
+      "table": "users",
+      "entityType": "indexes"
+    },
+    {
+      "columns": [
+        "user_id"
+      ],
+      "tableTo": "users",
+      "columnsTo": [
+        "user_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "addresses_user_id_users_user_id_fkey",
+      "entityType": "fks",
+      "table": "addresses"
+    },
+    {
+      "columns": [
+        "category_id"
+      ],
+      "tableTo": "book_categories",
+      "columnsTo": [
+        "category_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "books_category_id_book_categories_category_id_fkey",
+      "entityType": "fks",
+      "table": "books"
+    },
+    {
+      "columns": [
+        "cart_id"
+      ],
+      "tableTo": "carts",
+      "columnsTo": [
+        "cart_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "cart_items_cart_id_carts_cart_id_fkey",
+      "entityType": "fks",
+      "table": "cart_items"
+    },
+    {
+      "columns": [
+        "book_id"
+      ],
+      "tableTo": "books",
+      "columnsTo": [
+        "book_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "cart_items_book_id_books_book_id_fkey",
+      "entityType": "fks",
+      "table": "cart_items"
+    },
+    {
+      "columns": [
+        "user_id"
+      ],
+      "tableTo": "users",
+      "columnsTo": [
+        "user_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "carts_user_id_users_user_id_fkey",
+      "entityType": "fks",
+      "table": "carts"
+    },
+    {
+      "columns": [
+        "order_id"
+      ],
+      "tableTo": "orders",
+      "columnsTo": [
+        "order_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "order_items_order_id_orders_order_id_fkey",
+      "entityType": "fks",
+      "table": "order_items"
+    },
+    {
+      "columns": [
+        "book_id"
+      ],
+      "tableTo": "books",
+      "columnsTo": [
+        "book_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "order_items_book_id_books_book_id_fkey",
+      "entityType": "fks",
+      "table": "order_items"
+    },
+    {
+      "columns": [
+        "user_id"
+      ],
+      "tableTo": "users",
+      "columnsTo": [
+        "user_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "orders_user_id_users_user_id_fkey",
+      "entityType": "fks",
+      "table": "orders"
+    },
+    {
+      "columns": [
+        "shipping_address_id"
+      ],
+      "tableTo": "addresses",
+      "columnsTo": [
+        "address_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "orders_shipping_address_id_addresses_address_id_fkey",
+      "entityType": "fks",
+      "table": "orders"
+    },
+    {
+      "columns": [
+        "order_id"
+      ],
+      "tableTo": "orders",
+      "columnsTo": [
+        "order_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "payments_order_id_orders_order_id_fkey",
+      "entityType": "fks",
+      "table": "payments"
+    }
+  ],
+  "renames": []
+}

@@ -12,22 +12,25 @@ async function runMigrations() {
 
   console.log('Connecting to Aiven MySQL to apply migrations...');
 
-  // Create a dedicated connection with multi-statement support and SSL
+  // NEW: replaces the old createConnection({ uri: ... }) block
+  const url = new URL(connectionUri);
+
   const connection = await mysql.createConnection({
-    uri: connectionUri,
-    ssl: {
-      rejectUnauthorized: false, 
-    },
-    multipleStatements: true, 
+    host: url.hostname,
+    port: Number(url.port),
+    user: decodeURIComponent(url.username),
+    password: decodeURIComponent(url.password),
+    database: url.pathname.slice(1),
+    ssl: { rejectUnauthorized: false },
+    multipleStatements: true,
   });
 
-  const db = drizzle(connection as any);
+  const db = drizzle({ client: connection });
 
-  console.log('Executing pending migrations from ./server/db/migrations...');
-
+  console.log('Executing pending migrations...');
 
   await migrate(db, {
-    migrationsFolder: '.server/db/migrations',
+    migrationsFolder: './server/db/migrations',
   });
 
   console.log('Migrations applied successfully!');
@@ -40,5 +43,3 @@ runMigrations().catch((err) => {
   console.error('Migration failed:', err);
   process.exit(1);
 });
-/*Running migration: npm run db:migrate */
-/*Must have necessary DATABASE_URL Variable */

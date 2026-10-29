@@ -1,12 +1,10 @@
+// index.ts
 import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
-import * as schema from "./schema"
+import * as schema from "./schema";
 
+const pool = mysql.createPool({ 
+  uri: process.env.DATABASE_URL, 
+  ssl: { rejectUnauthorized:false}});
 
-const connection = await mysql.createConnection({
-  host: "host",
-  user: "user",
-  database: "database"
-});
-
-const db = drizzle({ client: connection });
+export const db = drizzle({ client: pool, schema, mode: "default" });
