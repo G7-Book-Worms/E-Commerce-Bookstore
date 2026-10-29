@@ -7,41 +7,50 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
+    "db:generate": "drizzle-kit generate:mysql2",
+    "db:migrate": "tsx src/server/db/migrate.ts",
+    "db:seed": "tsx src/server/db/seeds/index.ts",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio",
-    "db:seed": "tsx src/server/db/seeds/index.ts"
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.4.0",
+    "dotenv": "^16.4.5",
+    "drizzle-orm": "^1.0.0-rc.5",
     "embla-carousel-react": "^8.6.0",
+    "env": "^0.0.2",
     "lucide-react": "^1.52.0",
+    "mysql2": "^3.24.6",
     "next": "16.4.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "shadcn": "^4.21.4",
     "tw-animate-css": "^1.4.0",
-    "dotenv": "^16.4.5",
-    "drizzle-orm": "^0.33.0",
-    "mysql2": "^3.11.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
     "@tailwindcss/turbopack": "^4",
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "all-scripts": "^0.0.6",
+    "approve": "^0.0.12",
+    "drizzle-kit": "^0.31.11",
     "eslint": "^9",
     "eslint-config-next": "16.4.0",
+    "i": "^0.3.7",
+    "npm": "^12.2.1",
     "tailwindcss": "^4",
-    "typescript": "^5",
-    "@types/bcryptjs": "^2.4.6",
-    "drizzle-kit": "^0.24.0",
-    "tsx": "^4.19.0"
+    "tsx": "^4.19.0",
+    "typescript": "^5"
   },
-  "packageManager": "pnpm@12.10.1"
+  "packageManager": "pnpm@12.10.1",
+  "allowScripts": {
+    "env@0.0.2": true,
+    "drizzle-kit@0.31.11": true
+  }
 }
