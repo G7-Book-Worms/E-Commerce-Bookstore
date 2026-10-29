@@ -3,22 +3,22 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "db:generate": "drizzle-kit generate --config server/db/drizzle.config.ts",
+    "db:migrate": "tsx server/db/migrations/migrate.ts",
+    "db:seed": "tsx server/db/migrations/seeds/index.ts",
+    "db:studio": "drizzle-kit studio --config server/db/drizzle.config.ts",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "db:generate": "drizzle-kit generate:mysql2",
-    "db:migrate": "tsx src/server/db/migrate.ts",
-    "db:seed": "tsx src/server/db/seeds/index.ts",
-    "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:push": "drizzle-kit push"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.4.0",
     "dotenv": "^16.4.5",
-    "drizzle-orm": "^1.0.0-rc.5",
+    "drizzle-orm": "^1.0.0-beta.22",
     "embla-carousel-react": "^8.6.0",
     "env": "^0.0.2",
     "lucide-react": "^1.52.0",
@@ -39,7 +39,7 @@
     "@types/react-dom": "^19",
     "all-scripts": "^0.0.6",
     "approve": "^0.0.12",
-    "drizzle-kit": "^0.31.11",
+    "drizzle-kit": "^1.0.0-beta.22",
     "eslint": "^9",
     "eslint-config-next": "16.4.0",
     "i": "^0.3.7",
@@ -51,6 +51,10 @@
   "packageManager": "pnpm@12.10.1",
   "allowScripts": {
     "env@0.0.2": true,
-    "drizzle-kit@0.31.11": true
+    "drizzle-kit@0.31.11": true,
+    "esbuild@0.18.20": true,
+    "esbuild@0.25.12": true,
+    "esbuild@0.28.2": true,
+    "unrs-resolver@1.12.2": true
   }
 }
