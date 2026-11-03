@@ -1,11 +1,11 @@
-import "dotenv/config";
+/*import "dotenv/config";
 import { db } from "../../index";
 import {
   users, addresses, bookCategories, books,
   carts, cartItems, orders, orderItems, events, payments, admin,
 } from "../../schema";
 
-async function seed() {
+  async function seed() {
   // No dependecies tables go first
   const [userRes] = await db.insert(users).values({
     firstName: "Ada",
@@ -96,4 +96,22 @@ seed()
     process.exit(1);
   });
 
-  //once we have actual data we need to do proper api calls, then format data and apply here
+  //once we have actual data we need to do proper api calls, then format data and apply here*/
+
+
+import "dotenv/config";
+import { seedCatalogue } from "./catalogue";
+
+async function seed() {
+  await seedCatalogue();
+}
+
+seed()
+    .then(() => {
+      console.log("Seeded successfully");
+      process.exit(0);
+    })
+    .catch((error) => {
+      console.error("Seed failed:", error);
+      process.exit(1);
+    });

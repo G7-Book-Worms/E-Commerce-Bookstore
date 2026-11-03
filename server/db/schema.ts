@@ -9,6 +9,7 @@ import {
   decimal,
   date,
   boolean,
+    json,
 } from 'drizzle-orm/mysql-core'
 
 // Users Table
@@ -38,18 +39,20 @@ export const addresses = mysqlTable('addresses', {
 export const bookCategories = mysqlTable('book_categories', {
     categoryId: int('category_id').autoincrement().primaryKey().notNull(),
     name: varchar('name', { length: 50 }).notNull(),
-    slug: varchar('slug', { length: 50 }).notNull(),
+    slug: varchar('slug', { length: 50 }).notNull().unique(),
 });
 
 // Books Table
 export const books = mysqlTable('books', {
     bookId: int('book_id').autoincrement().primaryKey().notNull(),
     categoryId: int('category_id').references(() => bookCategories.categoryId),
-    isbn: varchar('isbn', { length: 17 }).notNull(),
+    isbn: varchar('isbn', { length: 17 }).notNull().unique(),
     author: varchar('author', { length: 100 }).notNull(),
     title: varchar('title', { length: 200 }).notNull(),
     description: text('description').notNull(),
     stock: int('stock').default(0).notNull(),
+    priceCents: int('price_cents').notNull(),
+    coverImageUrl: varchar('cover_image_url', { length: 500 }),
 });
 
 // Carts Table
