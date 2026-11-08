@@ -1,34 +1,46 @@
-import "../globals.css";
-import Link from "next/link";
+// app/(auth)/layout.tsx
+import '../globals.css';
+import React from 'react';
+import Link from 'next/link';
+import { AuthProvider } from '../context/auth-context';
 
-export default function RootLayout({
+export const metadata = {
+  title: 'Sign In | Book Worms',
+  description: 'Sign in to your Book Worms account.',
+};
+
+export default function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
     <html lang="en">
-      <body className="min-h-screen flex flex-col bg-background text-foreground font-sans">
-        
-        {/* Single Centered Header */}
-        <header className="py-6 text-center border-b flex-shrink-0">
-          <Link href="/" className="text-2xl font-bold tracking-widest uppercase hover:opacity-80 transition-opacity">
-            Book Worms
-          </Link>
-        </header>
-
-        {/* Page Content Injected Here */}
-        <div className="flex-1">
-          {children}
-        </div>
-
-        {/* Minimal Global Footer */}
-        <footer className="bg-muted/50 py-6 mt-auto border-t flex-shrink-0">
-          <div className="text-center text-sm text-muted-foreground">
-            &copy; 2026 Book Worms. All rights reserved.
+      <body className="min-h-screen bg-stone-50 text-stone-900 antialiased flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+        <AuthProvider>
+          {/* Header Branding */}
+          <div className="sm:mx-auto sm:w-full sm:max-w-md text-center mb-6">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-stone-900 rounded"
+            >
+              <span className="text-3xl">📚</span>
+              <h1 className="text-3xl font-serif font-bold text-stone-900 tracking-tight">
+                Book Worms
+              </h1>
+            </Link>
+            <p className="mt-2 text-sm text-stone-600">
+              Your cozy corner for all fiction & non-fiction
+            </p>
           </div>
-        </footer>
 
+          {/* Centered Auth Card */}
+          <div className="sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0">
+            <div className="bg-white py-8 px-6 shadow-sm border border-stone-200 rounded-2xl sm:px-10">
+              {children}
+            </div>
+          </div>
+        </AuthProvider>
       </body>
     </html>
   );
