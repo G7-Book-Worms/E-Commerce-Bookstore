@@ -1,25 +1,28 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono, Inter, Playfair_Display} from "next/font/google";
-import "@/app/globals.css";
-import { cn } from "@/lib/utils";
+// app/(features)/layout.tsx
+import React from 'react';
+import { AuthProvider } from '../context/auth-context'; // adjust relative path if needed
+import '../globals.css';
+import { CartProvider } from '../context/CartContext';
+import { Header } from '../../components/header/Header';
+import { Footer } from '../../components/footer/Footer';
 
-const playfair = Playfair_Display({
-    subsets: ["latin"],
-    variable: "--font-playfair",
-});
-
-export const metadata: Metadata = {
-  title: "Book Worms",
-  description: "UTSA\'s fakest bookstore!",
+export const metadata = {
+  title: 'Book Worms',
+  description: 'Curated Bookstore Features',
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function FeaturesLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <html
-      lang="en"
-      className={cn("h-full", "antialiased", "font-sans", playfair.variable)}
-    >
-      <body className="min-h-full flex flex-col">{children}</body>
+    <html lang="en">
+      <body className="min-h-screen bg-stone-50 text-stone-900 antialiased">
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+      </body>
     </html>
   );
 }
