@@ -1,0 +1,16 @@
+[
+  {
+    "firstName": "Grace",
+    "lastName": "Hopper",
+    "email": "grace@example.com",
+    "passwordHash": "hashed-password",
+    "adminRole": "admin"
+  },
+  {
+    "firstName": "Edsger",
+    "lastName": "Dijkstra",
+    "email": "edsger@example.com",
+    "passwordHash": "hashed-password",
+    "adminRole": "admin"
+  }
+]

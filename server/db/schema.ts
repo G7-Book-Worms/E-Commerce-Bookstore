@@ -49,7 +49,9 @@ export const books = mysqlTable('books', {
     author: varchar('author', { length: 100 }).notNull(),
     title: varchar('title', { length: 200 }).notNull(),
     description: text('description').notNull(),
+    priceCents: int("price_cents").notNull().default(0),
     stock: int('stock').default(0).notNull(),
+    
 });
 
 // Carts Table
@@ -101,7 +103,7 @@ export const events = mysqlTable('events', {
     eventId: int('event_id').autoincrement().primaryKey().notNull(),
     startDate: date('start_date', { mode: 'string' }).notNull(),
     endDate: date('end_date', { mode: 'string' }).notNull(),
-    promotionalCode: varchar('promotional_code', { length: 8 }),
+    promotionalCode: varchar('promotional_code', { length: 15}),
 });
 
 // Payments Table

@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "mysql",
-  "id": "4e87a579-60ba-4f62-b993-92bcb559411c",
+  "id": "20f90273-d2cb-48cd-a530-8212e2153596",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -424,6 +424,20 @@
       "charSet": null,
       "collation": null,
       "generated": null,
+      "name": "price_cents",
+      "entityType": "columns",
+      "table": "books"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": "0",
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
       "name": "stock",
       "entityType": "columns",
       "table": "books"
@@ -569,7 +583,7 @@
       "table": "events"
     },
     {
-      "type": "varchar(8)",
+      "type": "varchar(15)",
       "notNull": false,
       "autoIncrement": false,
       "default": null,

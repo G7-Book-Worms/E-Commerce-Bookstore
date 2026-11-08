@@ -1,0 +1,72 @@
+[
+  {
+    "firstName": "Ada",
+    "lastName": "Lovelace",
+    "phone": "555-0100",
+    "email": "ada.lovelace@example.com",
+    "passwordHash": "hashed-password"
+  },
+  {
+    "firstName": "Alan",
+    "lastName": "Turing",
+    "phone": "555-0101",
+    "email": "alan.turing@example.com",
+    "passwordHash": "hashed-password"
+  },
+  {
+    "firstName": "Grace",
+    "lastName": "Hopper",
+    "phone": "555-0102",
+    "email": "grace.hopper@example.com",
+    "passwordHash": "hashed-password"
+  },
+  {
+    "firstName": "Linus",
+    "lastName": "Torvalds",
+    "phone": "555-0103",
+    "email": "linus.torvalds@example.com",
+    "passwordHash": "hashed-password"
+  },
+  {
+    "firstName": "Margaret",
+    "lastName": "Hamilton",
+    "phone": "555-0104",
+    "email": "margaret.hamilton@example.com",
+    "passwordHash": "hashed-password"
+  },
+  {
+    "firstName": "Dennis",
+    "lastName": "Ritchie",
+    "phone": "555-0105",
+    "email": "dennis.ritchie@example.com",
+    "passwordHash": "hashed-password"
+  },
+  {
+    "firstName": "Barbara",
+    "lastName": "Liskov",
+    "phone": "555-0106",
+    "email": "barbara.liskov@example.com",
+    "passwordHash": "hashed-password"
+  },
+  {
+    "firstName": "Ken",
+    "lastName": "Thompson",
+    "phone": "555-0107",
+    "email": "ken.thompson@example.com",
+    "passwordHash": "hashed-password"
+  },
+  {
+    "firstName": "Radia",
+    "lastName": "Perlman",
+    "phone": "555-0108",
+    "email": "radia.perlman@example.com",
+    "passwordHash": "hashed-password"
+  },
+  {
+    "firstName": "Donald",
+    "lastName": "Knuth",
+    "phone": "555-0109",
+    "email": "donald.knuth@example.com",
+    "passwordHash": "hashed-password"
+  }
+]

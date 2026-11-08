@@ -1,0 +1,22 @@
+[
+  {
+    "name": "Fiction",
+    "slug": "fiction"
+  },
+  {
+    "name": "Science",
+    "slug": "science"
+  },
+  {
+    "name": "History",
+    "slug": "history"
+  },
+  {
+    "name": "Technology",
+    "slug": "technology"
+  },
+  {
+    "name": "Fantasy",
+    "slug": "fantasy"
+  }
+]

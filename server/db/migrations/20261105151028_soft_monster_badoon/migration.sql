@@ -35,6 +35,7 @@ CREATE TABLE `books` (
 	`author` varchar(100) NOT NULL,
 	`title` varchar(200) NOT NULL,
 	`description` text NOT NULL,
+	`price_cents` int NOT NULL DEFAULT 0,
 	`stock` int NOT NULL DEFAULT 0
 );
 --> statement-breakpoint
@@ -55,7 +56,7 @@ CREATE TABLE `events` (
 	`event_id` int AUTO_INCREMENT PRIMARY KEY,
 	`start_date` date NOT NULL,
 	`end_date` date NOT NULL,
-	`promotional_code` varchar(8)
+	`promotional_code` varchar(15)
 );
 --> statement-breakpoint
 CREATE TABLE `order_items` (

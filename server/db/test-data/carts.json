@@ -1,0 +1,32 @@
+[
+  {
+    "userEmail": "ada.lovelace@example.com"
+  },
+  {
+    "userEmail": "alan.turing@example.com"
+  },
+  {
+    "userEmail": "grace.hopper@example.com"
+  },
+  {
+    "userEmail": "linus.torvalds@example.com"
+  },
+  {
+    "userEmail": "margaret.hamilton@example.com"
+  },
+  {
+    "userEmail": "dennis.ritchie@example.com"
+  },
+  {
+    "userEmail": "barbara.liskov@example.com"
+  },
+  {
+    "userEmail": "ken.thompson@example.com"
+  },
+  {
+    "userEmail": "radia.perlman@example.com"
+  },
+  {
+    "userEmail": "donald.knuth@example.com"
+  }
+]

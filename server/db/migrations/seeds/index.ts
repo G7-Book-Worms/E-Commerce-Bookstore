@@ -1,90 +1,109 @@
 import "dotenv/config";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { db } from "../../index";
 import {
   users, addresses, bookCategories, books,
   carts, cartItems, orders, orderItems, events, payments, admin,
 } from "../../schema";
 
+const DATA_DIR = path.resolve(__dirname, "../../test-data");
+
+function load<T = any>(file: string): T[] {
+  return JSON.parse(readFileSync(path.join(DATA_DIR, `${file}.json`), "utf-8"));
+}
+
+// Multi-row INSERT returns the first generated id; the rest are consecutive.
+// Returns a Map of natural key -> generated id.
+function idMap<T>(rows: T[], firstId: number, key: (row: T) => string) {
+  const map = new Map<string, number>();
+  rows.forEach((row, i) => map.set(key(row), firstId + i));
+  return map;
+}
+
+// Look up a foreign key by natural key, failing loudly on a typo in the data files.
+function ref(map: Map<string, number>, key: string, what: string): number {
+  const id = map.get(key);
+  if (id === undefined) throw new Error(`Seed data error: no ${what} "${key}"`);
+  return id;
+}
+
 async function seed() {
-  // No dependecies tables go first
-  const [userRes] = await db.insert(users).values({
-    firstName: "Ada",
-    lastName: "Lovelace",
-    phone: "555-0100",
-    email: "ada@example.com",
-    passwordHash: "hashed-password",
-  });
-  const userId = userRes.insertId;
+  // ---------- No-dependency tables ----------
+  const userRows = load("users");
+  const [userRes] = await db.insert(users).values(userRows);
+  const userIds = idMap(userRows, userRes.insertId, (u) => u.email);
 
-  const [catRes] = await db.insert(bookCategories).values({
-    name: "Fiction",
-    slug: "fiction",
-  });
-  const categoryId = catRes.insertId;
+  const categoryRows = load("book_categories");
+  const [catRes] = await db.insert(bookCategories).values(categoryRows);
+  const categoryIds = idMap(categoryRows, catRes.insertId, (c) => c.slug);
 
-  await db.insert(events).values({
-    startDate: "2026-12-01",
-    endDate: "2026-12-31",
-    promotionalCode: "HOLIDAY",
-  });
+  await db.insert(events).values(load("events"));
+  await db.insert(admin).values(load("admin"));
 
-  await db.insert(admin).values({
-    firstName: "Grace",
-    lastName: "Hopper",
-    email: "grace@example.com",
-    passwordHash: "hashed-password",
-    adminRole: "admin",
+  // ---------- Depend on users / categories ----------
+  const addressRows = load("addresses");
+  const [addrRes] = await db.insert(addresses).values(
+    addressRows.map(({ userEmail, ...a }) => ({
+      ...a,
+      userId: ref(userIds, userEmail, "user"),
+    }))
+  );
+  // A user's shipping address = their first address in the file
+  const addressIds = new Map<string, number>();
+  addressRows.forEach((a, i) => {
+    if (!addressIds.has(a.userEmail)) addressIds.set(a.userEmail, addrRes.insertId + i);
   });
 
-  //Depend on users / categories
-  const [addrRes] = await db.insert(addresses).values({
-    userId,
-    street: "1 Main St",
-    city: "San Antonio",
-    state: "TX",
-    zip: "78205",
-    country: "USA",
-  });
-  const addressId = addrRes.insertId;
+  const bookRows = load("books");
+  const [bookRes] = await db.insert(books).values(
+    bookRows.map(({ categorySlug, ...b }) => ({
+      ...b,
+      categoryId: ref(categoryIds, categorySlug, "category"),
+    }))
+  );
+  const bookIds = idMap(bookRows, bookRes.insertId, (b) => b.isbn);
 
-  const [bookRes] = await db.insert(books).values({
-    categoryId,
-    isbn: "978-0-00-000000-0",
-    author: "Jane Author",
-    title: "Sample Book",
-    description: "A sample book.",
-    stock: 25,
-  });
-  const bookId = bookRes.insertId;
+  const cartRows = load("carts");
+  const [cartRes] = await db.insert(carts).values(
+    cartRows.map(({ userEmail }) => ({ userId: ref(userIds, userEmail, "user") }))
+  );
+  const cartIds = idMap(cartRows, cartRes.insertId, (c) => c.userEmail);
 
-  const [cartRes] = await db.insert(carts).values({ userId });
-  const cartId = cartRes.insertId;
+  // ---------- Depend on carts / books / addresses ----------
+  await db.insert(cartItems).values(
+    load("cart_items").map((ci) => ({
+      cartId: ref(cartIds, ci.userEmail, "cart"),
+      bookId: ref(bookIds, ci.isbn, "book"),
+      quantity: ci.quantity,
+    }))
+  );
 
-  // Depend on carts / books / addresses
-  await db.insert(cartItems).values({ cartId, bookId, quantity: 2 });
+  const orderRows = load("orders");
+  const [orderRes] = await db.insert(orders).values(
+    orderRows.map(({ ref: _ref, userEmail, ...o }) => ({
+      ...o,
+      userId: ref(userIds, userEmail, "user"),
+      shippingAddressId: ref(addressIds, userEmail, "address"),
+    }))
+  );
+  const orderIds = idMap(orderRows, orderRes.insertId, (o) => o.ref);
 
-  const [orderRes] = await db.insert(orders).values({
-    userId,
-    shippingAddressId: addressId,
-    status: "pending",
-    priceCents: 3998,
-  });
-  const orderId = orderRes.insertId;
+  // ---------- Depend on orders ----------
+  await db.insert(orderItems).values(
+    load("order_items").map(({ orderRef, isbn, ...oi }) => ({
+      ...oi,
+      orderId: ref(orderIds, orderRef, "order"),
+      bookId: ref(bookIds, isbn, "book"),
+    }))
+  );
 
-  // Depend on orders
-  await db.insert(orderItems).values({
-    orderId,
-    bookId,
-    quantity: 2,
-    unitPrice: "19.99", // decimal columns take strings
-  });
-
-  await db.insert(payments).values({
-    orderId,
-    cardProvider: "Visa",
-    amount: "39.98",
-    status: "pending",
-  });
+  await db.insert(payments).values(
+    load("payments").map(({ orderRef, ...p }) => ({
+      ...p,
+      orderId: ref(orderIds, orderRef, "order"),
+    }))
+  );
 
   console.log("Seeded successfully");
 }
@@ -95,5 +114,3 @@ seed()
     console.error("Seed failed:", err);
     process.exit(1);
   });
-
-  //once we have actual data we need to do proper api calls, then format data and apply here
