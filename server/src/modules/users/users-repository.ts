@@ -1,7 +1,8 @@
-import { eq, and, ne, desc, sql } from 'drizzle-orm';
+import { eq, and, ne, desc, sql, inArray } from 'drizzle-orm';
 import { db } from '../../../db';
 import { users, addresses, Address, NewAddress, User } from './users-schema';
-import { orders } from '../orders/orders-schema';
+import { orders, orderItems } from '../orders/orders-schema';
+import { books } from '../books/books-schema';
 
 export type NewUser = Omit<User, 'userId' | 'created' | 'updated'>;
 
@@ -146,10 +147,12 @@ export class UsersRepository {
         note: orders.note,
         priceCents: orders.priceCents,
         shippingAddressId: orders.shippingAddressId,
+        trackingNumber: orders.trackingNumber,
+        created: orders.created,
       })
       .from(orders)
       .where(eq(orders.userId, userId))
-      .orderBy(desc(orders.orderId))
+      .orderBy(desc(orders.created), desc(orders.orderId))
       .limit(limit)
       .offset(offset);
 
@@ -162,5 +165,24 @@ export class UsersRepository {
       orders: userOrders,
       total: Number(countResult?.count || 0),
     };
+  }
+
+  // Line items (with book title/author) for a set of orders, in one query
+  async getOrderItemsForOrders(orderIds: number[]) {
+    if (orderIds.length === 0) return [];
+    return db
+      .select({
+        orderItemId: orderItems.orderItemId,
+        orderId: orderItems.orderId,
+        bookId: orderItems.bookId,
+        title: books.title,
+        author: books.author,
+        quantity: orderItems.quantity,
+        unitPrice: orderItems.unitPrice,
+      })
+      .from(orderItems)
+      .innerJoin(books, eq(books.bookId, orderItems.bookId))
+      .where(inArray(orderItems.orderId, orderIds))
+      .orderBy(orderItems.orderItemId);
   }
 }
