@@ -109,22 +109,33 @@ export class UsersService {
    * SCRUM-103: Paginated Orders
    */
   async getOrders(userId: number, page: number = 1, limit: number = 10) {
+    // Bad or missing query params fall back to sane defaults instead of reaching the DB as NaN
+    page = Number.isInteger(page) && page > 0 ? page : 1;
+    limit = Number.isInteger(limit) && limit > 0 ? Math.min(limit, 50) : 10;
     const offset = (page - 1) * limit;
     const { orders: rawOrders, total } = await this.usersRepo.getUserOrdersPaginated(userId, limit, offset);
+    const allItems = await this.usersRepo.getOrderItemsForOrders(rawOrders.map((o) => o.orderId));
 
     return {
       page,
       limit,
       total,
       totalPages: Math.ceil(total / limit),
-      orders: rawOrders.map((o) => ({
-        orderId: o.orderId,
-        status: o.status,
-        note: o.note,
-        totalCost: (o.priceCents / 100).toFixed(2), // Convert cents to readable dollars
-        priceCents: o.priceCents,
-        shippingAddressId: o.shippingAddressId,
-      })),
+      orders: rawOrders.map((o) => {
+        const items = allItems.filter((i) => i.orderId === o.orderId);
+        return {
+          orderId: o.orderId,
+          status: o.status,
+          note: o.note,
+          totalCost: (o.priceCents / 100).toFixed(2), // Convert cents to readable dollars
+          priceCents: o.priceCents,
+          shippingAddressId: o.shippingAddressId,
+          trackingNumber: o.trackingNumber,
+          created: o.created,
+          totalItems: items.reduce((sum, i) => sum + i.quantity, 0),
+          items,
+        };
+      }),
     };
   }
 }

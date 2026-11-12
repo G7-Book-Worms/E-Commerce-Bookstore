@@ -97,9 +97,21 @@ export const OrdersTab: React.FC<Props> = ({ orders, isLoading }) => {
 
                 <div className="pt-2 border-t border-stone-200/60">
                   <p className="text-xs font-bold text-stone-900 uppercase tracking-wider mb-2">Item Breakdown</p>
-                  <p className="text-xs text-stone-500">
-                    Standard shipment fulfilled from warehouse archive.
-                  </p>
+                  {order.items.length === 0 ? (
+                    <p className="text-xs text-stone-500">No items recorded for this order.</p>
+                  ) : (
+                    <ul className="space-y-1 text-xs">
+                      {order.items.map((item) => (
+                        <li key={item.orderItemId} className="flex justify-between gap-4">
+                          <span>
+                            {item.title ?? `Book #${item.bookId}`}
+                            {item.author ? ` by ${item.author}` : ''} &times; {item.quantity}
+                          </span>
+                          <span className="font-mono">${item.unitPrice}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               </div>
             )}

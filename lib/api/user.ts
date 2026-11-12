@@ -24,6 +24,7 @@ export interface AddressItem {
 
 export interface OrderItemDetail {
   orderItemId: number;
+  orderId: number;
   bookId: number;
   title?: string;
   author?: string;
@@ -38,7 +39,10 @@ export interface UserOrder {
   totalCost: string;
   priceCents: number;
   shippingAddressId: number;
-  items?: OrderItemDetail[];
+  trackingNumber: string | null;
+  created: string;
+  totalItems: number;
+  items: OrderItemDetail[];
 }
 
 // GET /api/users/profile
