@@ -1,134 +1,64 @@
 // app/api/cart/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { eq, and } from 'drizzle-orm';
-import { db } from '../../../server/db';
-import { carts, cartItems, CartItem } from '../../../server/src/modules/cart/cart-schema';
+// The logged-in user's cart. Every method requires a valid auth_token cookie (401 otherwise).
+// Every response's data is the full cart: { cartId, items, totalCount, subtotalCents }.
+import { NextRequest } from 'next/server';
+import { createApiHandler } from '../../../server/src/server';
 import { authenticateRequest } from '../../../server/src/shared/middleware/auth-middleware';
+import { validateBody } from '../../../server/src/shared/middleware/validate-middleware';
+import { HttpResponse } from '../../../server/src/shared/http/api-response';
+import { BadRequestError } from '../../../server/src/shared/errors/app-error';
+import {
+  CartService,
+  addToCartSchema,
+  updateCartItemSchema,
+  removeCartItemSchema,
+} from '../../../server/src/modules/cart/cart-service';
 
-export async function POST(req: NextRequest) {
-  try {
-    let userId: number | null = null;
-    try {
-      const { user: payload } = authenticateRequest(req);
-      userId = Number(payload.id);
-    } catch {
-      // Fallback guest identifier or unauthenticated default user
-      userId = 1;
-    }
+const cartService = new CartService();
 
-    const { bookId, quantity = 1 } = await req.json();
-    if (!bookId) {
-      return NextResponse.json(
-        { status: 'error', message: 'bookId is required' },
-        { status: 400 }
-      );
-    }
-
-    // Find or create cart for the user
-    let [cart] = await db
-      .select()
-      .from(carts)
-      .where(eq(carts.userId, userId))
-      .limit(1);
-
-    if (!cart) {
-      const [newCart]: any = await db.insert(carts).values({ userId });
-      const [created] = await db
-        .select()
-        .from(carts)
-        .where(eq(carts.cartId, newCart.insertId))
-        .limit(1);
-      cart = created;
-    }
-
-    // Check if the book is already in the cart
-    const [existingItem] = await db
-      .select()
-      .from(cartItems)
-      .where(
-        and(
-          eq(cartItems.cartId, cart.cartId),
-          eq(cartItems.bookId, Number(bookId))
-        )
-      )
-      .limit(1);
-
-    if (existingItem) {
-      await db
-        .update(cartItems)
-        .set({ quantity: existingItem.quantity + Number(quantity) })
-        .where(eq(cartItems.cartItemId, existingItem.cartItemId));
-    } else {
-      await db.insert(cartItems).values({
-        cartId: cart.cartId,
-        bookId: Number(bookId),
-        quantity: Number(quantity),
-      });
-    }
-
-    // Calculate total items count
-    const allItems: CartItem[] = await db
-      .select()
-      .from(cartItems)
-      .where(eq(cartItems.cartId, cart.cartId));
-
-    const totalCount = allItems.reduce(
-      (acc: number, item: CartItem) => acc + item.quantity,
-      0
-    );
-
-    return NextResponse.json({
-      status: 'success',
-      message: 'Added to cart',
-      data: { totalCount },
-    });
-  } catch (error: any) {
-    return NextResponse.json(
-      { status: 'error', message: error.message || 'Failed to update cart' },
-      { status: 500 }
-    );
-  }
+function getUserId(req: NextRequest): number {
+  const { user } = authenticateRequest(req);
+  return Number(user.id);
 }
-export async function DELETE(req: NextRequest) {
-  try {
-    let userId: number = 1;
-    try {
-      const { user: payload } = authenticateRequest(req);
-      userId = Number(payload.id);
-    } catch {
-      userId = 1;
-    }
 
-    const { bookId } = await req.json();
-    if (!bookId) {
-      return NextResponse.json({ status: 'error', message: 'bookId required' }, { status: 400 });
-    }
+// GET /api/cart -> list the cart
+export const GET = createApiHandler(async (req: NextRequest) => {
+  const userId = getUserId(req);
+  const cart = await cartService.getCart(userId);
+  return HttpResponse.success(cart, 'Cart retrieved');
+});
 
-    const [cart] = await db.select().from(carts).where(eq(carts.userId, userId)).limit(1);
-    if (cart) {
-      await db
-        .delete(cartItems)
-        .where(and(eq(cartItems.cartId, cart.cartId), eq(cartItems.bookId, Number(bookId))));
+// POST /api/cart { bookId, quantity = 1 } -> add a book or increase its quantity
+export const POST = createApiHandler(async (req: NextRequest) => {
+  const userId = getUserId(req);
+  // validateBody is typed by the schema input, so restate the default for TypeScript
+  const { bookId, quantity = 1 } = await validateBody(req, addToCartSchema);
+  const cart = await cartService.addItem(userId, bookId, quantity);
+  return HttpResponse.success(cart, 'Added to cart');
+});
 
-      const allItems: CartItem[] = await db
-        .select()
-        .from(cartItems)
-        .where(eq(cartItems.cartId, cart.cartId));
+// PATCH /api/cart { bookId, quantity } -> set the quantity of a book already in the cart
+export const PATCH = createApiHandler(async (req: NextRequest) => {
+  const userId = getUserId(req);
+  const { bookId, quantity } = await validateBody(req, updateCartItemSchema);
+  const cart = await cartService.setQuantity(userId, bookId, quantity);
+  return HttpResponse.success(cart, 'Cart updated');
+});
 
-      const totalCount = allItems.reduce((acc, item) => acc + item.quantity, 0);
+// DELETE /api/cart { bookId }  (or /api/cart?bookId=123) -> remove a book from the cart
+export const DELETE = createApiHandler(async (req: NextRequest) => {
+  const userId = getUserId(req);
 
-      return NextResponse.json({
-        status: 'success',
-        message: 'Item removed from cart',
-        data: { totalCount },
-      });
-    }
-
-    return NextResponse.json({ status: 'success', data: { totalCount: 0 } });
-  } catch (error: any) {
-    return NextResponse.json(
-      { status: 'error', message: error.message || 'Failed to remove from cart' },
-      { status: 500 }
-    );
+  const fromQuery = req.nextUrl.searchParams.get('bookId');
+  let bookId: number;
+  if (fromQuery !== null) {
+    const parsed = removeCartItemSchema.safeParse({ bookId: Number(fromQuery) });
+    if (!parsed.success) throw new BadRequestError('Validation failed', parsed.error.errors);
+    bookId = parsed.data.bookId;
+  } else {
+    ({ bookId } = await validateBody(req, removeCartItemSchema));
   }
-}
+
+  const cart = await cartService.removeItem(userId, bookId);
+  return HttpResponse.success(cart, 'Item removed from cart');
+});
