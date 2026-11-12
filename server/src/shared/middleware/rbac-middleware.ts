@@ -12,9 +12,9 @@ export function requireRole(allowedRoles: Array<'admin' | 'customer'>) {
   return function (handler: HandlerWithContext): HandlerWithContext {
     return async (req: NextRequest, context?: any) => {
       // Authenticate session first
-      const { payload } = authenticateRequest(req);
+      const { user: payload } = authenticateRequest(req);
 
-      if (!allowedRoles.includes(payload.role)) {
+      if (!allowedRoles.includes(payload.role as 'admin' | 'customer')) {
         throw new ForbiddenError('You do not have permission to perform this action');
       }
 

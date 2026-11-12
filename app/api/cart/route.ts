@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
   try {
     let userId: number | null = null;
     try {
-      const { payload } = authenticateRequest(req);
+      const { user: payload } = authenticateRequest(req);
       userId = Number(payload.id);
     } catch {
       // Fallback guest identifier or unauthenticated default user
@@ -93,7 +93,7 @@ export async function DELETE(req: NextRequest) {
   try {
     let userId: number = 1;
     try {
-      const { payload } = authenticateRequest(req);
+      const { user: payload } = authenticateRequest(req);
       userId = Number(payload.id);
     } catch {
       userId = 1;

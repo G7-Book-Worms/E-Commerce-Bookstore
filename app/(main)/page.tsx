@@ -1,10 +1,13 @@
 // app/(main)/page.tsx
 import { Suspense } from 'react';
+import { connection } from 'next/server';
 import { BooksService } from '../../server/src/modules/books/books-service';
 import { HeroBanner } from '@/components/home/HeroBanner';
 import { GenreCarousel } from '@/components/home/GenreCarousel';
 
 async function HomepageContent() {
+  // Books and promotions come from the database, so render at request time
+  await connection();
   const booksService = new BooksService();
   const feed = await booksService.getHomepageFeed();
 

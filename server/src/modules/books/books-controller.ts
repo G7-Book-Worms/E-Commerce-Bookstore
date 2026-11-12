@@ -13,7 +13,7 @@ export class BooksController {
     const limit = parseInt(url.searchParams.get('limit') || '20', 10);
     const offset = parseInt(url.searchParams.get('offset') || '0', 10);
 
-    const books = await booksService.listBooks({ genre, search, limit, offset });
+    const books = await booksService.getAllBooks({ genre, search, limit, offset });
     return HttpResponse.success(books);
   }
 

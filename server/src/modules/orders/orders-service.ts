@@ -1,4 +1,3 @@
-import crypto from 'crypto';
 import { OrdersRepository } from './orders-repository';
 import { CreateOrderInput } from './orders-schema';
 import { BooksRepository } from '../books/books-repository';
@@ -10,56 +9,52 @@ export class OrdersService {
     private booksRepo = new BooksRepository()
   ) {}
 
-  async createOrder(userId: string, input: CreateOrderInput) {
-    let computedTotal = 0;
-    const orderId = crypto.randomUUID();
-    const lineItemsToInsert = [];
+  /** Prices come from the database, never from the client. Totals are in cents. */
+  async createOrder(userId: number, input: CreateOrderInput) {
+    let totalCents = 0;
+    const lineItems = [];
 
     for (const item of input.items) {
       const book = await this.booksRepo.findById(item.bookId);
       if (!book) {
         throw new NotFoundError(`Book with ID ${item.bookId} not found`);
       }
-
       if (book.stock < item.quantity) {
         throw new BadRequestError(`Insufficient stock for "${book.title}"`);
       }
 
-      const numericPrice = parseFloat(book.price.toString());
-      computedTotal += numericPrice * item.quantity;
-
-      lineItemsToInsert.push({
-        id: crypto.randomUUID(),
-        orderId,
-        bookId: book.id,
+      totalCents += book.priceCents * item.quantity;
+      lineItems.push({
+        bookId: book.bookId,
         quantity: item.quantity,
-        unitPrice: numericPrice.toFixed(2),
+        // order_items.unit_price is still a DECIMAL in dollars
+        unitPrice: (book.priceCents / 100).toFixed(2),
       });
     }
 
-    return this.ordersRepo.create(
+    return this.ordersRepo.createOrder(
       {
-        id: orderId,
         userId,
-        totalAmount: computedTotal.toFixed(2),
-        shippingAddress: input.shippingAddress,
+        shippingAddressId: input.shippingAddressId,
+        note: input.note,
+        priceCents: totalCents,
         status: 'pending',
       },
-      lineItemsToInsert
+      lineItems
     );
   }
 
-  async getUserOrders(userId: string) {
+  async getUserOrders(userId: number) {
     return this.ordersRepo.findByUserId(userId);
   }
 
-  async getOrderDetails(orderId: string, requestingUserId: string, role: string) {
+  async getOrderDetails(orderId: number, requestingUserId: number, role: string) {
     const order = await this.ordersRepo.findById(orderId);
     if (!order) {
       throw new NotFoundError('Order not found');
     }
 
-    // Ensure non-admins only see their own orders
+    // Non-admins can only see their own orders
     if (order.userId !== requestingUserId && role !== 'admin') {
       throw new ForbiddenError('You are not authorized to view this order');
     }

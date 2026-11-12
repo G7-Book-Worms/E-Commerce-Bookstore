@@ -7,7 +7,7 @@ const ordersService = new OrdersService();
 
 export class OrdersController {
   static async create(req: NextRequest) {
-    const userId = req.headers.get('x-user-id') || '';
+    const userId = Number(req.headers.get('x-user-id'));
     const body = await req.json();
     const validated = createOrderInputSchema.parse(body);
 
@@ -16,13 +16,13 @@ export class OrdersController {
   }
 
   static async listUserOrders(req: NextRequest) {
-    const userId = req.headers.get('x-user-id') || '';
+    const userId = Number(req.headers.get('x-user-id'));
     const orders = await ordersService.getUserOrders(userId);
     return HttpResponse.success(orders);
   }
 
-  static async getById(req: NextRequest, orderId: string) {
-    const userId = req.headers.get('x-user-id') || '';
+  static async getById(req: NextRequest, orderId: number) {
+    const userId = Number(req.headers.get('x-user-id'));
     const role = req.headers.get('x-user-role') || 'customer';
 
     const order = await ordersService.getOrderDetails(orderId, userId, role);

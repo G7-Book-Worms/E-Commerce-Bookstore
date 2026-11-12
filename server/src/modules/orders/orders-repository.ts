@@ -1,4 +1,4 @@
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, sql, and, gte } from 'drizzle-orm';
 import { db } from '../../../db';
 import {
   orders,
@@ -7,6 +7,8 @@ import {
   NewOrder,
   NewOrderItem,
 } from './orders-schema';
+import { books } from '../books/books-schema';
+import { BadRequestError } from '../../shared/errors/app-error';
 
 export class OrdersRepository {
   async findById(orderId: number): Promise<Order | null> {
@@ -49,6 +51,18 @@ export class OrdersRepository {
           unitPrice: item.unitPrice,
         }));
         await tx.insert(orderItems).values(preparedItems);
+
+        // Take the ordered copies out of inventory in the same transaction
+        for (const item of itemsData) {
+          const [res]: any = await tx
+            .update(books)
+            .set({ stock: sql`${books.stock} - ${item.quantity}` })
+            .where(and(eq(books.bookId, item.bookId), gte(books.stock, item.quantity)));
+          // Another order may have bought the last copies since we checked
+          if (!res?.affectedRows) {
+            throw new BadRequestError('A book in your order just went out of stock');
+          }
+        }
       }
 
       const [created] = await tx

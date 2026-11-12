@@ -1,11 +1,12 @@
 // server/src/modules/books/books-repository.ts
-import { eq, desc, and, lte, gte } from 'drizzle-orm';
+import { eq, desc, and, lte, gte, or, like } from 'drizzle-orm';
 import { db } from '../../../db';
 import { books, bookCategories, Book, NewBook } from './books-schema';
 import { events } from '../events/events-schema';
 
 export interface BookFilterParams {
   genre?: string;
+  search?: string;
   limit?: number;
   offset?: number;
 }
@@ -51,10 +52,21 @@ export class BooksRepository {
           description: books.description,
           priceCents: books.priceCents,
           stock: books.stock,
+          coverImageUrl: books.coverImageUrl,
         })
         .from(books)
         .innerJoin(bookCategories, eq(books.categoryId, bookCategories.categoryId))
         .where(eq(bookCategories.slug, params.genre))
+        .limit(limit)
+        .offset(pageOffset);
+    }
+
+    if (params?.search) {
+      const term = `%${params.search}%`;
+      return db
+        .select()
+        .from(books)
+        .where(or(like(books.title, term), like(books.author, term), like(books.isbn, term)))
         .limit(limit)
         .offset(pageOffset);
     }
@@ -104,6 +116,7 @@ export class BooksRepository {
         description: books.description,
         priceCents: books.priceCents,
         stock: books.stock,
+        coverImageUrl: books.coverImageUrl,
         categoryName: bookCategories.name,
         categorySlug: bookCategories.slug,
       })

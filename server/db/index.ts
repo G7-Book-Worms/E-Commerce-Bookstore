@@ -8,4 +8,4 @@ const ssl = process.env.DB_SSL === "false" ? undefined : { rejectUnauthorized: f
 
 const pool = mysql.createPool({ uri: process.env.DATABASE_URL, ssl });
 
-export const db = drizzle({ client: pool, mode: "default" });
+export const db = drizzle({ client: pool });
