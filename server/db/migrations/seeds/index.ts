@@ -29,6 +29,13 @@ function ref(map: Map<string, number>, key: string, what: string): number {
 }
 
 async function seed() {
+  // Seeding inserts fixed rows, so only run it on an empty database.
+  const existing = await db.select({ id: books.bookId }).from(books).limit(1);
+  if (existing.length > 0) {
+    console.log("Database already has books; skipping seed (run it on an empty database).");
+    return;
+  }
+
   // ---------- No-dependency tables ----------
   const userRows = load("users");
   const [userRes] = await db.insert(users).values(userRows);

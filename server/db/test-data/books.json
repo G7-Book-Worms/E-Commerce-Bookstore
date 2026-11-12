@@ -5,7 +5,8 @@
     "author": "Author 1",
     "title": "Sample Book 1",
     "description": "Description for sample book 1.",
-    "stock": 10
+    "stock": 10,
+    "priceCents": 1299
   },
   {
     "categorySlug": "science",
@@ -13,7 +14,8 @@
     "author": "Author 2",
     "title": "Sample Book 2",
     "description": "Description for sample book 2.",
-    "stock": 15
+    "stock": 15,
+    "priceCents": 1499
   },
   {
     "categorySlug": "history",
@@ -21,7 +23,8 @@
     "author": "Author 3",
     "title": "Sample Book 3",
     "description": "Description for sample book 3.",
-    "stock": 20
+    "stock": 20,
+    "priceCents": 1699
   },
   {
     "categorySlug": "technology",
@@ -29,7 +32,8 @@
     "author": "Author 4",
     "title": "Sample Book 4",
     "description": "Description for sample book 4.",
-    "stock": 25
+    "stock": 25,
+    "priceCents": 1899
   },
   {
     "categorySlug": "fantasy",
@@ -37,7 +41,8 @@
     "author": "Author 5",
     "title": "Sample Book 5",
     "description": "Description for sample book 5.",
-    "stock": 30
+    "stock": 30,
+    "priceCents": 2199
   },
   {
     "categorySlug": "fiction",
@@ -45,7 +50,8 @@
     "author": "Author 6",
     "title": "Sample Book 6",
     "description": "Description for sample book 6.",
-    "stock": 10
+    "stock": 10,
+    "priceCents": 2499
   },
   {
     "categorySlug": "science",
@@ -53,7 +59,8 @@
     "author": "Author 7",
     "title": "Sample Book 7",
     "description": "Description for sample book 7.",
-    "stock": 15
+    "stock": 15,
+    "priceCents": 2799
   },
   {
     "categorySlug": "history",
@@ -61,7 +68,8 @@
     "author": "Author 8",
     "title": "Sample Book 8",
     "description": "Description for sample book 8.",
-    "stock": 20
+    "stock": 20,
+    "priceCents": 999
   },
   {
     "categorySlug": "technology",
@@ -69,7 +77,8 @@
     "author": "Author 9",
     "title": "Sample Book 9",
     "description": "Description for sample book 9.",
-    "stock": 25
+    "stock": 25,
+    "priceCents": 3499
   },
   {
     "categorySlug": "fantasy",
@@ -77,7 +86,8 @@
     "author": "Author 10",
     "title": "Sample Book 10",
     "description": "Description for sample book 10.",
-    "stock": 30
+    "stock": 30,
+    "priceCents": 1599
   },
   {
     "categorySlug": "fiction",
@@ -85,7 +95,8 @@
     "author": "Author 11",
     "title": "Sample Book 11",
     "description": "Description for sample book 11.",
-    "stock": 10
+    "stock": 10,
+    "priceCents": 1299
   },
   {
     "categorySlug": "science",
@@ -93,7 +104,8 @@
     "author": "Author 12",
     "title": "Sample Book 12",
     "description": "Description for sample book 12.",
-    "stock": 15
+    "stock": 15,
+    "priceCents": 1499
   },
   {
     "categorySlug": "history",
@@ -101,7 +113,8 @@
     "author": "Author 13",
     "title": "Sample Book 13",
     "description": "Description for sample book 13.",
-    "stock": 20
+    "stock": 20,
+    "priceCents": 1699
   },
   {
     "categorySlug": "technology",
@@ -109,7 +122,8 @@
     "author": "Author 14",
     "title": "Sample Book 14",
     "description": "Description for sample book 14.",
-    "stock": 25
+    "stock": 25,
+    "priceCents": 1899
   },
   {
     "categorySlug": "fantasy",
@@ -117,7 +131,8 @@
     "author": "Author 15",
     "title": "Sample Book 15",
     "description": "Description for sample book 15.",
-    "stock": 30
+    "stock": 30,
+    "priceCents": 2199
   },
   {
     "categorySlug": "fiction",
@@ -125,7 +140,8 @@
     "author": "Author 16",
     "title": "Sample Book 16",
     "description": "Description for sample book 16.",
-    "stock": 10
+    "stock": 10,
+    "priceCents": 2499
   },
   {
     "categorySlug": "science",
@@ -133,7 +149,8 @@
     "author": "Author 17",
     "title": "Sample Book 17",
     "description": "Description for sample book 17.",
-    "stock": 15
+    "stock": 15,
+    "priceCents": 2799
   },
   {
     "categorySlug": "history",
@@ -141,7 +158,8 @@
     "author": "Author 18",
     "title": "Sample Book 18",
     "description": "Description for sample book 18.",
-    "stock": 20
+    "stock": 20,
+    "priceCents": 999
   },
   {
     "categorySlug": "technology",
@@ -149,7 +167,8 @@
     "author": "Author 19",
     "title": "Sample Book 19",
     "description": "Description for sample book 19.",
-    "stock": 25
+    "stock": 25,
+    "priceCents": 3499
   },
   {
     "categorySlug": "fantasy",
@@ -157,7 +176,8 @@
     "author": "Author 20",
     "title": "Sample Book 20",
     "description": "Description for sample book 20.",
-    "stock": 30
+    "stock": 30,
+    "priceCents": 1599
   },
   {
     "categorySlug": "fiction",
@@ -165,7 +185,8 @@
     "author": "Author 21",
     "title": "Sample Book 21",
     "description": "Description for sample book 21.",
-    "stock": 10
+    "stock": 10,
+    "priceCents": 1299
   },
   {
     "categorySlug": "science",
@@ -173,7 +194,8 @@
     "author": "Author 22",
     "title": "Sample Book 22",
     "description": "Description for sample book 22.",
-    "stock": 15
+    "stock": 15,
+    "priceCents": 1499
   },
   {
     "categorySlug": "history",
@@ -181,7 +203,8 @@
     "author": "Author 23",
     "title": "Sample Book 23",
     "description": "Description for sample book 23.",
-    "stock": 20
+    "stock": 20,
+    "priceCents": 1699
   },
   {
     "categorySlug": "technology",
@@ -189,7 +212,8 @@
     "author": "Author 24",
     "title": "Sample Book 24",
     "description": "Description for sample book 24.",
-    "stock": 25
+    "stock": 25,
+    "priceCents": 1899
   },
   {
     "categorySlug": "fantasy",
@@ -197,7 +221,8 @@
     "author": "Author 25",
     "title": "Sample Book 25",
     "description": "Description for sample book 25.",
-    "stock": 30
+    "stock": 30,
+    "priceCents": 2199
   },
   {
     "categorySlug": "fiction",
@@ -205,7 +230,8 @@
     "author": "Author 26",
     "title": "Sample Book 26",
     "description": "Description for sample book 26.",
-    "stock": 10
+    "stock": 10,
+    "priceCents": 2499
   },
   {
     "categorySlug": "science",
@@ -213,7 +239,8 @@
     "author": "Author 27",
     "title": "Sample Book 27",
     "description": "Description for sample book 27.",
-    "stock": 15
+    "stock": 15,
+    "priceCents": 2799
   },
   {
     "categorySlug": "history",
@@ -221,7 +248,8 @@
     "author": "Author 28",
     "title": "Sample Book 28",
     "description": "Description for sample book 28.",
-    "stock": 20
+    "stock": 20,
+    "priceCents": 999
   },
   {
     "categorySlug": "technology",
@@ -229,7 +257,8 @@
     "author": "Author 29",
     "title": "Sample Book 29",
     "description": "Description for sample book 29.",
-    "stock": 25
+    "stock": 25,
+    "priceCents": 3499
   },
   {
     "categorySlug": "fantasy",
@@ -237,6 +266,7 @@
     "author": "Author 30",
     "title": "Sample Book 30",
     "description": "Description for sample book 30.",
-    "stock": 30
+    "stock": 30,
+    "priceCents": 1599
   }
 ]

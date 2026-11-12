@@ -4,69 +4,69 @@
     "lastName": "Lovelace",
     "phone": "555-0100",
     "email": "ada.lovelace@example.com",
-    "passwordHash": "hashed-password"
+    "passwordHash": "$2b$10$lTuW6bDzSY/Cc.wLVfoIWuQvnoodhKW4.cpbVGu7hcoavC.FdKx1K"
   },
   {
     "firstName": "Alan",
     "lastName": "Turing",
     "phone": "555-0101",
     "email": "alan.turing@example.com",
-    "passwordHash": "hashed-password"
+    "passwordHash": "$2b$10$lTuW6bDzSY/Cc.wLVfoIWuQvnoodhKW4.cpbVGu7hcoavC.FdKx1K"
   },
   {
     "firstName": "Grace",
     "lastName": "Hopper",
     "phone": "555-0102",
     "email": "grace.hopper@example.com",
-    "passwordHash": "hashed-password"
+    "passwordHash": "$2b$10$lTuW6bDzSY/Cc.wLVfoIWuQvnoodhKW4.cpbVGu7hcoavC.FdKx1K"
   },
   {
     "firstName": "Linus",
     "lastName": "Torvalds",
     "phone": "555-0103",
     "email": "linus.torvalds@example.com",
-    "passwordHash": "hashed-password"
+    "passwordHash": "$2b$10$lTuW6bDzSY/Cc.wLVfoIWuQvnoodhKW4.cpbVGu7hcoavC.FdKx1K"
   },
   {
     "firstName": "Margaret",
     "lastName": "Hamilton",
     "phone": "555-0104",
     "email": "margaret.hamilton@example.com",
-    "passwordHash": "hashed-password"
+    "passwordHash": "$2b$10$lTuW6bDzSY/Cc.wLVfoIWuQvnoodhKW4.cpbVGu7hcoavC.FdKx1K"
   },
   {
     "firstName": "Dennis",
     "lastName": "Ritchie",
     "phone": "555-0105",
     "email": "dennis.ritchie@example.com",
-    "passwordHash": "hashed-password"
+    "passwordHash": "$2b$10$lTuW6bDzSY/Cc.wLVfoIWuQvnoodhKW4.cpbVGu7hcoavC.FdKx1K"
   },
   {
     "firstName": "Barbara",
     "lastName": "Liskov",
     "phone": "555-0106",
     "email": "barbara.liskov@example.com",
-    "passwordHash": "hashed-password"
+    "passwordHash": "$2b$10$lTuW6bDzSY/Cc.wLVfoIWuQvnoodhKW4.cpbVGu7hcoavC.FdKx1K"
   },
   {
     "firstName": "Ken",
     "lastName": "Thompson",
     "phone": "555-0107",
     "email": "ken.thompson@example.com",
-    "passwordHash": "hashed-password"
+    "passwordHash": "$2b$10$lTuW6bDzSY/Cc.wLVfoIWuQvnoodhKW4.cpbVGu7hcoavC.FdKx1K"
   },
   {
     "firstName": "Radia",
     "lastName": "Perlman",
     "phone": "555-0108",
     "email": "radia.perlman@example.com",
-    "passwordHash": "hashed-password"
+    "passwordHash": "$2b$10$lTuW6bDzSY/Cc.wLVfoIWuQvnoodhKW4.cpbVGu7hcoavC.FdKx1K"
   },
   {
     "firstName": "Donald",
     "lastName": "Knuth",
     "phone": "555-0109",
     "email": "donald.knuth@example.com",
-    "passwordHash": "hashed-password"
+    "passwordHash": "$2b$10$lTuW6bDzSY/Cc.wLVfoIWuQvnoodhKW4.cpbVGu7hcoavC.FdKx1K"
   }
 ]

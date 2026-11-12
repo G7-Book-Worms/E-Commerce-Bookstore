@@ -1,27 +1,19 @@
-// server/src/modules/books/books-schema.ts
-import { mysqlTable, int, varchar, text } from 'drizzle-orm/mysql-core';
+// Tables live in server/db/schema.ts (the single source of truth for the DB).
+import { z } from 'zod';
+export { books, bookCategories } from '../../../db/schema';
+export type { Book, NewBook, BookCategory } from '../../../db/schema';
 
-export const bookCategories = mysqlTable('book_categories', {
-  categoryId: int('category_id').autoincrement().primaryKey().notNull(),
-  name: varchar('name', { length: 50 }).notNull(),
-  slug: varchar('slug', { length: 50 }).notNull(),
+export const createBookInputSchema = z.object({
+  isbn: z.string().min(10).max(17),
+  title: z.string().min(1).max(200),
+  author: z.string().min(1).max(100),
+  description: z.string().min(1),
+  priceCents: z.number().int().min(0),
+  stock: z.number().int().min(0).default(0),
+  categoryId: z.number().int().positive().nullable().optional(),
+  coverImageUrl: z.string().url().max(500).nullable().optional(),
 });
+export const updateBookInputSchema = createBookInputSchema.partial();
 
-export const books = mysqlTable('books', {
-  bookId: int('book_id').autoincrement().primaryKey().notNull(),
-  categoryId: int('category_id').references(() => bookCategories.categoryId),
-  isbn: varchar('isbn', { length: 17 }).notNull(),
-  author: varchar('author', { length: 100 }).notNull(),
-  title: varchar('title', { length: 200 }).notNull(),
-  description: text('description').notNull(),
-  priceCents: int('price_cents').notNull().default(0),
-  stock: int('stock').default(0).notNull(),
-});
-
-export type Book = typeof books.$inferSelect;
-export type NewBook = typeof books.$inferInsert;
-export type BookCategory = typeof bookCategories.$inferSelect;
-
-// Export DTO types required by books-service.ts
-export type CreateBookInput = Omit<NewBook, 'bookId'>;
-export type UpdateBookInput = Partial<CreateBookInput>;
+export type CreateBookInput = z.infer<typeof createBookInputSchema>;
+export type UpdateBookInput = z.infer<typeof updateBookInputSchema>;

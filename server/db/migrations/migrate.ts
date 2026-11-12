@@ -21,7 +21,7 @@ async function runMigrations() {
     user: decodeURIComponent(url.username),
     password: decodeURIComponent(url.password),
     database: url.pathname.slice(1),
-    ssl: { rejectUnauthorized: false },
+    ssl: process.env.DB_SSL === "false" ? undefined : { rejectUnauthorized: false },
     multipleStatements: true,
   });
 
