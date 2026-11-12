@@ -1,22 +1,15 @@
 import { NextRequest } from 'next/server';
 import { createApiHandler } from '../../../../server/src/server';
 import { UsersController } from '../../../../server/src/modules/users/users-controller';
-import { authenticateRequest } from '../../../../server/src/shared/middleware/auth-middleware';
+import { authenticateRequest, withAuthHeaders } from '../../../../server/src/shared/middleware/auth-middleware';
 
-export async function GET(req: NextRequest) {
-  try {
-    const { headers } = authenticateRequest(req);
-    const mutatedReq = new NextRequest(req.url, { headers });
-    return await UsersController.getProfile(mutatedReq);
-  } catch (error: any) {
-    return Response.json(
-      { status: 'error', message: error.message || 'Unauthorized' },
-      { status: error.statusCode || 401 }
-    );
-  }
-}
+// Copying the request keeps its method and body; only the auth headers are added.
+export const GET = createApiHandler(async (req: NextRequest) => {
+  const { headers } = authenticateRequest(req);
+  return UsersController.getProfile(withAuthHeaders(req, headers));
+});
 
 export const PATCH = createApiHandler(async (req: NextRequest) => {
   const { headers } = authenticateRequest(req);
-  return UsersController.updateProfile(new NextRequest(req.url, { headers, body: req.body }));
+  return UsersController.updateProfile(withAuthHeaders(req, headers));
 });

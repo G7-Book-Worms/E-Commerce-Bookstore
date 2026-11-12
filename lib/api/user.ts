@@ -54,7 +54,7 @@ export async function fetchUserProfile(): Promise<UserProfile> {
   });
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data.message || `Failed to fetch profile (Status ${res.status})`);
+    throw new Error(data.error || data.message || `Failed to fetch profile (Status ${res.status})`);
   }
   return data.data;
 }
@@ -74,7 +74,7 @@ export async function updateUserProfile(payload: {
   });
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data.message || `Failed to update profile (Status ${res.status})`);
+    throw new Error(data.error || data.message || `Failed to update profile (Status ${res.status})`);
   }
   return data.data;
 }
@@ -93,7 +93,7 @@ export async function changeUserPassword(payload: {
   });
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data.message || `Failed to change password (Status ${res.status})`);
+    throw new Error(data.error || data.message || `Failed to change password (Status ${res.status})`);
   }
   return data.data;
 }
@@ -107,7 +107,7 @@ export async function fetchUserAddresses(): Promise<AddressItem[]> {
   });
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data.message || `Failed to fetch addresses (Status ${res.status})`);
+    throw new Error(data.error || data.message || `Failed to fetch addresses (Status ${res.status})`);
   }
   return data.data || [];
 }
@@ -124,7 +124,7 @@ export async function createUserAddress(
   });
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data.message || `Failed to save address (Status ${res.status})`);
+    throw new Error(data.error || data.message || `Failed to save address (Status ${res.status})`);
   }
   return data.data;
 }
@@ -142,7 +142,7 @@ export async function updateUserAddress(
   });
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data.message || `Failed to update address (Status ${res.status})`);
+    throw new Error(data.error || data.message || `Failed to update address (Status ${res.status})`);
   }
   return data.data;
 }
@@ -155,7 +155,7 @@ export async function deleteUserAddress(id: number): Promise<void> {
   });
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data.message || `Failed to delete address (Status ${res.status})`);
+    throw new Error(data.error || data.message || `Failed to delete address (Status ${res.status})`);
   }
 }
 
@@ -171,7 +171,7 @@ export async function fetchUserOrders(
   });
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data.message || `Failed to load orders (Status ${res.status})`);
+    throw new Error(data.error || data.message || `Failed to load orders (Status ${res.status})`);
   }
   return data.data || { orders: [], total: 0 };
 }

@@ -86,7 +86,9 @@ function LoginForm() {
         setUserSession(sessionData.user);
 
         // Force a full browser navigation to ensure cookie is read in (main)
-        window.location.href = callbackUrl && callbackUrl.startsWith('/') ? callbackUrl : '/';
+        // Only same-site paths: '//evil.com' would leave the site
+        window.location.href =
+          callbackUrl && callbackUrl.startsWith('/') && !callbackUrl.startsWith('//') ? callbackUrl : '/';
       } catch (err: any) {
         if (err instanceof AuthApiError) {
           setServerError(err.message);

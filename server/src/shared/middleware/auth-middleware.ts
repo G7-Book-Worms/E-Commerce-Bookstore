@@ -34,3 +34,16 @@ export function authenticateRequest(req: NextRequest) {
     user: payload,
   };
 }
+/**
+ * Copy a request and add the authenticated user's headers (x-user-id, x-user-role, ...).
+ * Method and body are passed explicitly: `new NextRequest(url, { headers })` alone turns a
+ * POST/PATCH into a body-less GET.
+ */
+export function withAuthHeaders(req: NextRequest, headers: Headers): NextRequest {
+  const hasBody = req.method !== 'GET' && req.method !== 'HEAD';
+  return new NextRequest(req.url, {
+    method: req.method,
+    headers,
+    ...(hasBody ? { body: req.body, duplex: 'half' } : {}),
+  } as ConstructorParameters<typeof NextRequest>[1]);
+}

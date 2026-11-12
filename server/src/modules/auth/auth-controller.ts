@@ -17,7 +17,8 @@ export class AuthController {
 
     const result = await authService.register(validatedInput);
 
-    const response = HttpResponse.created(result, 'User registered successfully');
+    // The token only goes in the httpOnly cookie, never in the JSON body
+    const response = HttpResponse.created({ user: result.user }, 'User registered successfully');
     setAuthCookie(response, result.token);
     return response;
   }
@@ -31,7 +32,7 @@ export class AuthController {
 
     const result = await authService.login(validatedInput);
 
-    const response = HttpResponse.success(result, 'Logged in successfully');
+    const response = HttpResponse.success({ user: result.user }, 'Logged in successfully');
     setAuthCookie(response, result.token);
     return response;
   }
