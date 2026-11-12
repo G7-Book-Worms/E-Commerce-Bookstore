@@ -52,7 +52,7 @@
 | ◆ | Product detail page — formats, pricing, sale badges, ratings | `/product/[isbn]` | ◐ In progress |
 | ◆ | Shopping cart with live quantity and subtotal updates | `/cart` | ◐ In progress |
 | ◆ | Customer sign-in / sign-up | `/user-sign-in` | ◐ UI only |
-| ◆ | User account page | `/User` | ◐ In progress |
+| ◆ | User account page | `/account/info` | ◐ In progress |
 | ◇ | Administrative portal | — | ○ Planned |
 | ◇ | Checkout and payments | — | ○ Planned |
 

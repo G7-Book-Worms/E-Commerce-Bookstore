@@ -94,7 +94,7 @@ export const Header: React.FC = () => {
             <div className="h-9 w-24 bg-stone-100 rounded-md animate-pulse" />
           ) : user ? (
             <Link
-              href="/user"
+              href="/account"
               className="h-9 px-3 rounded-md border border-stone-200 bg-stone-50 hover:bg-stone-100 text-stone-900 text-xs font-medium inline-flex items-center gap-2 transition"
             >
               <span className="w-5 h-5 rounded-full bg-stone-900 text-stone-50 flex items-center justify-center text-[10px] font-semibold">

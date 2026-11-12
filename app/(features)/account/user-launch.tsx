@@ -101,7 +101,7 @@ export default function UserLaunch() {
             {/* Sign out */}
             <div className="mt-8">
                 <Button variant="destructive">
-                    <LogOut className="h-4, w-4" />
+                    <LogOut className="h-4 w-4" />
                     Sign Out
                 </Button>
             </div>
