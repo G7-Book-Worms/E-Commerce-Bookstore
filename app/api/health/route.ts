@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
-import { apiHandler } from "@/server/http";
 
-export const GET = apiHandler(() => NextResponse.json({ status: "ok" }));
+// GET /api/health -> quick "is the server up?" check
+export function GET() {
+  return NextResponse.json({ status: "ok" });
+}

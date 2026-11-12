@@ -1,17 +1,24 @@
-import { NextResponse } from "next/server";
-import { apiHandler } from "@/server/http";
-import { NotFoundError, ValidationError } from "@/server/errors";
-import { books } from "@/lib/sample-books"; // adjust to actual export name
+import { NextRequest } from "next/server";
+import { createApiHandler } from "@/server/src/server";
+import { BooksRepository } from "@/server/src/modules/books/books-repository";
+import { HttpResponse } from "@/server/src/shared/http/api-response";
+import { BadRequestError, NotFoundError } from "@/server/src/shared/errors/app-error";
 
-export const GET = apiHandler(async (_req, ctx) => {
-  const { isbn } = (await ctx.params) as { isbn: string };
+// GET /api/books/:isbn -> one book from the database
+export const GET = createApiHandler(
+  async (_req: NextRequest, ctx: { params: Promise<{ isbn: string }> }) => {
+    const { isbn } = await ctx.params;
+    const normalized = isbn.replace(/-/g, "");
 
-  if (!/^\d{10}(\d{3})?$/.test(isbn)) {
-    throw new ValidationError({ isbn: "Must be a 10 or 13 digit ISBN" });
+    if (!/^\d{10}(\d{3})?$/.test(normalized)) {
+      throw new BadRequestError("ISBN must be 10 or 13 digits");
+    }
+
+    const book =
+      (await new BooksRepository().findByIsbn(normalized)) ??
+      (await new BooksRepository().findByIsbn(isbn));
+    if (!book) throw new NotFoundError("Book not found");
+
+    return HttpResponse.success(book);
   }
-
-  const book = books.find((b) => b.isbn === isbn);
-  if (!book) throw new NotFoundError("Book");
-
-  return NextResponse.json(book);
-});
+);
