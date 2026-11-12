@@ -2,21 +2,36 @@ import { z } from 'zod';
 
 /**
  * Registration Input Validation
- * - Name: Minimum 2 characters, trimmed.
+ * - First/last name: required, trimmed, max 50 characters (matches users table).
  * - Email: Strict email format, normalized to lowercase.
- * - Password Complexity: Minimum 8 characters, at least 1 uppercase letter, 
+ * - Phone: optional. Blank or missing is stored as NULL (users.phone is UNIQUE,
+ *   so storing '' would make the second phone-less sign-up fail).
+ * - Password Complexity: Minimum 8 characters, at least 1 uppercase letter,
  *   1 lowercase letter, 1 number, and 1 special symbol.
  */
 export const registerInputSchema = z.object({
-  name: z
-    .string({ required_error: 'Name is required' })
+  firstName: z
+    .string({ required_error: 'First name is required' })
     .trim()
-    .min(2, 'Name must be at least 2 characters long')
-    .max(100, 'Name cannot exceed 100 characters'),
+    .min(1, 'First name is required')
+    .max(50, 'First name cannot exceed 50 characters'),
+  lastName: z
+    .string({ required_error: 'Last name is required' })
+    .trim()
+    .min(1, 'Last name is required')
+    .max(50, 'Last name cannot exceed 50 characters'),
+  phone: z
+    .string()
+    .trim()
+    .max(20, 'Phone number cannot exceed 20 characters')
+    .optional()
+    .nullable()
+    .transform((value) => (value ? value : null)),
   email: z
     .string({ required_error: 'Email is required' })
     .trim()
     .email('Invalid email address')
+    .max(100, 'Email cannot exceed 100 characters')
     .toLowerCase(),
   password: z
     .string({ required_error: 'Password is required' })
@@ -43,12 +58,3 @@ export const loginInputSchema = z.object({
 
 export type RegisterInput = z.infer<typeof registerInputSchema>;
 export type LoginInput = z.infer<typeof loginInputSchema>;
-
-// Sanitized user profile returned across auth responses
-export interface SanitizedUser {
-  id: string;
-  name: string;
-  email: string;
-  role: 'customer' | 'admin';
-  createdAt: Date;
-}

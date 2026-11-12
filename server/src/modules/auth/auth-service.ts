@@ -4,7 +4,7 @@ import { loginInputSchema, registerInputSchema } from './auth-schema';
 import { z } from 'zod';
 import { comparePassword, hashPassword } from '../../shared/utils/hash-utils';
 import { generateToken } from '../../shared/utils/token-util';
-import { UnauthorizedError, NotFoundError, BadRequestError } from '../../shared/errors/app-error';
+import { UnauthorizedError, NotFoundError, ConflictError } from '../../shared/errors/app-error';
 
 export type LoginInput = z.infer<typeof loginInputSchema>;
 export type RegisterInput = z.infer<typeof registerInputSchema>;
@@ -16,7 +16,7 @@ export interface SanitizedUser {
   lastName: string;
   name: string;
   email: string;
-  phone: string;
+  phone: string | null;
   role: 'customer';
   created: Date;
 }
@@ -61,23 +61,28 @@ export class AuthService {
     // Check collision solely during account creation
     const existingUser = await this.usersRepo.findByEmail(normalizedEmail);
     if (existingUser) {
-      throw new BadRequestError('An account with this email already exists. Please sign in instead.');
+      throw new ConflictError('An account with this email already exists. Please sign in instead.');
     }
-
-    // Parse single 'name' field from RegisterInput into firstName and lastName
-    const nameParts = input.name.trim().split(/\s+/);
-    const firstName = nameParts[0] || 'Member';
-    const lastName = nameParts.slice(1).join(' ') || '';
 
     const hashedPassword = await hashPassword(input.password);
 
-    const newUser = await this.usersRepo.createUser({
-      firstName,
-      lastName,
-      email: normalizedEmail,
-      passwordHash: hashedPassword,
-      phone: '',
-    });
+    let newUser: User;
+    try {
+      newUser = await this.usersRepo.createUser({
+        firstName: input.firstName,
+        lastName: input.lastName,
+        email: normalizedEmail,
+        passwordHash: hashedPassword,
+        // users.phone is UNIQUE but nullable: store NULL (never '') when no phone was given
+        phone: input.phone || null,
+      });
+    } catch (error) {
+      // Two requests racing for the same email, or a phone number already in use
+      if (isDuplicateKeyError(error)) {
+        throw new ConflictError('An account with this email or phone number already exists.');
+      }
+      throw error;
+    }
 
     const token = generateToken({
       id: newUser.userId,
@@ -113,9 +118,22 @@ export class AuthService {
       lastName: user.lastName,
       name: `${user.firstName} ${user.lastName}`.trim(),
       email: user.email,
-      phone: user.phone || '',
+      phone: user.phone ?? null,
       role: 'customer',
       created: user.created,
     };
   }
+}
+
+/**
+ * True when a MySQL/MariaDB insert failed on a UNIQUE index (ER_DUP_ENTRY / errno 1062).
+ * Drizzle may wrap the driver error, so the cause chain is checked too.
+ */
+function isDuplicateKeyError(error: unknown): boolean {
+  let current: any = error;
+  for (let depth = 0; current && depth < 5; depth++) {
+    if (current.code === 'ER_DUP_ENTRY' || current.errno === 1062) return true;
+    current = current.cause;
+  }
+  return false;
 }

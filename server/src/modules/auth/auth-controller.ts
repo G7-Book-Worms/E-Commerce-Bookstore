@@ -1,27 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { AuthService } from './auth-service';
 import { registerInputSchema, loginInputSchema } from './auth-schema';
 import { HttpResponse } from '../../shared/http/api-response';
 import { HttpStatus } from '../../shared/http/status-codes';
-import { env } from '../../config/env';
+import { setAuthCookie, clearAuthCookie } from '../../shared/utils/cookie-utils';
 
 const authService = new AuthService();
-const COOKIE_NAME = 'auth_token';
-
-/**
- * Configure standard secure HTTP-Only cookie parameters
- */
-function setAuthCookie(response: NextResponse, token: string) {
-  response.cookies.set({
-    name: COOKIE_NAME,
-    value: token,
-    httpOnly: true,
-    secure: env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 60 * 60 * 24 * 7, // 7 days in seconds (604,800s)
-  });
-}
 
 export class AuthController {
   /**
@@ -55,8 +39,6 @@ export class AuthController {
   /**
    * SCRUM-85: GET /api/auth/me
    */
- 
-// server/src/modules/auth/auth-controller.ts
   static async getMe(req: NextRequest) {
     const userIdHeader = req.headers.get('x-user-id');
     const numericUserId = Number(userIdHeader);
@@ -78,16 +60,7 @@ export class AuthController {
   static async logout() {
     const response = HttpResponse.success({ loggedOut: true }, 'Logged out successfully');
 
-    // Clear the HTTP cookie by setting maxAge to 0
-    response.cookies.set({
-      name: COOKIE_NAME,
-      value: '',
-      httpOnly: true,
-      secure: env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 0,
-    });
+    clearAuthCookie(response);
 
     return response;
   }
