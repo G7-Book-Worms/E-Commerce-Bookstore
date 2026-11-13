@@ -14,24 +14,36 @@ function sslOptions() {
 }
 export const ssl = sslOptions();
 
-// Our Aiven plan allows 76 connections across the whole server. Every Vercel serverless
-// instance builds its own pool, and `next dev` builds a fresh one on each hot reload, so
-// mysql2's defaults (ten connections, all of them kept idle) exhaust the server quickly:
-// idle connections are only reaped after wait_timeout, which is 8 hours on this database.
-// A small pool that releases idle connections, reused once per process, is what keeps the
-// site from failing with "Too many connections" when more than a few people use it at once.
+// Our Aiven plan allows 76 connections across the whole server, and mysql2 defaults to a
+// pool of ten that it keeps idle. Every Vercel serverless instance builds its own pool, and
+// a frozen instance cannot run timers, so its idle connections are not reaped by mysql2 at
+// all - they sit until the instance is recycled or the server's wait_timeout expires, which
+// is 8 hours here. One production instance was observed holding all ten for six minutes with
+// no traffic. Capping the pool is therefore the part that matters in production; `next dev`
+// compounds it differently, by building a fresh pool on every hot reload unless one is
+// reused per process. Together these keep the site from failing with "Too many connections".
 function createPool() {
   return mysql.createPool({
     uri: process.env.DATABASE_URL,
     ssl,
     connectionLimit: Number(process.env.DB_POOL_SIZE ?? 3),
+    // maxIdle + idleTimeout are what stop a dead connection being handed to a request.
+    // When a machine sleeps or changes network its connections are silently dropped: the
+    // sockets look fine locally, so mysql2 keeps them pooled and reuses them, and the next
+    // query writes into a black hole. Measured against a severed connection, the defaults
+    // reused one that had been idle 40s and the query never returned; discarding idle
+    // connections after 30s instead means a fresh one is opened and the attempt fails in
+    // connectTimeout. This is also what keeps the pool small between bursts.
     maxIdle: 1,
     idleTimeout: 30_000,
-    // Without keep-alive a pooled connection dies silently when the machine sleeps or
-    // switches network, and the next query hangs until it fails with ETIMEDOUT.
+    // Keep-alive is prevention, not detection: the probes keep the connection present in
+    // NAT and firewall tables so it is less likely to be dropped while idle. It is not a
+    // way to notice a connection that has already died - with this server's kernel settings
+    // TCP would need about 11 minutes (a 10s idle delay, then 9 probes 75s apart) to give up.
     enableKeepAlive: true,
     keepAliveInitialDelay: 10_000,
-    // Fail fast on an unreachable database instead of hanging for ~20 seconds.
+    // Bounds the replacement attempt when the database is unreachable: 10s and a clear
+    // ETIMEDOUT, rather than a request that hangs indefinitely.
     connectTimeout: 10_000,
   });
 }
