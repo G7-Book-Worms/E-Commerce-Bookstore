@@ -1,9 +1,9 @@
 // pnpm demo:reset — run before the presentation (and after rehearsals).
 // 1. Re-applies the catalog seed: stock, prices, sale prices, tags, ratings and discount codes
 //    go back to the values in server/db/test-data (undoing rehearsal purchases).
-// 2. Gets the demo customer accounts ready: password back to BookWorms123!, account enabled,
+// 2. Gets the demo customer accounts ready: password back to the seeded demo password, account enabled,
 //    and the cart emptied, so the live demo starts from an empty cart.
-// 3. Demo staff (one per role) get BookWorms123! back, are re-enabled and signed out.
+// 3. Demo staff (one per role) get the seeded demo password back, are re-enabled and signed out.
 // 4. Sign-in lockouts and rate-limit counters are cleared.
 // Orders placed during rehearsals stay (they show up in order history and the staff portal).
 import "dotenv/config";
@@ -54,8 +54,8 @@ async function main() {
     await db.delete(cartItems).where(inArray(cartItems.cartId, demoCarts.map((c) => c.cartId)));
   }
 
-  console.log(`Demo reset done: catalog restored; ${DEMO_EMAILS.join(", ")} have password BookWorms123! and empty carts;`);
-  console.log(`staff ${staff.map((s) => s.email).join(", ")} have password BookWorms123!; lockouts cleared.`);
+  console.log(`Demo reset done: catalog restored; ${DEMO_EMAILS.join(", ")} are back to the demo password with empty carts;`);
+  console.log(`staff ${staff.map((s) => s.email).join(", ")} are back to the demo password; lockouts cleared.`);
 }
 
 main()

@@ -20,7 +20,7 @@ Status: **Met** = works on `main` · **This PR** = done in `final/1-data-catalog
 ## Before the demo
 
 Run `pnpm demo:reset` against Aiven before the presentation and after every rehearsal. It re-runs the catalog seed
-(stock, prices, codes) and empties the demo account's cart (`ada.lovelace@example.com`, password `BookWorms123!`).
+(stock, prices, codes) and empties the demo account's cart (`ada.lovelace@example.com`).
 Sign in once afterwards to confirm the cart is empty.
 
 ## Demo checklist
