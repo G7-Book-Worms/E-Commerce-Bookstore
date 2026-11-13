@@ -12,7 +12,8 @@
     "start": "next start",
     "lint": "eslint .",
     "db:push": "drizzle-kit push",
-    "test": "tsx --test \"server/**/*.test.ts\""
+    "test": "tsx --test \"server/**/*.test.ts\"",
+    "demo:reset": "tsx server/db/migrations/seeds/demo-reset.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

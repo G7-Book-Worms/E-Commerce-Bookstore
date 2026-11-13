@@ -145,6 +145,9 @@ Fill in `.env` in the project root (next to `package.json`):
 | `DB_SSL` | `true` for Aiven. `false` only for a local MySQL without SSL. |
 | `JWT_SECRET` | Random string, at least 32 characters. Generate one with `openssl rand -hex 32`. |
 | `JWT_EXPIRES_IN` | Login session length, e.g. `7d`. |
+| `STRIPE_SECRET_KEY` | Stripe **test** secret key (`sk_test_…`). The server refuses live keys. |
+| `STRIPE_PUBLISHABLE_KEY` | Stripe test publishable key (`pk_test_…`). |
+| `STRIPE_AUTO_REFUND` | Test charges are refunded right after checkout unless this is `false`. |
 
 > [!CAUTION]
 > `.env` holds the database password. It is ignored by git (`.env*` in `.gitignore`); never paste it into chat, issues, or commits.
@@ -155,10 +158,26 @@ The shared Aiven database is already migrated. For a **new or local** database:
 
 ```bash
 pnpm db:migrate   # create/update all tables from server/db/migrations
-pnpm db:seed      # load test data (skips if the database already has books)
+pnpm db:seed      # load test data; the catalog part (stock, prices, codes) is re-applied every run
 ```
 
 Every seeded account uses the password **`BookWorms123!`** — for example `ada.lovelace@example.com`.
+
+### Before the presentation
+
+> [!IMPORTANT]
+> Run this against Aiven **before the presentation** (and after every rehearsal):
+>
+> ```bash
+> pnpm demo:reset
+> ```
+>
+> It runs the catalog seed (stock, prices, sale prices and discount codes go back to the test data, undoing
+> rehearsal purchases), resets the demo accounts `ada.lovelace@example.com` and `alan.turing@example.com` to
+> the password `BookWorms123!`, and **empties the demo account's cart** so the demo starts from an empty cart.
+> Then sign in once and check the cart is empty.
+
+To pay during the demo, use Stripe's test card `4242 4242 4242 4242`, any future date and any CVC.
 
 ### Run
 
@@ -178,7 +197,9 @@ Then open **[http://localhost:3000](http://localhost:3000)** in your browser.
 | `pnpm lint` | Run ESLint across the project (there are existing warnings; don't add new ones) |
 | `pnpm db:generate` | Create a new migration after changing `server/db/schema.ts` |
 | `pnpm db:migrate` | Apply pending migrations to the database in `DATABASE_URL` |
-| `pnpm db:seed` | Load test data from `server/db/test-data/` into an empty database |
+| `pnpm db:seed` | Load test data from `server/db/test-data/`; the catalog part (stock, prices, codes) is re-applied every run |
+| `pnpm demo:reset` | Before the presentation: re-seed the catalog, reset demo passwords and empty the demo carts |
+| `pnpm test` | Run the unit tests (`server/**/*.test.ts`) |
 | `pnpm db:studio` | Browse the database in Drizzle Studio |
 
 ---
