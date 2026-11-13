@@ -17,7 +17,7 @@ const pricingSchema = z.object({
 });
 
 // POST /api/staff/inventory/:bookFormatId { kind, quantityChange, note } -> restock or correct the count
-export const POST = staffApi('inventory.update', async (req, { params, log, staff }) => {
+export const POST = staffApi('inventory.stock', async (req, { params, log, staff }) => {
   const id = idParam(params.id);
   const input = stockSchema.parse(await req.json());
   const change = await staffStockChange(staff.id, id, input.kind, input.quantityChange, input.note ?? null);
@@ -26,7 +26,7 @@ export const POST = staffApi('inventory.update', async (req, { params, log, staf
 });
 
 // PATCH /api/staff/inventory/:bookFormatId { priceCents?, salePriceCents?, lowStockThreshold? }
-export const PATCH = staffApi('inventory.update', async (req, { params, log }) => {
+export const PATCH = staffApi('inventory.manage', async (req, { params, log }) => {
   const id = idParam(params.id);
   const input = pricingSchema.parse(await req.json());
   const result = await updateFormatPricing(id, input);

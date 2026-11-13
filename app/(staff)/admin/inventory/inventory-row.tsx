@@ -21,7 +21,7 @@ interface Row {
 
 const toCents = (v: string) => Math.round(Number(v) * 100);
 
-export function InventoryRow({ row, editable }: { row: Row; editable: boolean }) {
+export function InventoryRow({ row, canStock, canManage }: { row: Row; canStock: boolean; canManage: boolean }) {
   const router = useRouter();
   const [mode, setMode] = useState<null | 'stock' | 'price'>(null);
   const [kind, setKind] = useState<'restock' | 'adjustment'>('restock');
@@ -63,7 +63,7 @@ export function InventoryRow({ row, editable }: { row: Row; editable: boolean })
     <>
       <tr className="hover:bg-stone-50">
         <td className={td}>
-          {editable ? (
+          {canManage ? (
             <Link href={`/admin/books/${row.bookId}`} className="font-medium text-green-900 underline-offset-2 hover:underline">{row.title}</Link>
           ) : <p className="font-medium">{row.title}</p>}
           <p className="text-xs text-stone-500">{row.author} · <span className="capitalize">{row.format}</span> · {row.isbn}</p>
@@ -76,12 +76,10 @@ export function InventoryRow({ row, editable }: { row: Row; editable: boolean })
         <td className={td}><div className="flex items-center gap-2"><span className="w-8 font-semibold">{row.stock}</span>{status}</div></td>
         <td className={td}>{row.lowStockThreshold}</td>
         <td className={`${td} text-right`}>
-          {editable && (
-            <div className="flex justify-end gap-2">
-              <button type="button" className={btnSecondary} aria-expanded={mode === 'stock'} aria-controls={id} onClick={() => { setMode(mode === 'stock' ? null : 'stock'); setMsg(null); }}>Stock</button>
-              <button type="button" className={btnSecondary} aria-expanded={mode === 'price'} aria-controls={id} onClick={() => { setMode(mode === 'price' ? null : 'price'); setMsg(null); }}>Price</button>
-            </div>
-          )}
+          <div className="flex justify-end gap-2">
+            {canStock && <button type="button" className={btnSecondary} aria-expanded={mode === 'stock'} aria-controls={id} onClick={() => { setMode(mode === 'stock' ? null : 'stock'); setMsg(null); }}>Stock</button>}
+            {canManage && <button type="button" className={btnSecondary} aria-expanded={mode === 'price'} aria-controls={id} onClick={() => { setMode(mode === 'price' ? null : 'price'); setMsg(null); }}>Price</button>}
+          </div>
           {msg && !mode && <p role="status" className={`mt-1 text-xs ${msg.ok ? 'text-green-800' : 'text-red-700'}`}>{msg.text}</p>}
         </td>
       </tr>

@@ -7,7 +7,8 @@ export type Permission =
   | 'orders.view'
   | 'orders.update'
   | 'inventory.view'
-  | 'inventory.update'
+  | 'inventory.stock'
+  | 'inventory.manage'
   | 'messages.view'
   | 'messages.reply'
   | 'discounts.manage'
@@ -17,10 +18,11 @@ export type Permission =
   | 'staff.manage';
 
 const EMPLOYEE: Permission[] = [
-  'dashboard.view', 'orders.view', 'orders.update', 'inventory.view', 'inventory.update',
+  'dashboard.view', 'orders.view', 'orders.update', 'inventory.view', 'inventory.stock',
   'messages.view', 'messages.reply',
 ];
-const MANAGER: Permission[] = [...EMPLOYEE, 'discounts.manage', 'customers.view', 'customers.manage', 'activity.view'];
+// inventory.manage = prices, sale prices, alert levels, add/edit books
+const MANAGER: Permission[] = [...EMPLOYEE, 'inventory.manage', 'discounts.manage', 'customers.view', 'customers.manage', 'activity.view'];
 const ADMIN: Permission[] = [...MANAGER, 'staff.manage'];
 
 export const ROLE_PERMISSIONS: Record<StaffRole, ReadonlySet<Permission>> = {

@@ -8,7 +8,7 @@ import { BookForm } from '@/components/staff/book-form';
 export const metadata = { title: 'Edit book' };
 
 async function Content({ params }: { params: Promise<{ id: string }> }) {
-  await requireStaffPage('inventory.update');
+  await requireStaffPage('inventory.manage');
   const id = Number((await params).id);
   if (!Number.isInteger(id) || id <= 0) notFound();
   const [data, categories] = await Promise.all([getBookForEdit(id).catch(() => null), listCategories()]);

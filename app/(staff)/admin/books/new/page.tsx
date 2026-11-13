@@ -7,7 +7,7 @@ import { BookForm } from '@/components/staff/book-form';
 export const metadata = { title: 'Add a book' };
 
 async function Content() {
-  await requireStaffPage('inventory.update');
+  await requireStaffPage('inventory.manage');
   const categories = await listCategories();
   return (
     <>

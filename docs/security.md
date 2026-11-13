@@ -43,8 +43,8 @@ How Book Worms protects accounts, payments and data. Each item names the file th
 
 | Role | Can |
 |:--|:--|
-| Employee | dashboard, orders (view, ship, cancel), inventory, messages |
-| Manager | + discount codes, customers, activity log |
+| Employee | dashboard, orders (view, ship, cancel), inventory counts (restock, corrections), messages |
+| Manager | + prices and sale prices, add/edit books, discount codes, customers, activity log |
 | Administrator | + staff accounts |
 
 The table lives in `lib/staff-permissions.ts`. Every staff API (`staffApi()` in `server/src/modules/staff/staff-api.ts`) and every portal page (`requireStaffPage()`) checks it on the server, using the role stored in the database. There is always at least one active administrator, and nobody can change their own role.

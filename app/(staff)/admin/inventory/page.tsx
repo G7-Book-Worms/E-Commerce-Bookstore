@@ -30,7 +30,8 @@ async function Content({ searchParams }: { searchParams: Promise<SP> }) {
     inventoryCounts(),
     recentMovements(undefined, 15),
   ]);
-  const editable = can(staff.role, 'inventory.update');
+  const canStock = can(staff.role, 'inventory.stock');
+  const canManage = can(staff.role, 'inventory.manage');
   const params = { q: sp.q, filter: sp.filter, sort: sp.sort, dir };
 
   return (
@@ -38,7 +39,7 @@ async function Content({ searchParams }: { searchParams: Promise<SP> }) {
       <PageHeader
         title="Inventory"
         description="Stock per edition. Every change is recorded below; low stock emails support@bookwrms.store."
-        actions={editable ? <Link href="/admin/books/new" className={btnPrimary}>Add a book</Link> : undefined}
+        actions={canManage ? <Link href="/admin/books/new" className={btnPrimary}>Add a book</Link> : undefined}
       />
       <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatCard label="Copies in stock" value={counts.copies} hint={`${counts.formats} editions`} />
@@ -75,7 +76,7 @@ async function Content({ searchParams }: { searchParams: Promise<SP> }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => <InventoryRow key={r.bookFormatId} row={r} editable={editable} />)}
+            {rows.map((r) => <InventoryRow key={r.bookFormatId} row={r} canStock={canStock} canManage={canManage} />)}
           </tbody>
         </Table>
       )}

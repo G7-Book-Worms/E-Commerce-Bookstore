@@ -178,8 +178,8 @@ Staff portal (`/staff-login`), one demo account per role, all with `BookWorms123
 | Role | Email | Employee ID | Can use |
 |:--|:--|:--|:--|
 | Administrator | `grace@example.com` | `BW-1001` | everything, including staff accounts |
-| Manager | `edsger@example.com` | `BW-1002` | + discounts, customers, activity log |
-| Employee | `barbara@example.com` | `BW-1003` | dashboard, orders, inventory, messages |
+| Manager | `edsger@example.com` | `BW-1002` | + prices, sales, add/edit books, discounts, customers, activity log |
+| Employee | `barbara@example.com` | `BW-1003` | dashboard, orders, stock counts, messages |
 
 ### Before the presentation
 

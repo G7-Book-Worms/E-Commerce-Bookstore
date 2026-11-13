@@ -12,7 +12,7 @@ async function Content() {
   const plain = rows.map((r) => ({ ...r, lastLogin: r.lastLogin ? r.lastLogin.toISOString() : null, created: r.created.toISOString() }));
   return (
     <>
-      <PageHeader title="Staff accounts" description="Employees handle orders, stock and messages. Managers also run discounts, customers and the activity log. Administrators also manage staff." />
+      <PageHeader title="Staff accounts" description="Employees handle orders, stock counts and messages. Managers also set prices and sales, add books, and run discounts, customers and the activity log. Administrators also manage staff." />
       <Panel><StaffManager rows={plain} meId={me.id} nextEmployeeId={nextId} /></Panel>
     </>
   );
