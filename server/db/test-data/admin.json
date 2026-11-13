@@ -1,0 +1,16 @@
+[
+  {
+    "firstName": "Grace",
+    "lastName": "Hopper",
+    "email": "grace@example.com",
+    "passwordHash": "$2b$10$lTuW6bDzSY/Cc.wLVfoIWuQvnoodhKW4.cpbVGu7hcoavC.FdKx1K",
+    "adminRole": "admin"
+  },
+  {
+    "firstName": "Edsger",
+    "lastName": "Dijkstra",
+    "email": "edsger@example.com",
+    "passwordHash": "$2b$10$lTuW6bDzSY/Cc.wLVfoIWuQvnoodhKW4.cpbVGu7hcoavC.FdKx1K",
+    "adminRole": "admin"
+  }
+]

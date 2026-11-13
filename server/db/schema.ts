@@ -9,6 +9,7 @@ import {
   decimal,
   date,
   boolean,
+  json,
 } from 'drizzle-orm/mysql-core'
 
 // Users Table
@@ -16,7 +17,8 @@ export const users = mysqlTable('users', {
     userId: int('user_id').autoincrement().primaryKey().notNull(),
     firstName: varchar('first_name', { length: 50 }).notNull(),
     lastName: varchar('last_name', { length: 50 }).notNull(),
-    phone: varchar('phone', { length: 20 }).notNull().unique(),
+    // Nullable: sign-up doesn't ask for a phone. MySQL allows many NULLs in a UNIQUE column.
+    phone: varchar('phone', { length: 20 }).unique(),
     email: varchar('email', { length: 100 }).notNull().unique(),
     created: timestamp('created').defaultNow().notNull(),
     updated: timestamp('updated').defaultNow().onUpdateNow().notNull(),
@@ -32,24 +34,27 @@ export const addresses = mysqlTable('addresses', {
     state: varchar('state', { length: 100 }).notNull(),
     zip: varchar('zip', { length: 20 }).notNull(),
     country: varchar('country', { length: 100 }).notNull(),
+    isDefault: boolean('is_default').default(false).notNull(),
 });
 
 // Book Categories Table
 export const bookCategories = mysqlTable('book_categories', {
     categoryId: int('category_id').autoincrement().primaryKey().notNull(),
     name: varchar('name', { length: 50 }).notNull(),
-    slug: varchar('slug', { length: 50 }).notNull(),
+    slug: varchar('slug', { length: 50 }).notNull().unique(),
 });
 
 // Books Table
 export const books = mysqlTable('books', {
     bookId: int('book_id').autoincrement().primaryKey().notNull(),
     categoryId: int('category_id').references(() => bookCategories.categoryId),
-    isbn: varchar('isbn', { length: 17 }).notNull(),
+    isbn: varchar('isbn', { length: 17 }).notNull().unique(),
     author: varchar('author', { length: 100 }).notNull(),
     title: varchar('title', { length: 200 }).notNull(),
     description: text('description').notNull(),
+    priceCents: int("price_cents").notNull().default(0),
     stock: int('stock').default(0).notNull(),
+    coverImageUrl: varchar('cover_image_url', { length: 500 }),
 });
 
 // Carts Table
@@ -80,7 +85,9 @@ export const orders = mysqlTable('orders', {
         .references(() => addresses.addressId)
         .notNull(),
     note: varchar('note', { length: 500 }),
+    trackingNumber: varchar('tracking_number', { length: 100 }),
     priceCents: int('price_cents').notNull(),
+    created: timestamp('created').defaultNow().notNull(),
 });
 
 // Order Items Table
@@ -101,7 +108,7 @@ export const events = mysqlTable('events', {
     eventId: int('event_id').autoincrement().primaryKey().notNull(),
     startDate: date('start_date', { mode: 'string' }).notNull(),
     endDate: date('end_date', { mode: 'string' }).notNull(),
-    promotionalCode: varchar('promotional_code', { length: 8 }),
+    promotionalCode: varchar('promotional_code', { length: 15}),
 });
 
 // Payments Table
@@ -121,6 +128,7 @@ export const payments = mysqlTable('payments', {
     ])
         .default('pending')
         .notNull(),
+    stripeSessionId: varchar('stripe_session_id', { length: 255 }),
     created: timestamp('created').defaultNow().notNull(),
 });
 
@@ -139,4 +147,33 @@ export const admin = mysqlTable('admin', {
     created: timestamp('created').defaultNow().notNull(),
     updated: timestamp('updated').defaultNow().onUpdateNow().notNull(),
 });
-/*Removed constraints for the foreign keys in each table */
+
+// Activity Log Table: who did what, and when (customer or admin actions)
+export const activityLog = mysqlTable('activity_log', {
+    activityId: int('activity_id').autoincrement().primaryKey().notNull(),
+    actorType: mysqlEnum('actor_type', ['customer', 'admin', 'system']).notNull(),
+    actorId: int('actor_id'),
+    action: varchar('action', { length: 100 }).notNull(),
+    details: json('details'),
+    created: timestamp('created').defaultNow().notNull(),
+});
+
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
+export type Address = typeof addresses.$inferSelect;
+export type NewAddress = typeof addresses.$inferInsert;
+export type BookCategory = typeof bookCategories.$inferSelect;
+export type Book = typeof books.$inferSelect;
+export type NewBook = typeof books.$inferInsert;
+export type Cart = typeof carts.$inferSelect;
+export type NewCart = typeof carts.$inferInsert;
+export type CartItem = typeof cartItems.$inferSelect;
+export type NewCartItem = typeof cartItems.$inferInsert;
+export type Order = typeof orders.$inferSelect;
+export type NewOrder = typeof orders.$inferInsert;
+export type OrderItem = typeof orderItems.$inferSelect;
+export type NewOrderItem = typeof orderItems.$inferInsert;
+export type Event = typeof events.$inferSelect;
+export type Payment = typeof payments.$inferSelect;
+export type Admin = typeof admin.$inferSelect;
+export type ActivityLogEntry = typeof activityLog.$inferSelect;

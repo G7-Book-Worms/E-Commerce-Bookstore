@@ -1,0 +1,82 @@
+[
+  {
+    "userEmail": "ada.lovelace@example.com",
+    "street": "100 Main St",
+    "city": "San Antonio",
+    "state": "TX",
+    "zip": "78205",
+    "country": "USA"
+  },
+  {
+    "userEmail": "alan.turing@example.com",
+    "street": "101 Main St",
+    "city": "Austin",
+    "state": "TX",
+    "zip": "78701",
+    "country": "USA"
+  },
+  {
+    "userEmail": "grace.hopper@example.com",
+    "street": "102 Main St",
+    "city": "Houston",
+    "state": "TX",
+    "zip": "77002",
+    "country": "USA"
+  },
+  {
+    "userEmail": "linus.torvalds@example.com",
+    "street": "103 Main St",
+    "city": "Dallas",
+    "state": "TX",
+    "zip": "75201",
+    "country": "USA"
+  },
+  {
+    "userEmail": "margaret.hamilton@example.com",
+    "street": "104 Main St",
+    "city": "El Paso",
+    "state": "TX",
+    "zip": "79901",
+    "country": "USA"
+  },
+  {
+    "userEmail": "dennis.ritchie@example.com",
+    "street": "105 Main St",
+    "city": "Denver",
+    "state": "CO",
+    "zip": "80202",
+    "country": "USA"
+  },
+  {
+    "userEmail": "barbara.liskov@example.com",
+    "street": "106 Main St",
+    "city": "Seattle",
+    "state": "WA",
+    "zip": "98101",
+    "country": "USA"
+  },
+  {
+    "userEmail": "ken.thompson@example.com",
+    "street": "107 Main St",
+    "city": "Boston",
+    "state": "MA",
+    "zip": "02108",
+    "country": "USA"
+  },
+  {
+    "userEmail": "radia.perlman@example.com",
+    "street": "108 Main St",
+    "city": "Chicago",
+    "state": "IL",
+    "zip": "60601",
+    "country": "USA"
+  },
+  {
+    "userEmail": "donald.knuth@example.com",
+    "street": "109 Main St",
+    "city": "Phoenix",
+    "state": "AZ",
+    "zip": "85001",
+    "country": "USA"
+  }
+]

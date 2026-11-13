@@ -1,0 +1,102 @@
+[
+  {
+    "userEmail": "ada.lovelace@example.com",
+    "isbn": "978-0-00-000000-0",
+    "quantity": 1
+  },
+  {
+    "userEmail": "ada.lovelace@example.com",
+    "isbn": "978-0-00-000001-0",
+    "quantity": 1
+  },
+  {
+    "userEmail": "alan.turing@example.com",
+    "isbn": "978-0-00-000002-0",
+    "quantity": 2
+  },
+  {
+    "userEmail": "alan.turing@example.com",
+    "isbn": "978-0-00-000003-0",
+    "quantity": 1
+  },
+  {
+    "userEmail": "grace.hopper@example.com",
+    "isbn": "978-0-00-000004-0",
+    "quantity": 3
+  },
+  {
+    "userEmail": "grace.hopper@example.com",
+    "isbn": "978-0-00-000005-0",
+    "quantity": 1
+  },
+  {
+    "userEmail": "linus.torvalds@example.com",
+    "isbn": "978-0-00-000006-0",
+    "quantity": 1
+  },
+  {
+    "userEmail": "linus.torvalds@example.com",
+    "isbn": "978-0-00-000007-0",
+    "quantity": 1
+  },
+  {
+    "userEmail": "margaret.hamilton@example.com",
+    "isbn": "978-0-00-000008-0",
+    "quantity": 2
+  },
+  {
+    "userEmail": "margaret.hamilton@example.com",
+    "isbn": "978-0-00-000009-0",
+    "quantity": 1
+  },
+  {
+    "userEmail": "dennis.ritchie@example.com",
+    "isbn": "978-0-00-000010-0",
+    "quantity": 3
+  },
+  {
+    "userEmail": "dennis.ritchie@example.com",
+    "isbn": "978-0-00-000011-0",
+    "quantity": 1
+  },
+  {
+    "userEmail": "barbara.liskov@example.com",
+    "isbn": "978-0-00-000012-0",
+    "quantity": 1
+  },
+  {
+    "userEmail": "barbara.liskov@example.com",
+    "isbn": "978-0-00-000013-0",
+    "quantity": 1
+  },
+  {
+    "userEmail": "ken.thompson@example.com",
+    "isbn": "978-0-00-000014-0",
+    "quantity": 2
+  },
+  {
+    "userEmail": "ken.thompson@example.com",
+    "isbn": "978-0-00-000015-0",
+    "quantity": 1
+  },
+  {
+    "userEmail": "radia.perlman@example.com",
+    "isbn": "978-0-00-000016-0",
+    "quantity": 3
+  },
+  {
+    "userEmail": "radia.perlman@example.com",
+    "isbn": "978-0-00-000017-0",
+    "quantity": 1
+  },
+  {
+    "userEmail": "donald.knuth@example.com",
+    "isbn": "978-0-00-000018-0",
+    "quantity": 1
+  },
+  {
+    "userEmail": "donald.knuth@example.com",
+    "isbn": "978-0-00-000019-0",
+    "quantity": 1
+  }
+]
