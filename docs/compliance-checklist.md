@@ -11,11 +11,17 @@ Status: **Met** = works on `main` · **This PR** = done in `final/1-data-catalog
 |---|---|---|
 | Functionality (checklist below, about equal weight per item) | 30% | Sprints 136–138 |
 | UI/UX: responsive, color scheme, easy to use (mobile = bonus) | 20% | Every ticket checks phone widths; SCRUM-202 |
-| Demonstration (all members attend, preferably present their part; demo only, no plain presentation) | 15% | SCRUM-195; 15-minute demo |
+| Demonstration (all members attend, preferably present their part; demo only, no plain presentation) | 15% | SCRUM-195; 15-minute demo (per the spec) |
 | Write-up (~10 pages, diagrams, workflow; one copy) | 10% | SCRUM-197 |
 | Peer review | 25% | Individual, confidential |
 | Bonus: hosted on cloud | extra | Aiven MySQL (done); Vercel deploy SCRUM-203 |
 | Bonus: extra functionality | extra | Star ratings, formats, activity log, Stripe test checkout |
+
+## Before the demo
+
+Run `pnpm demo:reset` against Aiven before the presentation and after every rehearsal. It re-runs the catalog seed
+(stock, prices, codes) and empties the demo account's cart (`ada.lovelace@example.com`, password `BookWorms123!`).
+Sign in once afterwards to confirm the cart is empty.
 
 ## Demo checklist
 

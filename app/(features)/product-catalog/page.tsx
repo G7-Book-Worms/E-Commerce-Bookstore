@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { Suspense } from 'react';
 import { connection } from 'next/server';
 import { BookSection } from "@/components/book-section";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { catalogRows } from "@/server/src/modules/books/catalog-repository";
 
 export const metadata = { title: 'Books | Book Worms' };
@@ -26,10 +26,12 @@ export default function ProductCatalog() {
                 <CatalogRows />
             </Suspense>
             {/* Goes to the full list w/ filters and sorting */}
-            <Link href="/product-catalog/all" className="flex justify-center">
-            <Button className="w-full sm:w-1/2 shadow-sm hover:shadow-md hover:scale-102" title="For our picky readers..">
-                <b>Browse All Books</b>
-            </Button>
+            <Link
+                href="/product-catalog/all"
+                className={buttonVariants({ size: "lg", className: "mx-auto w-full sm:w-1/2 font-bold shadow-sm hover:shadow-md" })}
+                title="For our picky readers.."
+            >
+                Browse All Books
             </Link>
         </div>
     );

@@ -3,6 +3,8 @@ import { db } from '../../../db';
 import { users, addresses, Address, NewAddress, User } from './users-schema';
 import { orders, orderItems } from '../orders/orders-schema';
 import { books } from '../books/books-schema';
+import { payments } from '../../../db/schema';
+import { isPlacedOrder } from '../orders/placed-orders';
 
 export type NewUser = Omit<User, 'userId' | 'created' | 'updated' | 'isActive'> & { isActive?: boolean };
 
@@ -146,12 +148,29 @@ export class UsersRepository {
         status: orders.status,
         note: orders.note,
         priceCents: orders.priceCents,
+        subtotalCents: orders.subtotalCents,
+        discountCents: orders.discountCents,
+        taxCents: orders.taxCents,
         shippingAddressId: orders.shippingAddressId,
         trackingNumber: orders.trackingNumber,
         created: orders.created,
+        address: {
+          street: addresses.street,
+          city: addresses.city,
+          state: addresses.state,
+          zip: addresses.zip,
+        },
+        payment: {
+          status: payments.status,
+          cardBrand: payments.cardBrand,
+          cardLast4: payments.cardLast4,
+        },
       })
       .from(orders)
-      .where(eq(orders.userId, userId))
+      .leftJoin(addresses, eq(addresses.addressId, orders.shippingAddressId))
+      .leftJoin(payments, eq(payments.orderId, orders.orderId))
+      // Checkouts that were never paid don't show up as orders
+      .where(and(eq(orders.userId, userId), isPlacedOrder))
       .orderBy(desc(orders.created), desc(orders.orderId))
       .limit(limit)
       .offset(offset);
@@ -159,7 +178,7 @@ export class UsersRepository {
     const [countResult]: any = await db
       .select({ count: sql<number>`count(*)` })
       .from(orders)
-      .where(eq(orders.userId, userId));
+      .where(and(eq(orders.userId, userId), isPlacedOrder));
 
     return {
       orders: userOrders,
@@ -177,6 +196,8 @@ export class UsersRepository {
         bookId: orderItems.bookId,
         title: books.title,
         author: books.author,
+        isbn: books.isbn,
+        format: orderItems.format,
         quantity: orderItems.quantity,
         unitPrice: orderItems.unitPrice,
       })

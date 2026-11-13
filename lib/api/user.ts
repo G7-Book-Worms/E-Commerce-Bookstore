@@ -28,6 +28,8 @@ export interface OrderItemDetail {
   bookId: number;
   title?: string;
   author?: string;
+  isbn?: string;
+  format?: 'hardcover' | 'paperback';
   quantity: number;
   unitPrice: string;
 }
@@ -38,6 +40,11 @@ export interface UserOrder {
   note: string | null;
   totalCost: string;
   priceCents: number;
+  subtotalCents: number;
+  discountCents: number;
+  taxCents: number;
+  address: { street: string; city: string; state: string; zip: string } | null;
+  payment: { status: string; cardBrand: string | null; cardLast4: string | null } | null;
   shippingAddressId: number;
   trackingNumber: string | null;
   created: string;

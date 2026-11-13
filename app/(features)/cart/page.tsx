@@ -1,37 +1,34 @@
 "use client";
 
+// Shopping cart (Notion Cart epic + course checklist): items with format and quantity,
+// sale prices marked, discount code, 8.25% tax and an order summary, then checkout.
+// Started from Adam's cart page.
+
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Minus, Plus, Trash2 } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { BookCover } from "@/components/book-cover";
+import { OrderSummary } from "@/components/cart/order-summary";
+import { useCart } from "@/app/context/CartContext";
+import { formatPrice, stockLabel } from "@/lib/catalog";
+import { loadDiscountCode, saveDiscountCode, type CartData, type CartLine } from "@/lib/cart-types";
 
-// One line of GET /api/cart -> data.items
-type CartBook = {
-  bookId: number;
-  title: string;
-  author: string;
-  isbn: string;
-  priceCents: number;
-  coverImageUrl: string | null;
-  quantity: number;
-  stock: number; // the server rejects quantities above this
-};
-
-type CartData = {
-  items: CartBook[];
-  totalCount: number;
-  subtotalCents: number;
-};
-
-const money = (cents: number) => "$" + (cents / 100).toFixed(2); // small helper function to format pricing
+const LABEL = { hardcover: "Hardcover", paperback: "Paperback" } as const;
 
 export default function CartPage() {
+  const { applyServerCart } = useCart();
   const [cart, setCart] = useState<CartData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [busyBookId, setBusyBookId] = useState<number | null>(null);
+  const [busyLine, setBusyLine] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [code, setCode] = useState("");
+  const [codeInput, setCodeInput] = useState("");
 
   // Every /api/cart response returns the full updated cart in `data`
-  const callCart = useCallback(async (init?: RequestInit) => {
-    const res = await fetch("/api/cart", {
+  const callCart = useCallback(async (appliedCode: string, init?: RequestInit) => {
+    const url = appliedCode ? `/api/cart?code=${encodeURIComponent(appliedCode)}` : "/api/cart";
+    const res = await fetch(init ? "/api/cart" : url, {
       credentials: "include",
       cache: "no-store",
       ...init,
@@ -42,137 +39,185 @@ export default function CartPage() {
       window.location.href = `/user-login?callbackUrl=${encodeURIComponent("/cart")}`;
       return;
     }
-    if (!res.ok) {
-      throw new Error(json?.error || json?.message || "Something went wrong with your cart");
+    if (!res.ok) throw new Error(json?.error || "Something went wrong with your cart");
+    applyServerCart(json.data);
+    // Changes don't carry the code, so re-price with it afterwards
+    if (init && appliedCode) {
+      const again = await fetch(url, { credentials: "include", cache: "no-store" }).then((r) => r.json());
+      setCart(again.data);
+    } else {
+      setCart(json.data);
     }
-    setCart(json.data);
-  }, []);
+  }, [applyServerCart]);
 
   useEffect(() => {
-    callCart()
+    // The code saved earlier in this tab (sessionStorage only exists in the browser)
+    const saved = loadDiscountCode();
+    callCart(saved)
+      .then(() => {
+        setCode(saved);
+        setCodeInput(saved);
+      })
       .catch((err: Error) => setError(err.message))
       .finally(() => setIsLoading(false));
   }, [callCart]);
 
-  const mutate = async (bookId: number, init: RequestInit) => {
-    setBusyBookId(bookId);
+  const mutate = async (line: CartLine, init: RequestInit) => {
+    setBusyLine(line.cartItemId);
     setError(null);
     try {
-      await callCart(init);
+      await callCart(code, init);
     } catch (err) {
       setError((err as Error).message);
     } finally {
-      setBusyBookId(null);
+      setBusyLine(null);
     }
   };
 
-  const changeQuantity = (book: CartBook, amount: number) => {
-    const quantity = book.quantity + amount;
-    if (quantity < 1 || quantity > book.stock) return;
-    mutate(book.bookId, { method: "PATCH", body: JSON.stringify({ bookId: book.bookId, quantity }) });
+  const changeQuantity = (line: CartLine, amount: number) => {
+    const quantity = line.quantity + amount;
+    if (quantity < 1 || quantity > line.stock) return;
+    mutate(line, { method: "PATCH", body: JSON.stringify({ bookId: line.bookId, format: line.format, quantity }) });
   };
 
-  const removeBook = (bookId: number) => {
-    mutate(bookId, { method: "DELETE", body: JSON.stringify({ bookId }) });
-  };
+  const removeLine = (line: CartLine) =>
+    mutate(line, { method: "DELETE", body: JSON.stringify({ bookId: line.bookId, format: line.format }) });
 
-  const books = cart?.items ?? [];
-  const total = cart?.subtotalCents ?? 0;
+  async function applyCode(e: React.FormEvent) {
+    e.preventDefault();
+    const next = codeInput.trim().toUpperCase();
+    setCode(next);
+    setCodeInput(next);
+    try {
+      await callCart(next);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  // Only remember codes that worked, so checkout never starts with a bad one
+  useEffect(() => {
+    if (!cart) return;
+    saveDiscountCode(cart.discount?.code ?? "");
+  }, [cart]);
+
+  async function removeCode() {
+    setCode("");
+    setCodeInput("");
+    await callCart("");
+  }
+
+  const lines = cart?.items ?? [];
+  const blocked = lines.some((l) => l.quantity > l.stock);
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-6">
-      <div className="w-full max-w-3xl rounded-lg border-2 border-foreground p-8 sm:p-10">
-        <h1 className="mb-8 text-center text-3xl font-bold">Shopping cart</h1>
+    <div className="mx-auto w-full max-w-6xl px-4 py-8 md:px-8">
+      <h1 className="mb-6 font-serif text-3xl font-bold">Shopping Cart</h1>
 
-        {error && (
-          <p className="mb-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-            {error}
-          </p>
-        )}
+      {error && (
+        <p role="alert" className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>
+      )}
 
-        <div className="divide-y">
-          {isLoading && (
-            <p className="py-10 text-center text-muted-foreground">Loading your cart...</p>
-          )}
-
-          {!isLoading && books.length === 0 && (
-            <p className="py-10 text-center text-muted-foreground">
-              Your cart is empty.
-            </p>
-          )}
-
-          {books.map((CartBook) => (
-            <div
-              key={CartBook.bookId}
-              className="flex items-center justify-between gap-6 py-5"
-            >
-
-              <div className="flex min-w-0 items-center gap-4">
-                {CartBook.coverImageUrl ? (
-                  <img
-                    src={CartBook.coverImageUrl}
-                    alt={`Cover of ${CartBook.title}`}
-                    className="h-24 w-16 shrink-0 rounded object-cover"
-                  />
-                ) : (
-                  <div
-                    aria-hidden="true"
-                    className="flex h-24 w-16 shrink-0 items-center justify-center rounded bg-muted text-2xl"
-                  >
-                    📖
+      {isLoading ? (
+        <div className="h-64 animate-pulse rounded-xl bg-stone-200" />
+      ) : lines.length === 0 ? (
+        <div className="rounded-xl border bg-white p-12 text-center">
+          <p className="text-lg font-medium">Your cart is empty.</p>
+          <Link href="/product-catalog" className="mt-4 inline-block font-medium underline">Browse books</Link>
+        </div>
+      ) : (
+        <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
+          <ul className="divide-y rounded-xl border bg-white">
+            {lines.map((line) => {
+              const busy = busyLine === line.cartItemId;
+              return (
+                <li key={line.cartItemId} className="flex gap-4 p-4 sm:p-5">
+                  <Link href={`/product/${encodeURIComponent(line.isbn)}`} className="relative aspect-2/3 w-20 shrink-0 overflow-hidden rounded border sm:w-24">
+                    <BookCover title={line.title} author={line.author} isbn={line.isbn} coverImageUrl={line.coverImageUrl} sizes="96px" />
+                  </Link>
+                  <div className="flex min-w-0 flex-1 flex-col gap-1">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <Link href={`/product/${encodeURIComponent(line.isbn)}`} className="font-medium leading-tight hover:underline">{line.title}</Link>
+                        <p className="text-sm text-muted-foreground">{line.author} · {LABEL[line.format]}</p>
+                      </div>
+                      <p className="font-semibold">{formatPrice(line.lineTotalCents)}</p>
+                    </div>
+                    {/* Course checklist: indicate when the price is a sale price */}
+                    <p className="text-sm">
+                      {line.onSale ? (
+                        <>
+                          <span className="mr-2 rounded bg-red-700 px-1.5 py-0.5 text-[10px] font-bold uppercase text-white">Sale</span>
+                          <span className="font-medium text-red-700">{formatPrice(line.unitPriceCents)}</span>{" "}
+                          <span className="text-muted-foreground line-through">{formatPrice(line.regularPriceCents)}</span>
+                        </>
+                      ) : (
+                        <span>{formatPrice(line.unitPriceCents)}</span>
+                      )}
+                      <span className="text-muted-foreground"> each</span>
+                    </p>
+                    <p className={`text-xs ${line.quantity > line.stock ? "font-medium text-red-700" : "text-muted-foreground"}`}>
+                      {line.quantity > line.stock ? `Only ${line.stock} left. Lower the quantity to check out.` : stockLabel(line.stock)}
+                    </p>
+                    <div className="mt-auto flex items-center gap-3 pt-2">
+                      <div className="flex items-center rounded-md border">
+                        <Button variant="ghost" size="icon-sm" onClick={() => changeQuantity(line, -1)} disabled={busy || line.quantity <= 1} aria-label={`Fewer copies of ${line.title}`}>
+                          <Minus />
+                        </Button>
+                        <span className="w-8 text-center tabular-nums">{line.quantity}</span>
+                        <Button variant="ghost" size="icon-sm" onClick={() => changeQuantity(line, 1)} disabled={busy || line.quantity >= line.stock} aria-label={`More copies of ${line.title}`}>
+                          <Plus />
+                        </Button>
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => removeLine(line)} disabled={busy}>
+                        <Trash2 /> Remove
+                      </Button>
+                    </div>
                   </div>
+                </li>
+              );
+            })}
+          </ul>
+
+          <div className="flex flex-col gap-4 lg:sticky lg:top-24 lg:self-start">
+            {/* Discount code */}
+            <form onSubmit={applyCode} className="rounded-xl border bg-white p-5">
+              <label htmlFor="code" className="text-sm font-semibold">Discount code</label>
+              <div className="mt-2 flex gap-2">
+                <input
+                  id="code"
+                  value={codeInput}
+                  onChange={(e) => setCodeInput(e.target.value)}
+                  placeholder="e.g. BOOKWORMS10"
+                  autoComplete="off"
+                  className="h-9 min-w-0 flex-1 rounded-md border px-3 text-sm uppercase"
+                />
+                <Button type="submit" variant="outline" disabled={!codeInput.trim()}>Apply</Button>
+              </div>
+              {cart?.discountError && <p className="mt-2 text-xs text-red-700">{cart.discountError}</p>}
+              {cart?.discount && (
+                <p className="mt-2 flex items-center justify-between text-xs text-emerald-700">
+                  <span>{cart.discount.code} applied: {cart.discount.label}</span>
+                  <button type="button" onClick={removeCode} className="underline">Remove</button>
+                </p>
+              )}
+            </form>
+
+            {cart && (
+              <OrderSummary cart={cart}>
+                {blocked ? (
+                  <Button className="mt-5 w-full" size="lg" disabled>Checkout</Button>
+                ) : (
+                  <Link href="/checkout" className={buttonVariants({ size: "lg", className: "mt-5 w-full" })}>
+                    Checkout
+                  </Link>
                 )}
-                <div className="min-w-0 space-y-1">
-                  <p className="font-medium leading-tight">{CartBook.title}</p>
-                  <p className="text-sm text-muted-foreground">{CartBook.author}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {money(CartBook.priceCents)}
-                  </p>
-                </div>
-              </div>
-
-
-              <div className="flex shrink-0 items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => changeQuantity(CartBook, -1)}
-                    disabled={busyBookId !== null || CartBook.quantity <= 1}
-                    aria-label={`Decrease ${CartBook.title}`}
-                  >
-                    -
-                  </Button>
-                  <span className="w-8 text-center">{CartBook.quantity}</span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => changeQuantity(CartBook, 1)}
-                    disabled={busyBookId !== null || CartBook.quantity >= CartBook.stock}
-                    aria-label={`Increase ${CartBook.title}`}
-                  >
-                    +
-                  </Button>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removeBook(CartBook.bookId)}
-                  disabled={busyBookId !== null}
-                >
-                  Remove
-                </Button>
-              </div>
-            </div>
-          ))}
+                <Link href="/product-catalog" className="mt-3 block text-center text-sm underline">Continue shopping</Link>
+              </OrderSummary>
+            )}
+          </div>
         </div>
-
-
-        <div className="mt-8 flex items-center justify-between border-t pt-6">
-          <p className="text-lg font-semibold">Total: {money(total)}</p>
-          <Button disabled={books.length === 0}>Checkout</Button>
-        </div>
-      </div>
-    </main>
+      )}
+    </div>
   );
 }
