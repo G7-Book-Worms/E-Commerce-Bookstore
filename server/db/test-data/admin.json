@@ -12,7 +12,15 @@
     "lastName": "Dijkstra",
     "email": "edsger@example.com",
     "passwordHash": "$2b$10$lTuW6bDzSY/Cc.wLVfoIWuQvnoodhKW4.cpbVGu7hcoavC.FdKx1K",
-    "adminRole": "admin",
+    "adminRole": "manager",
     "employeeId": "BW-1002"
+  },
+  {
+    "firstName": "Barbara",
+    "lastName": "Liskov",
+    "email": "barbara@example.com",
+    "passwordHash": "$2b$10$lTuW6bDzSY/Cc.wLVfoIWuQvnoodhKW4.cpbVGu7hcoavC.FdKx1K",
+    "adminRole": "employee",
+    "employeeId": "BW-1003"
   }
 ]

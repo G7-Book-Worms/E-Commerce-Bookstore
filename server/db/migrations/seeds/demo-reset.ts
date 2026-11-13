@@ -3,13 +3,15 @@
 //    go back to the values in server/db/test-data (undoing rehearsal purchases).
 // 2. Gets the demo customer accounts ready: password back to BookWorms123!, account enabled,
 //    and the cart emptied, so the live demo starts from an empty cart.
-// Orders placed during rehearsals stay (they show up in order history and the admin portal).
+// 3. Demo staff (one per role) get BookWorms123! back, are re-enabled and signed out.
+// 4. Sign-in lockouts and rate-limit counters are cleared.
+// Orders placed during rehearsals stay (they show up in order history and the staff portal).
 import "dotenv/config";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { db } from "../../index";
-import { cartItems, carts, users } from "../../schema";
+import { admin, cartItems, carts, rateLimits, users } from "../../schema";
 import { seedCatalog } from "./catalog";
 
 const DATA_DIR = path.resolve(__dirname, "../../test-data");
@@ -25,8 +27,24 @@ async function main() {
   for (const email of DEMO_EMAILS) {
     const seed = seeded.find((u) => u.email === email);
     if (!seed) throw new Error(`${email} is not in test-data/users.json`);
-    await db.update(users).set({ passwordHash: seed.passwordHash, isActive: true }).where(eq(users.email, email));
+    await db.update(users).set({
+      passwordHash: seed.passwordHash,
+      isActive: true,
+      mustChangePassword: false,
+      tokenVersion: sql`${users.tokenVersion} + 1`,
+    }).where(eq(users.email, email));
   }
+
+  const staff: { email: string; passwordHash: string }[] = load("admin");
+  for (const s of staff) {
+    await db.update(admin).set({
+      passwordHash: s.passwordHash,
+      isActive: true,
+      mustChangePassword: false,
+      tokenVersion: sql`${admin.tokenVersion} + 1`,
+    }).where(eq(admin.email, s.email));
+  }
+  await db.delete(rateLimits);
 
   const demoUsers = await db.select({ userId: users.userId }).from(users).where(inArray(users.email, DEMO_EMAILS));
   const demoCarts = demoUsers.length
@@ -36,7 +54,8 @@ async function main() {
     await db.delete(cartItems).where(inArray(cartItems.cartId, demoCarts.map((c) => c.cartId)));
   }
 
-  console.log(`Demo reset done: catalog restored; ${DEMO_EMAILS.join(", ")} have password BookWorms123! and empty carts.`);
+  console.log(`Demo reset done: catalog restored; ${DEMO_EMAILS.join(", ")} have password BookWorms123! and empty carts;`);
+  console.log(`staff ${staff.map((s) => s.email).join(", ")} have password BookWorms123!; lockouts cleared.`);
 }
 
 main()

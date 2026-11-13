@@ -13,7 +13,7 @@ type SeedBook = {
   ratingAvg: string; ratingCount: number; tags: string[]; formats: SeedFormat[];
 };
 type SeedCode = { code: string; percentOff: number | null; amountOffCents: number | null; isActive: boolean; maxUses: number | null };
-type SeedAdmin = { email: string; employeeId: string };
+type SeedAdmin = { firstName: string; lastName: string; email: string; passwordHash: string; adminRole: string; employeeId: string };
 
 export async function seedCatalog(data: { books: SeedBook[]; codes: SeedCode[]; admins: SeedAdmin[] }) {
   const rows = await db
@@ -61,8 +61,12 @@ export async function seedCatalog(data: { books: SeedBook[]; codes: SeedCode[]; 
       .onDuplicateKeyUpdate({ set: { percentOff: c.percentOff, amountOffCents: c.amountOffCents, isActive: c.isActive, maxUses: c.maxUses } });
   }
 
+  // Demo staff accounts: one per role (admin, manager, employee). Inserted if missing.
   for (const a of data.admins) {
-    await db.update(admin).set({ employeeId: a.employeeId }).where(eq(admin.email, a.email));
+    await db
+      .insert(admin)
+      .values({ ...a, adminRole: a.adminRole as 'admin' | 'manager' | 'employee' })
+      .onDuplicateKeyUpdate({ set: { employeeId: a.employeeId, adminRole: a.adminRole as 'admin' | 'manager' | 'employee' } });
   }
 
   console.log(`Catalog seeded: ${idByIsbn.size} books, ${data.codes.length} discount codes`);
