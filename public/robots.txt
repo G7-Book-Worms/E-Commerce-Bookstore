@@ -1,0 +1,3 @@
+# Book Worms is a class project (CS 3773, UTSA), not a real store.
+User-agent: *
+Disallow: /

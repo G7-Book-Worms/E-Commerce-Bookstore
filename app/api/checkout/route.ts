@@ -15,7 +15,7 @@ const startSchema = z.object({
 });
 
 export const POST = createApiHandler(async (req: NextRequest) => {
-  const { user } = authenticateRequest(req);
+  const { user } = await authenticateRequest(req);
   const input = await validateBody(req, startSchema);
   // Where Stripe sends the shopper back to (set SITE_URL when deployed behind a proxy)
   const origin = process.env.SITE_URL ?? req.nextUrl.origin;

@@ -1,3 +1,4 @@
+import { newPasswordSchema } from '../../../../lib/password-policy';
 import { z } from 'zod';
 
 // SCRUM-94: Profile update validation
@@ -14,10 +15,7 @@ export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export const changePasswordSchema = z
   .object({
     currentPassword: z.string().min(1, 'Current password is required'),
-    newPassword: z
-      .string()
-      .min(8, 'New password must be at least 8 characters')
-      .max(100),
+    newPassword: newPasswordSchema,
     confirmPassword: z.string().min(1, 'Confirm password is required'),
   })
   .refine((data) => data.newPassword === data.confirmPassword, {
