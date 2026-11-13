@@ -129,6 +129,11 @@ export class UsersService {
           note: o.note,
           totalCost: (o.priceCents / 100).toFixed(2), // Convert cents to readable dollars
           priceCents: o.priceCents,
+          subtotalCents: o.subtotalCents,
+          discountCents: o.discountCents,
+          taxCents: o.taxCents,
+          address: o.address?.street ? o.address : null,
+          payment: o.payment?.status ? o.payment : null,
           shippingAddressId: o.shippingAddressId,
           trackingNumber: o.trackingNumber,
           created: o.created,
