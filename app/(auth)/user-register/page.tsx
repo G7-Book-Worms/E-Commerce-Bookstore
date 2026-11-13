@@ -61,12 +61,12 @@ function RegisterForm() {
   const callbackUrl = searchParams.get('callbackUrl');
   const redirectTo = callbackUrl && callbackUrl.startsWith('/') && !callbackUrl.startsWith('//') ? callbackUrl : '/';
 
-  // Already signed in: nothing to do here
+  // Already signed in (or just signed up): go where the user was headed, same as the submit handler
   useEffect(() => {
     if (!isLoading && user) {
-      router.replace('/');
+      router.replace(redirectTo);
     }
-  }, [user, isLoading, router]);
+  }, [user, isLoading, router, redirectTo]);
 
   const [formData, setFormData] = useState<RegisterFormData>({
     firstName: '',

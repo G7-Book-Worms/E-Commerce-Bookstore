@@ -1,48 +1,79 @@
-import Image from 'next/image'
+'use client';
+
 import Link from 'next/link'
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { Button } from "@/components/ui/button";
+import { BookCover } from "@/components/book-cover";
+import { StarRating } from "@/components/star-rating";
+import { formatPrice, stockLabel, type CatalogBook } from "@/lib/catalog";
+import { useCart } from "@/app/context/CartContext";
+import { useAuth } from "@/app/context/auth-context";
 
-// Shape of a book. Will be replaced by the Drizzle schema type once the DB is set up
-export type Book = {
-    title: string;
-    author: string;
-    price: number; // In dollars for now. Should be stored as cents in the DB
-    tags: string[] | null // Used for sections and filters. Full list is at the top of lib/sample-books.ts
-    img_src : string
-    img_alt : string // Read out by screen readers in place of the cover
-    isbn13: string // Stored as text since we never do math on it. Also used as the product page URL
-    ;
-};
+// Kept as the name other files import. Same shape as a book from GET /api/books
+export type Book = CatalogBook;
 
-// One book tile. Cover, title, author, price and an Add to Cart button
+// One book tile. Cover, title, author, rating, price (sale marked), quantity and an Add to Cart button
 // eager = load the cover right away instead of waiting for the user to scroll near it
 export function BookCard({ book, eager = false }: { book: Book; eager?: boolean }) {
+    const router = useRouter();
+    const { user } = useAuth();
+    const { toggleCartItem, isInCart } = useCart();
+    const [busy, setBusy] = useState(false);
+    const inCart = isInCart(book.bookId);
+    const soldOut = book.totalStock <= 0;
+
+    async function addToCart() {
+        // Guests sign in first, then come back to the catalog
+        if (!user) {
+            router.push(`/user-login?callbackUrl=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+            return;
+        }
+        setBusy(true);
+        await toggleCartItem(book.bookId);
+        setBusy(false);
+    }
+
     return (
-    <div className="rounded-lg border p-3 hover:shadow-md transition-shadow duration-300">
+    <div className="relative flex h-full flex-col rounded-lg border bg-white p-3 hover:shadow-md transition-shadow duration-300">
         {/* Whole card links to the product page.
             Add to Cart sits outside the link since a button inside a link is invalid HTML */}
-        <Link href={`/product/${book.isbn13}`}>
+        <Link href={`/product/${encodeURIComponent(book.isbn)}`} className="flex-1">
         {/* Box is locked to a 2:3 book shape so every card lines up even before the cover loads */}
-        <div className="relative aspect-2/3 bg-muted">
-            <Image
-                loading={eager ? "eager" : "lazy"} // Book covers further down don't download until you scroll near them
-                src={book.img_src}
-                alt={book.img_alt}
-                sizes="(min-width: 1024px) 180px, (min-width: 768px) 25vw, 50vw" // Lets Next.js pick a smaller file on smaller screens
-                fill className="object-cover" // Fills the box above instead of needing a set width and height
-            />
+        <div className="relative aspect-2/3 overflow-hidden rounded bg-muted">
+            <BookCover title={book.title} author={book.author} isbn={book.isbn} coverImageUrl={book.coverImageUrl} eager={eager} />
+            {book.onSale && (
+                <span className="absolute left-2 top-2 rounded bg-red-700 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">Sale</span>
+            )}
         </div>
-        <div>
+        <div className="mt-3 flex flex-col gap-1">
             {/* Titles cut off at 2 lines w/ "..." and always take up 2 lines so the authors line up across a row
                 Hovering shows the full title in tooltip */}
-            <h2 className="mt-3 line-clamp-2 min-h-[2lh]" title={book.title}>{book.title}</h2>
-            <p className="text-gray-500" title={book.author}>{book.author}</p>
-            <p>${book.price.toFixed(2)}</p>
+            <h2 className="line-clamp-2 min-h-[2lh] font-medium leading-snug" title={book.title}>{book.title}</h2>
+            <p className="text-sm text-gray-500 line-clamp-1" title={book.author}>{book.author}</p>
+            <StarRating value={book.ratingAvg} count={book.ratingCount} />
+            <p className="flex items-baseline gap-2">
+                <span className={book.onSale && book.fromPriceCents < book.regularPriceCents ? "font-semibold text-red-700" : "font-semibold"}>
+                    {formatPrice(book.fromPriceCents)}
+                </span>
+                {book.fromPriceCents < book.regularPriceCents && (
+                    <span className="text-xs text-gray-500 line-through">{formatPrice(book.regularPriceCents)}</span>
+                )}
+            </p>
+            {/* Course requirement: available quantity on the main sale page */}
+            <p className={`text-xs ${soldOut ? "text-red-700" : book.totalStock <= 3 ? "text-amber-700" : "text-emerald-700"}`}>
+                {stockLabel(book.totalStock)}
+            </p>
         </div>
         </Link>
-        {/* TODO: call an addToCart server action once the cart is set up */}
-        <Button className="w-full mt-3 shadow-sm hover:shadow-md hover:bg-primary hover:scale-102" title="Add to Cart">
-            Add to Cart
+        <Button
+            className="w-full mt-3 shadow-sm hover:shadow-md hover:scale-102"
+            variant={inCart ? "outline" : "default"}
+            disabled={soldOut || busy}
+            onClick={addToCart}
+            title={soldOut ? "Out of stock" : inCart ? "Remove from cart" : "Add to cart"}
+        >
+            {soldOut ? "Out of Stock" : inCart ? "In Cart ✓" : "Add to Cart"}
         </Button>
     </div>
     );

@@ -105,9 +105,9 @@ export const Footer: React.FC = () => {
         <p>© 2026 Book Worms Bookstore. All rights reserved.</p>
         <div className="flex gap-4">
           <Link href="/about" className="hover:text-stone-900 transition">About</Link>
-          <Link href="/shipping" className="hover:text-stone-900 transition">Shipping</Link>
-          <Link href="/privacy" className="hover:text-stone-900 transition">Privacy</Link>
-          <Link href="/terms" className="hover:text-stone-900 transition">Terms</Link>
+          <Link href="/about#shipping" className="hover:text-stone-900 transition">Shipping</Link>
+          <Link href="/about#privacy" className="hover:text-stone-900 transition">Privacy</Link>
+          <Link href="/about#terms" className="hover:text-stone-900 transition">Terms</Link>
         </div>
       </div>
     </footer>

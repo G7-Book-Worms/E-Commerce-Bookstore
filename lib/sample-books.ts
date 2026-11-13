@@ -1,4 +1,14 @@
-import type { Book } from "@/components/book-card";
+// Shape of the scraped sample books. Not used by the catalog anymore (it reads the database);
+// kept for the stretch goal of importing the real B&N catalog into the seed.
+export type SampleBook = {
+  title: string;
+  author: string;
+  price: number; // dollars
+  tags: string[] | null;
+  img_src: string;
+  img_alt: string;
+  isbn13: string;
+};
 
 // Sample books copied from barnesandnoble.com/collections/books (Oct 2026).
 // Placeholder until the DB is set up using Drizzle. Delete this file once real data is in.
@@ -12,7 +22,7 @@ import type { Book } from "@/components/book-card";
 const COVER = (isbn13: string) =>
   `https://cdn.shopify.com/s/files/1/0674/5433/7265/files/${isbn13}_p0.jpg`;
 
-export const sampleBooks: Book[] = [
+export const sampleBooks: SampleBook[] = [
   {
     isbn13: "9781682818084",
     title: "Threshing Day (Wing and Claw Collection)",

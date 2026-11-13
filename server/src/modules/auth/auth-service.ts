@@ -61,7 +61,7 @@ export class AuthService {
     // Check collision solely during account creation
     const existingUser = await this.usersRepo.findByEmail(normalizedEmail);
     if (existingUser) {
-      throw new ConflictError('An account with this email already exists. Please sign in instead.');
+      throw new ConflictError("We couldn't create an account with that email. If it's yours, try signing in.");
     }
 
     const hashedPassword = await hashPassword(input.password);

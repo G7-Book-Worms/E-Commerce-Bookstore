@@ -53,6 +53,8 @@ export class BooksRepository {
           priceCents: books.priceCents,
           stock: books.stock,
           coverImageUrl: books.coverImageUrl,
+          ratingAvg: books.ratingAvg,
+          ratingCount: books.ratingCount,
         })
         .from(books)
         .innerJoin(bookCategories, eq(books.categoryId, bookCategories.categoryId))

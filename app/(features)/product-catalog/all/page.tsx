@@ -1,28 +1,71 @@
+import Link from "next/link";
+import { Suspense } from "react";
+import { connection } from "next/server";
+import { ZodError } from "zod";
 import { BookBrowser } from "./book-browser";
-import { sampleBooks } from "@/lib/sample-books";
+import { SECTIONS } from "@/lib/catalog";
+import { parseCatalogQuery, searchBooks, type CatalogQuery } from "@/server/src/modules/books/catalog-repository";
 
-// Every book in one place (/product-catalog/all).
-// This page stays a server component so it can fetch from the DB later.
-// The filters live in book-browser.tsx since they need to run in the browser
-export default function ProductCatalogAll() {
+export const metadata = { title: "All Books | Book Worms" };
+
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+// Heading for the current list: the section, the genre, the search, or everything
+function titleFor(q: CatalogQuery) {
+  if (q.q) return `Results for "${q.q}"`;
+  const match = SECTIONS.find(
+    (s) => (q.section && s.param === `section=${q.section}`) || (q.genre && s.param === `genre=${q.genre}`)
+  );
+  if (match) return match.label;
+  if (q.genre) return q.genre.charAt(0).toUpperCase() + q.genre.slice(1);
+  if (q.onSale) return "On Sale";
+  return "All Books";
+}
+
+// Every book in one place (/product-catalog/all), or one section of the catalog (See All links)
+// or search results (header search bar). The URL holds every filter, so links can be shared and Back works.
+// Filtering and sorting run in the database (GET /api/books uses the same searchBooks function)
+export default function ProductCatalogAll({ searchParams }: { searchParams: SearchParams }) {
+  return (
+    <Suspense fallback={<div className="mx-auto max-w-7xl px-4 py-8 md:px-8"><div className="h-96 animate-pulse rounded-lg bg-stone-200" /></div>}>
+      <Results searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function Results({ searchParams }: { searchParams: SearchParams }) {
+  await connection();
+  const params = await searchParams;
+
+  let query: CatalogQuery;
+  try {
+    query = parseCatalogQuery({ pageSize: "24", ...params });
+  } catch (e) {
+    // Hand-edited URL with a bad value: show a friendly message instead of an error page
+    const message = e instanceof ZodError ? e.issues[0]?.message : "Invalid filters";
     return (
-        <main className="mx-auto max-w-7xl px-4 py-8 md:px-8 flex flex-col gap-8">
-            <h1 className="text-center text-4xl ">
-                Product Catalog - All</h1>
-            <div className="text-center max-w-2xl mx-auto">
-                <h2 className="text-1xl font-bold">An ambitious reader, are we?</h2>
-                <p className="mt-1">
-                    You&apos;ve searched far and wide, but <i>still</i> can&apos;t
-                    find anything that tickles your fancy? Well, here it is.
-                    Everything we&apos;ve got. Window shop or buy it all. Find your
-                    next best thing. Your conversation starter at parties. The book that
-                    changes your life. We&apos;re here for it, and we&apos;ll ship it
-                    for free. Never stop reading. Never stop dreaming.
-                </p>
-            </div>
-            <hr></hr>
-            {/* Swap sampleBooks for a DB query later using Drizzle */}
-            <BookBrowser books={sampleBooks} />
-        </main>
+      <div className="mx-auto max-w-3xl px-4 py-16 text-center">
+        <p className="text-lg">{message}</p>
+        <Link href="/product-catalog/all" className="mt-4 inline-block underline">Clear filters</Link>
+      </div>
     );
+  }
+
+  const result = await searchBooks(query);
+
+  return (
+    <div className="mx-auto max-w-7xl px-4 py-8 md:px-8 flex flex-col gap-6">
+      <nav className="text-sm text-stone-500">
+        <Link href="/product-catalog" className="hover:underline">Books</Link> / <span>{titleFor(query)}</span>
+      </nav>
+      <h1 className="font-serif text-3xl font-bold">{titleFor(query)}</h1>
+      <BookBrowser
+        books={result.books}
+        total={result.total}
+        page={result.page}
+        totalPages={result.totalPages}
+        query={query}
+      />
+    </div>
+  );
 }

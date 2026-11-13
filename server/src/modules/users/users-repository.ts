@@ -4,7 +4,7 @@ import { users, addresses, Address, NewAddress, User } from './users-schema';
 import { orders, orderItems } from '../orders/orders-schema';
 import { books } from '../books/books-schema';
 
-export type NewUser = Omit<User, 'userId' | 'created' | 'updated'>;
+export type NewUser = Omit<User, 'userId' | 'created' | 'updated' | 'isActive'> & { isActive?: boolean };
 
 export class UsersRepository {
   async findByEmail(email: string): Promise<User | null> {

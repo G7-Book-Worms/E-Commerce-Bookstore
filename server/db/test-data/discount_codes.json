@@ -1,0 +1,23 @@
+[
+  {
+    "code": "BOOKWORMS10",
+    "percentOff": 10,
+    "amountOffCents": null,
+    "isActive": true,
+    "maxUses": null
+  },
+  {
+    "code": "WELCOME5",
+    "percentOff": null,
+    "amountOffCents": 500,
+    "isActive": true,
+    "maxUses": 100
+  },
+  {
+    "code": "SUMMER25",
+    "percentOff": 25,
+    "amountOffCents": null,
+    "isActive": false,
+    "maxUses": null
+  }
+]

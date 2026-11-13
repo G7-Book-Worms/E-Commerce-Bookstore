@@ -28,12 +28,14 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const { user, isLoading, setUserSession } = useAuth();
 
-  // Redirect to home if user is already authenticated
+  // Already signed in (or just signed in): go back to where the user came from, else home.
+  // Same target as the submit handler, so this can't race it to a different page.
   useEffect(() => {
     if (!isLoading && user) {
-      router.replace('/');
+      const next = searchParams.get('callbackUrl');
+      router.replace(next && next.startsWith('/') && !next.startsWith('//') ? next : '/');
     }
-  }, [user, isLoading, router]);
+  }, [user, isLoading, router, searchParams]);
 
   // Form State
   const [formData, setFormData] = useState<LoginFormData>({

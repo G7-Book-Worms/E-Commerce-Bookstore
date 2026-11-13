@@ -42,7 +42,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ promotion }) => {
         <div className="pt-2">
           {/* Shadcn Button Variant Primary */}
           <Link
-            href="/books"
+            href="/product-catalog"
             className="inline-flex items-center justify-center rounded-md text-sm font-medium bg-white text-stone-900 shadow-xs hover:bg-stone-100 h-9 px-4 py-2 transition"
           >
             Shop Collection &rarr;
