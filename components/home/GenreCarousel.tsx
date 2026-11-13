@@ -41,7 +41,7 @@ export const GenreCarousel: React.FC<GenreCarouselProps> = ({
         <div className="flex items-center gap-1.5">
           {/* shadcn Button: Variant "Ghost" with Icon Arrow */}
           <Link
-            href={`/categories/${categorySlug}`}
+            href={`/product-catalog/all?genre=${encodeURIComponent(categorySlug)}`}
             className="inline-flex items-center justify-center gap-1 h-8 px-3 rounded-md text-xs font-medium text-stone-700 hover:bg-stone-100 hover:text-stone-900 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-stone-900"
           >
             <span>See all</span>

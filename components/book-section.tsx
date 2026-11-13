@@ -1,60 +1,32 @@
-"use client"; // Needs to run in the browser since it uses useState and onClick
-
-import { useState } from "react";
+import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 import { BookCard, type Book } from "@/components/book-card";
-import { Button } from "@/components/ui/button";
 
-// Decides whether the book at position i should show on each screen size.
-// Phones fit 2 per row, tablets 4, laptops 6, so 1 row is a different
-// number of books depending on the screen.
-function visibilityClass(i: number, rows: number) {
-  if (i < rows * 2) return "";                  // Fits on every screen
-  if (i < rows * 4) return "hidden md:block";   // Tablet and up only
-  return "hidden lg:block";                     // Laptop only
-}
-
-// Same idea for the See more button. Hides it on screen sizes that are already showing every book
-// so phone users don't get stuck when laptops have run out
-function seeMoreClass(rows: number, total: number) {
-  if (rows * 6 < total) return "";            // More left on every screen
-  if (rows * 4 < total) return "lg:hidden";   // Laptops have shown everything
-  return "md:hidden";                         // Only phones still have more
-}
-
-// One catalog section. Consists of a heading and a grid of books
-// w/ buttons to show more or fewer rows.
-// eager = only pass this to the top section so its first row of covers loads right away
-export function BookSection({ title, books, eager = false }: { title: string; books: Book[]; eager?: boolean }) {
-    // Sets how many rows are showing
-    const [rows, setRows] = useState(1); // Starts with one row to avoid cluttering the page
-    const [setVisibleCount] = useState(6);
+// One catalog row, like the B&N collections page: heading + See All on top,
+// then a row of books that scrolls sideways (swipe on phones, scrollbar/trackpad on laptops).
+// eager = only pass this to the top section so its first covers load right away
+export function BookSection({ title, books, href, total, eager = false }: {
+    title: string; books: Book[]; href: string; total?: number; eager?: boolean;
+}) {
+    if (books.length === 0) return null; // Rows with no books are hidden
 
     return (
-    <section>
-        <h1 className="text-2xl font-bold underline text-center mb-12">{title}</h1>
-        {/* 2 columns on phones, 4 on tablets, 6 on laptops */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
-            {/* Render enough books for the widest screen, then hide extras on smaller ones */}
-            {books.slice(0, rows * 6).map((book, i) => (
-                <div key={book.isbn13} className={visibilityClass(i, rows)}>
-                    {/* Only the first row of the top section loads its covers right away */}
+    <section aria-labelledby={`row-${href}`} className="min-w-0">
+        <div className="mb-4 flex items-end justify-between gap-4 border-b pb-2">
+            <h2 id={`row-${href}`} className="font-serif text-2xl font-bold">{title}</h2>
+            <Link href={href} className="inline-flex shrink-0 items-center gap-1 text-sm font-medium hover:underline">
+                See All{total ? ` (${total})` : ""} <ChevronRight size={16} />
+            </Link>
+        </div>
+        {/* Fixed-width tiles in one line; extra books scroll instead of wrapping */}
+        <ul className="-mx-1 flex snap-x snap-mandatory gap-4 overflow-x-auto px-1 pb-3">
+            {books.map((book, i) => (
+                <li key={book.bookId} className="relative w-40 shrink-0 snap-start sm:w-44">
+                    {/* Only the first few covers of the top row load right away */}
                     <BookCard book={book} eager={eager && i < 6} />
-                </div>
+                </li>
             ))}
-        </div>
-        <div className="mt-12 flex justify-center gap-3">
-            {/* Adds one row per click. Disappears once every book in the section is showing */}
-            {rows * 2 < books.length && (
-                <Button className={seeMoreClass(rows, books.length)} onClick={() => setRows(rows + 1)}>
-                See more
-                </Button>
-            )}
-            {/* Only show See less once the section has been expanded. Goes back to one row */}
-            {rows > 1 && (
-                <Button variant="outline" onClick={() => setRows(1)}>See less</Button>
-            )}
-        </div>
-        <hr className="mt-12 mb-4"></hr>
+        </ul>
     </section>
     );
 }

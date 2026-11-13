@@ -4,6 +4,8 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useCart } from '@/app/context/CartContext';
+import { BookCover } from '@/components/book-cover';
+import { stockLabel } from '@/lib/catalog';
 
 export interface BookCardData {
   bookId: number;
@@ -12,6 +14,7 @@ export interface BookCardData {
   price: string;
   isbn: string;
   stock: number;
+  coverImageUrl?: string | null;
 }
 
 export const ProductCard: React.FC<{ book: BookCardData }> = ({ book }) => {
@@ -32,12 +35,9 @@ export const ProductCard: React.FC<{ book: BookCardData }> = ({ book }) => {
   return (
     <div className="group relative flex-none w-48 sm:w-56 bg-white border border-stone-200 rounded-lg overflow-hidden shadow-xs hover:border-stone-400 transition flex flex-col justify-between">
       {/* Product Details Navigation */}
-      <Link href={`/books/${book.bookId}`} className="block p-4">
-        <div className="w-full h-56 bg-stone-100 rounded-md border border-stone-200 flex flex-col items-center justify-center p-3 text-center transition group-hover:scale-[1.01]">
-          <span className="text-3xl mb-2">📖</span>
-          <p className="text-[11px] font-mono text-stone-500 uppercase tracking-tight line-clamp-1">
-            ISBN {book.isbn}
-          </p>
+      <Link href={`/product/${encodeURIComponent(book.isbn)}`} className="block p-4">
+        <div className="relative w-full aspect-2/3 overflow-hidden rounded-md border border-stone-200 bg-stone-100 transition group-hover:scale-[1.01]">
+          <BookCover title={book.title} author={book.author} isbn={book.isbn} coverImageUrl={book.coverImageUrl} />
         </div>
 
         <div className="mt-3">
@@ -45,6 +45,9 @@ export const ProductCard: React.FC<{ book: BookCardData }> = ({ book }) => {
             {book.title}
           </h3>
           <p className="text-xs text-stone-500 mt-0.5 line-clamp-1">{book.author}</p>
+          <p className={`text-xs mt-1 ${book.stock <= 0 ? 'text-red-700' : book.stock <= 3 ? 'text-amber-700' : 'text-emerald-700'}`}>
+            {stockLabel(book.stock)}
+          </p>
         </div>
       </Link>
 

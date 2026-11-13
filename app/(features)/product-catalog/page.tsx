@@ -1,41 +1,71 @@
-import { BookCard } from "@/components/book-card";
-import { BookSection } from "@/components/book-section";
-import { sampleBooks } from "@/lib/sample-books";
-import { Button } from "@/components/ui/button";
 import Link from 'next/link';
+import { Suspense } from 'react';
+import { connection } from 'next/server';
+import { BookSection } from "@/components/book-section";
+import { Button } from "@/components/ui/button";
+import { catalogRows } from "@/server/src/modules/books/catalog-repository";
 
-// Each section pulls its books from tags[]. Swap sampleBooks for a DB query later using Drizzle
-const bestsellers = sampleBooks.filter((b) => b.tags?.includes("bestseller"));
-const newReleases = sampleBooks.filter((b) => b.tags?.includes("new-release"));
-const fiction = sampleBooks.filter((b) => b.tags?.includes("fiction"));
-const nonFiction = sampleBooks.filter((b) => b.tags?.includes("nonfiction"));
+export const metadata = { title: 'Books | Book Worms' };
 
-// Main catalog page (/product-catalog). Intro text, then a few book sections, then a link to every book
+// Main catalog page (/product-catalog). Intro text, then one row per section (from the database),
+// each w/ a See All link, then a link to every book
 export default function ProductCatalog() {
     return (
-        <main className="mx-auto max-w-7xl px-4 py-8 md:px-8 flex flex-col gap-8">
-            <h1 className="text-center text-4xl ">
-                Product Catalog</h1>
+        <div className="mx-auto w-full max-w-7xl min-w-0 px-4 py-8 md:px-8 flex flex-col gap-10">
             <div className="text-center max-w-2xl mx-auto">
-                <h2 className="text-1xl font-bold">Find something worth staying up for.</h2>
-                <p className="mt-1">
+                <h1 className="font-serif text-4xl font-bold">Books</h1>
+                <h2 className="mt-3 font-bold">Find something worth staying up for.</h2>
+                <p className="mt-1 text-stone-600">
                     New releases, all-time bestsellers, and up-and-coming voices share the shelf here,
                     alongside staff picks that change every month. Fiction, nonfiction, and everything
                     in between, ready when you are.
                 </p>
-            <hr className="mt-12"></hr>
             </div>
-            {/* Bestsellers is the first thing people see, so it's the only one w/ eager */}
-            <BookSection title="Bestsellers" books={bestsellers} eager />
-            <BookSection title="New Releases" books={newReleases}/>
-            <BookSection title="Fiction" books={fiction}/>
-            <BookSection title="Non Fiction" books={nonFiction}/>
+            {/* The rows come from the database, so they stream in after the intro */}
+            <Suspense fallback={<RowsSkeleton />}>
+                <CatalogRows />
+            </Suspense>
             {/* Goes to the full list w/ filters and sorting */}
-            <Link href={`product-catalog/all`} className="flex justify-center">
-            <Button className="w-1/2 shadow-sm hover:shadow-md hover:bg-primary hover:scale-102" title="For our picky readers..">
-                <b>See All</b>
+            <Link href="/product-catalog/all" className="flex justify-center">
+            <Button className="w-full sm:w-1/2 shadow-sm hover:shadow-md hover:scale-102" title="For our picky readers..">
+                <b>Browse All Books</b>
             </Button>
             </Link>
-        </main>
+        </div>
+    );
+}
+
+async function CatalogRows() {
+    await connection(); // Render at request time so the build doesn't need the database
+    const rows = await catalogRows(12);
+    return (
+        <>
+            {/* Bestsellers is the first thing people see, so it's the only one w/ eager */}
+            {rows.map((row, i) => (
+                <BookSection
+                    key={row.key}
+                    title={row.label}
+                    books={row.books}
+                    total={row.total}
+                    href={`/product-catalog/all?${row.param}`}
+                    eager={i === 0}
+                />
+            ))}
+        </>
+    );
+}
+
+function RowsSkeleton() {
+    return (
+        <div className="flex flex-col gap-10 animate-pulse">
+            {[0, 1].map((r) => (
+                <div key={r} className="flex flex-col gap-4">
+                    <div className="h-7 w-48 rounded bg-stone-200" />
+                    <div className="flex gap-4 overflow-hidden">
+                        {[0, 1, 2, 3, 4, 5].map((i) => <div key={i} className="h-80 w-44 shrink-0 rounded-lg bg-stone-200" />)}
+                    </div>
+                </div>
+            ))}
+        </div>
     );
 }

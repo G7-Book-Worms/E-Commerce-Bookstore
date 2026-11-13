@@ -1,34 +1,64 @@
 // components/header/Header.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { Suspense, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useCart } from '@/app/context/CartContext';
 import { useAuth } from '@/app/context/auth-context';
 
-export const Header: React.FC = () => {
+// Header search: Enter goes to the See All page with ?q=, which searches title, author, ISBN and description
+function SearchBox() {
   const router = useRouter();
+  // Keep the search box filled in on the results page
+  const searchParams = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') ?? '');
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/product-catalog/all?q=${encodeURIComponent(searchQuery.trim())}`);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSearchSubmit} role="search" className="order-last w-full sm:order-none sm:w-auto sm:flex-1 sm:max-w-md sm:mx-2">
+      <div className="relative flex items-center">
+        <svg
+          className="absolute left-3 w-4 h-4 text-stone-400 pointer-events-none"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <circle cx="11" cy="11" r="8" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+        <input
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          type="search"
+          aria-label="Search books"
+          placeholder="Search by title, author, keyword, ISBN..."
+          className="h-9 w-full rounded-md border border-stone-200 bg-transparent pl-9 pr-3 text-sm sm:text-xs placeholder:text-stone-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-stone-900"
+        />
+      </div>
+    </form>
+  );
+}
+
+export const Header: React.FC = () => {
   const { cartCount } = useCart();
   const { user, isLoading } = useAuth();
-
-  const [searchQuery, setSearchQuery] = useState('');
 
   // Extract display name only if an active user exists
   const userName = user
     ? user.firstName || user.name?.split(' ')[0] || 'Account'
     : '';
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
-    }
-  };
-
   return (
     <header className="sticky top-0 z-40 w-full border-b border-stone-200 bg-white/95 backdrop-blur-xs text-stone-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 sm:py-0 sm:h-14 flex flex-wrap sm:flex-nowrap items-center justify-between gap-x-4 gap-y-2">
         {/* Brand */}
         <Link
           href="/"
@@ -37,29 +67,14 @@ export const Header: React.FC = () => {
           <span className="text-xl">📚</span>
           <span className="text-base font-bold font-serif">Book Worms</span>
         </Link>
+        <Link href="/product-catalog" className="hidden md:inline text-sm font-medium text-stone-700 hover:text-stone-900 hover:underline">
+          Books
+        </Link>
 
-        {/* Search */}
-        <form onSubmit={handleSearchSubmit} className="flex-1 max-w-md mx-2">
-          <div className="relative flex items-center">
-            <svg
-              className="absolute left-3 w-4 h-4 text-stone-400 pointer-events-none"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by title, author, keyword, ISBN..."
-              className="h-9 w-full rounded-md border border-stone-200 bg-transparent pl-9 pr-3 text-xs placeholder:text-stone-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-stone-900"
-            />
-          </div>
-        </form>
+        {/* Search (own component so useSearchParams can sit in a Suspense boundary) */}
+        <Suspense fallback={<div className="order-last w-full sm:order-none sm:w-auto sm:flex-1 sm:max-w-md h-9" />}>
+          <SearchBox />
+        </Suspense>
 
         {/* Actions */}
         <div className="flex items-center gap-2">
@@ -103,24 +118,33 @@ export const Header: React.FC = () => {
               <span>{userName}</span>
             </Link>
           ) : (
-            <Link
-              href="/user-login"
-              className="h-9 px-3 rounded-md border border-stone-200 bg-stone-50 hover:bg-stone-100 text-stone-900 text-xs font-medium inline-flex items-center gap-2 transition"
-            >
-              <svg
-                className="w-4 h-4 text-stone-700 shrink-0"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+            <>
+              <Link
+                href="/user-login"
+                className="h-9 px-3 rounded-md border border-stone-200 bg-white hover:bg-stone-100 text-stone-900 text-xs font-medium inline-flex items-center gap-2 transition"
               >
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
-              </svg>
-              <span>Sign Up/In</span>
-            </Link>
+                <svg
+                  className="w-4 h-4 text-stone-700 shrink-0 hidden sm:block"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+                <span>Sign In</span>
+              </Link>
+              <Link
+                href="/user-register"
+                className="h-9 px-3 rounded-md bg-stone-900 hover:bg-stone-800 text-stone-50 text-xs font-medium inline-flex items-center transition"
+              >
+                Create Account
+              </Link>
+            </>
           )}
         </div>
       </div>
