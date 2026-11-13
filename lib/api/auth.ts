@@ -32,6 +32,8 @@ export interface UserSession {
   phone?: string | null;
   role: 'customer' | 'admin' | string;
   createdAt?: string;
+  // Staff set a temporary password: the account page asks for a new one
+  mustChangePassword?: boolean;
 }
 
 interface ApiResponse<T> {
@@ -69,6 +71,7 @@ function toUserSession(raw: any): UserSession | null {
     phone: raw.phone ?? null,
     role: raw.role || 'customer',
     createdAt: raw.created ?? raw.createdAt,
+    mustChangePassword: !!raw.mustChangePassword,
   };
 }
 

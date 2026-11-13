@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { EmptyState } from '@/components/empty-state';
 import Link from 'next/link';
 import { UserOrder } from '@/lib/api/user';
 import { formatPrice } from '@/lib/catalog';
@@ -30,12 +31,12 @@ export const OrdersTab: React.FC<Props> = ({ orders, isLoading }) => {
 
   if (orders.length === 0) {
     return (
-      <div className="bg-white border border-stone-200 rounded-xl p-12 text-center shadow-xs">
-        <p className="text-stone-700 font-medium text-base">You haven&apos;t placed any orders yet.</p>
+      <EmptyState image="orders" title="No orders yet">
+        <p>Once you check out, your orders show up here.</p>
         <Link href="/product-catalog" className="inline-block mt-4 text-sm font-semibold text-stone-900 hover:underline">
           Browse books &rarr;
         </Link>
-      </div>
+      </EmptyState>
     );
   }
 

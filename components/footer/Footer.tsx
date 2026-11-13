@@ -22,10 +22,10 @@ export const Footer: React.FC = () => {
       });
       const data = await res.json();
       if (res.ok) {
-        setStatus('Message received! Our team will get back to you.');
+        setStatus(data.message || 'Message received! Our team will get back to you.');
         setFormData({ name: '', email: '', message: '' });
       } else {
-        setStatus(data.message || 'Error sending message.');
+        setStatus(data.error || data.message || 'Error sending message.');
       }
     } catch {
       setStatus('Failed to dispatch message.');
@@ -47,9 +47,8 @@ export const Footer: React.FC = () => {
             Independent bookstore dedicated to literary preservation, curated genre feeds, and readers worldwide.
           </p>
           <div className="text-xs text-stone-500 space-y-1 pt-2 font-mono">
-            <p>support@bookworms.com</p>
-            <p>(555) 019-2834</p>
-            <p>Mon - Sat: 9:00 AM - 8:00 PM CST</p>
+            <p><a href="mailto:support@bookwrms.store" className="hover:text-stone-900 underline-offset-2 hover:underline">support@bookwrms.store</a></p>
+            <p>A CS 3773 class project at UTSA, not a real store</p>
           </div>
         </div>
 
@@ -63,6 +62,10 @@ export const Footer: React.FC = () => {
           {status && <p className="text-xs text-stone-900 font-medium mb-3">{status}</p>}
 
           <form onSubmit={handleSubmit} className="space-y-3">
+            {/* Spam trap: hidden from people, bots fill it in (the server rejects those) */}
+            <div aria-hidden="true" className="hidden">
+              <label>Leave this empty <input type="text" name="website" tabIndex={-1} autoComplete="off" defaultValue="" /></label>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <input
                 type="text"
@@ -113,6 +116,7 @@ export const Footer: React.FC = () => {
           <Link href="/about#shipping" className="inline-flex min-h-8 items-center px-1 hover:text-stone-900 transition">Shipping</Link>
           <Link href="/about#privacy" className="inline-flex min-h-8 items-center px-1 hover:text-stone-900 transition">Privacy</Link>
           <Link href="/about#terms" className="inline-flex min-h-8 items-center px-1 hover:text-stone-900 transition">Terms</Link>
+          <Link href="/staff-login" className="inline-flex min-h-8 items-center px-1 hover:text-stone-900 transition">Staff sign in</Link>
         </div>
       </div>
     </footer>

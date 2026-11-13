@@ -2,6 +2,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useAuth } from './auth-context';
 
 interface CartContextType {
   cartCount: number;
@@ -50,9 +51,16 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [applyServerCart]);
 
+  // Only signed-in shoppers have a cart (guests would just get a 401 from /api/cart)
+  const { user, isLoading } = useAuth();
   useEffect(() => {
-    refreshCart();
-  }, [refreshCart]);
+    if (isLoading) return;
+    if (user) refreshCart();
+    else {
+      setCartCount(0);
+      setCartItemIds(new Set());
+    }
+  }, [user, isLoading, refreshCart]);
 
   // SCRUM-137: Toggle add / remove on card click
   const toggleCartItem = async (bookId: number): Promise<boolean> => {

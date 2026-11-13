@@ -34,7 +34,7 @@ function LoginForm() {
   useEffect(() => {
     if (!isLoading && user) {
       const next = searchParams.get('callbackUrl');
-      router.replace(next && next.startsWith('/') && !next.startsWith('//') ? next : '/');
+      router.replace(user.mustChangePassword ? '/account?tab=security' : next && next.startsWith('/') && !next.startsWith('//') ? next : '/');
     }
   }, [user, isLoading, router, searchParams]);
 
@@ -90,8 +90,9 @@ function LoginForm() {
 
         // Force a full browser navigation to ensure cookie is read in (main)
         // Only same-site paths: '//evil.com' would leave the site
-        window.location.href =
-          callbackUrl && callbackUrl.startsWith('/') && !callbackUrl.startsWith('//') ? callbackUrl : '/';
+        window.location.href = sessionData.user.mustChangePassword
+          ? '/account?tab=security'
+          : callbackUrl && callbackUrl.startsWith('/') && !callbackUrl.startsWith('//') ? callbackUrl : '/';
       } catch (err: any) {
         if (err instanceof AuthApiError) {
           setServerError(err.message);

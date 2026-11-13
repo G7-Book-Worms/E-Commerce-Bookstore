@@ -13,7 +13,9 @@ export default function NotFound() {
           <Link href="/" className="inline-flex items-center gap-2 font-serif text-2xl font-bold">
             <span aria-hidden>📚</span> Book Worms
           </Link>
-          <p className="font-serif text-6xl font-bold text-stone-300">404</p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/images/empty-states/french-bulldog-puppy-frowning.webp" alt="" loading="lazy" width={240} height={180} className="h-40 w-auto" />
+          <p className="font-serif text-sm font-bold uppercase tracking-widest text-stone-400">Error 404</p>
           <h1 className="font-serif text-2xl font-bold">We couldn&apos;t find that page</h1>
           <p className="text-sm text-stone-600">The link may be old, or the book may no longer be in our catalog.</p>
           <form action="/product-catalog/all" className="flex w-full gap-2">

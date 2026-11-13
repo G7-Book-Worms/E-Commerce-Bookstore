@@ -5,9 +5,13 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { changeUserPassword } from '@/lib/api/user';
 import { PasswordInput } from '@/components/ui/password-input';
+import { PasswordStrength } from '@/components/ui/password-strength';
+import { passwordProblems } from '@/lib/password-policy';
+import { useAuth } from '@/app/context/auth-context';
 
 export const SecurityTab: React.FC = () => {
   const router = useRouter();
+  const { user, refreshSession } = useAuth();
 
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
@@ -27,16 +31,18 @@ export const SecurityTab: React.FC = () => {
       setStatusMsg({ type: 'error', text: 'New password and confirmation do not match.' });
       return;
     }
-    if (passwordForm.newPassword.length < 8) {
-      setStatusMsg({ type: 'error', text: 'Password must be at least 8 characters long.' });
+    const problems = passwordProblems(passwordForm.newPassword);
+    if (problems.length) {
+      setStatusMsg({ type: 'error', text: `${problems[0]}.` });
       return;
     }
 
     try {
       setIsUpdating(true);
       await changeUserPassword(passwordForm);
-      setStatusMsg({ type: 'success', text: 'Password updated successfully.' });
+      setStatusMsg({ type: 'success', text: 'Password updated. Every other device was signed out, and we emailed you a confirmation.' });
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      await refreshSession();
     } catch (err: any) {
       setStatusMsg({ type: 'error', text: err.message || 'Failed to update password.' });
     } finally {
@@ -102,6 +108,7 @@ export const SecurityTab: React.FC = () => {
               onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
               className="h-10 w-full rounded-md border border-stone-200 bg-white px-3 py-2 text-sm placeholder:text-stone-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
             />
+            <PasswordStrength password={passwordForm.newPassword} email={user?.email} />
           </div>
 
           <div className="space-y-1.5">

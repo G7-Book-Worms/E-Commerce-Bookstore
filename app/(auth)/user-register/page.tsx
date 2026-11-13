@@ -7,6 +7,8 @@ import { z } from 'zod';
 import { registerUser, AuthApiError } from '@/lib/api/auth';
 import { useAuth } from '../../context/auth-context';
 import { PasswordInput } from '@/components/ui/password-input';
+import { PasswordStrength } from '@/components/ui/password-strength';
+import { newPasswordSchema } from '@/lib/password-policy';
 
 // Mirrors registerInputSchema in server/src/modules/auth/auth-schema.ts
 const clientRegisterSchema = z
@@ -27,13 +29,8 @@ const clientRegisterSchema = z
       .min(1, 'Email address is required')
       .email('Please enter a valid email address')
       .max(100, 'Email cannot exceed 100 characters'),
-    password: z
-      .string()
-      .min(8, 'Password must be at least 8 characters long')
-      .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-      .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
-      .regex(/[0-9]/, 'Password must contain at least one number')
-      .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character'),
+    // Same rules as the server (lib/password-policy.ts)
+    password: newPasswordSchema,
     confirmPassword: z.string().min(1, 'Please confirm your password'),
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -214,9 +211,12 @@ function RegisterForm() {
         </div>
         {renderField('email', 'Email address', 'email', 'email', 'reader@bookworms.com')}
         {renderField('password', 'Password', 'password', 'new-password')}
-        <p className="-mt-2 text-xs text-neutral-500">
-          At least 8 characters, with an uppercase letter, a lowercase letter, a number and a symbol.
-        </p>
+        <div className="-mt-2">
+          <p className="text-xs text-neutral-500">
+            At least 10 characters, with an uppercase letter, a lowercase letter, a number and a symbol. Common passwords aren&apos;t allowed.
+          </p>
+          <PasswordStrength password={formData.password} email={formData.email} />
+        </div>
         {renderField('confirmPassword', 'Confirm password', 'password', 'new-password')}
 
         <div className="pt-2">
