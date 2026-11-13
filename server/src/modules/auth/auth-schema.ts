@@ -54,6 +54,8 @@ export const loginInputSchema = z.object({
   password: z
     .string({ required_error: 'Password is required' })
     .min(1, 'Password is required'),
+  // Unchecked = the login cookie ends when the browser closes
+  rememberMe: z.boolean().optional(),
 });
 
 export type RegisterInput = z.infer<typeof registerInputSchema>;

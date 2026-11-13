@@ -5,15 +5,17 @@ const AUTH_COOKIE_NAME = 'auth_token';
 const SEVEN_DAYS_IN_SECONDS = 60 * 60 * 24 * 7;
 
 /**
- * Attaches the signed JWT as an HttpOnly, secure session cookie.
+ * Attaches the signed JWT as an HttpOnly, secure cookie.
+ * remember = true keeps it for 7 days; false makes it a browser-session cookie
+ * ("Remember me" unchecked: closing the browser signs you out).
  */
-export function setAuthCookie(response: NextResponse, token: string): void {
+export function setAuthCookie(response: NextResponse, token: string, remember: boolean = true): void {
   response.cookies.set(AUTH_COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
-    maxAge: SEVEN_DAYS_IN_SECONDS,
+    ...(remember ? { maxAge: SEVEN_DAYS_IN_SECONDS } : {}),
   });
 }
 

@@ -67,6 +67,8 @@ export const Footer: React.FC = () => {
               <input
                 type="text"
                 required
+                aria-label="Your name"
+                autoComplete="name"
                 placeholder="Name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -75,6 +77,8 @@ export const Footer: React.FC = () => {
               <input
                 type="email"
                 required
+                aria-label="Your email"
+                autoComplete="email"
                 placeholder="Email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -84,6 +88,7 @@ export const Footer: React.FC = () => {
             <textarea
               required
               rows={2}
+              aria-label="Your message"
               placeholder="How can we help?"
               value={formData.message}
               onChange={(e) => setFormData({ ...formData, message: e.target.value })}
@@ -103,11 +108,11 @@ export const Footer: React.FC = () => {
       {/* Footer Navigation */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 flex flex-wrap items-center justify-between gap-4 text-xs text-stone-400">
         <p>© 2026 Book Worms Bookstore. All rights reserved.</p>
-        <div className="flex gap-4">
-          <Link href="/about" className="hover:text-stone-900 transition">About</Link>
-          <Link href="/about#shipping" className="hover:text-stone-900 transition">Shipping</Link>
-          <Link href="/about#privacy" className="hover:text-stone-900 transition">Privacy</Link>
-          <Link href="/about#terms" className="hover:text-stone-900 transition">Terms</Link>
+        <div className="flex flex-wrap gap-x-2">
+          <Link href="/about" className="inline-flex min-h-8 items-center px-1 hover:text-stone-900 transition">About</Link>
+          <Link href="/about#shipping" className="inline-flex min-h-8 items-center px-1 hover:text-stone-900 transition">Shipping</Link>
+          <Link href="/about#privacy" className="inline-flex min-h-8 items-center px-1 hover:text-stone-900 transition">Privacy</Link>
+          <Link href="/about#terms" className="inline-flex min-h-8 items-center px-1 hover:text-stone-900 transition">Terms</Link>
         </div>
       </div>
     </footer>

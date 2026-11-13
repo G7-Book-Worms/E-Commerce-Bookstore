@@ -33,7 +33,7 @@ export class AuthController {
     const result = await authService.login(validatedInput);
 
     const response = HttpResponse.success({ user: result.user }, 'Logged in successfully');
-    setAuthCookie(response, result.token);
+    setAuthCookie(response, result.token, validatedInput.rememberMe ?? false);
     return response;
   }
 

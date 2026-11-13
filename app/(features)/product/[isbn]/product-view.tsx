@@ -62,7 +62,7 @@ export function ProductView({ book }: { book: CatalogBook }) {
 
   return (
     <div className="grid gap-8 md:grid-cols-[minmax(0,320px)_minmax(0,1fr)] md:gap-12">
-      <div className="relative mx-auto aspect-2/3 w-full max-w-80 overflow-hidden rounded-xl border bg-muted shadow-sm">
+      <div className="relative mx-auto aspect-2/3 w-full max-w-60 md:max-w-80 overflow-hidden rounded-xl border bg-muted shadow-sm">
         <BookCover title={book.title} author={book.author} isbn={book.isbn} coverImageUrl={book.coverImageUrl} eager sizes="320px" />
       </div>
 

@@ -69,8 +69,10 @@ export const ProfileFormTab: React.FC<Props> = ({ profile, onProfileUpdated }) =
       <form onSubmit={handleSubmit} className="space-y-5 max-w-xl">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <div className="space-y-1.5">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-stone-700">First Name</label>
+            <label htmlFor="profile-firstName" className="block text-xs font-semibold uppercase tracking-wider text-stone-700">First Name</label>
             <input
+              id="profile-firstName"
+              autoComplete="given-name"
               type="text"
               value={formData.firstName}
               onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
@@ -79,8 +81,10 @@ export const ProfileFormTab: React.FC<Props> = ({ profile, onProfileUpdated }) =
             />
           </div>
           <div className="space-y-1.5">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-stone-700">Last Name</label>
+            <label htmlFor="profile-lastName" className="block text-xs font-semibold uppercase tracking-wider text-stone-700">Last Name</label>
             <input
+              id="profile-lastName"
+              autoComplete="family-name"
               type="text"
               value={formData.lastName}
               onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
@@ -91,8 +95,10 @@ export const ProfileFormTab: React.FC<Props> = ({ profile, onProfileUpdated }) =
         </div>
 
         <div className="space-y-1.5">
-          <label className="block text-xs font-semibold uppercase tracking-wider text-stone-700">Email Address</label>
+          <label htmlFor="profile-email" className="block text-xs font-semibold uppercase tracking-wider text-stone-700">Email Address</label>
           <input
+            id="profile-email"
+            autoComplete="email"
             type="email"
             value={formData.email}
             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -102,8 +108,10 @@ export const ProfileFormTab: React.FC<Props> = ({ profile, onProfileUpdated }) =
         </div>
 
         <div className="space-y-1.5">
-          <label className="block text-xs font-semibold uppercase tracking-wider text-stone-700">Phone Number</label>
+          <label htmlFor="profile-phone" className="block text-xs font-semibold uppercase tracking-wider text-stone-700">Phone Number</label>
           <input
+            id="profile-phone"
+            autoComplete="tel"
             type="tel"
             value={formData.phone}
             onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
