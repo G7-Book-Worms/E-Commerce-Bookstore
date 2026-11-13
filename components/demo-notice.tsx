@@ -51,7 +51,7 @@ export function DemoDialog() {
         <p className="text-xs font-bold uppercase tracking-widest text-amber-700">Heads up</p>
         <h2 id="demo-title" className="mt-1 font-serif text-2xl font-bold text-stone-900 sm:text-3xl">This is a student project, not a real bookstore</h2>
         <div id="demo-text" className="mt-4 space-y-3 text-sm leading-relaxed text-stone-700">
-          <p>Book Worms was built by Group 7 for <strong>CS 3773 Software Engineering at UTSA</strong>. You&apos;re welcome to look around, create an account and try the checkout.</p>
+          <p>Book Worms was built by a group of students for a software engineering class at UTSA. You&apos;re welcome to look around, create an account and try the checkout.</p>
           <p className="rounded-lg bg-amber-50 p-3 text-amber-950">
             <strong>Please don&apos;t buy anything.</strong> The checkout really works, but it runs in Stripe&apos;s <strong>test mode</strong>: no book will ever ship, and every payment is cancelled and refunded automatically. Use the test card <span className="font-mono">4242 4242 4242 4242</span> instead of a real one.
           </p>
