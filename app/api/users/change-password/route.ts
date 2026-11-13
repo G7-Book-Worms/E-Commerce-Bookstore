@@ -4,6 +4,6 @@ import { UsersController } from '../../../../server/src/modules/users/users-cont
 import { authenticateRequest, withAuthHeaders } from '../../../../server/src/shared/middleware/auth-middleware';
 
 export const POST = createApiHandler(async (req: NextRequest) => {
-  const { headers } = authenticateRequest(req);
+  const { headers } = await authenticateRequest(req);
   return UsersController.changePassword(withAuthHeaders(req, headers));
 });

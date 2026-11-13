@@ -7,7 +7,7 @@ import { BadRequestError } from '@/server/src/shared/errors/app-error';
 import { getOrderSummary } from '@/server/src/modules/checkout/checkout-service';
 
 export const GET = createApiHandler(async (req: NextRequest, ctx: { params: Promise<{ orderId: string }> }) => {
-  const { user } = authenticateRequest(req);
+  const { user } = await authenticateRequest(req);
   const orderId = Number((await ctx.params).orderId);
   if (!Number.isInteger(orderId) || orderId <= 0) throw new BadRequestError('Invalid order id');
   return HttpResponse.success(await getOrderSummary(Number(user.id), orderId));

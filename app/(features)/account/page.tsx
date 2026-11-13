@@ -129,14 +129,21 @@ function Account() {
       {error && <div role="alert" className="p-4 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">{error}</div>}
 
       {/* Tabs */}
-      <div role="tablist" aria-label="Account sections" className="flex gap-1 overflow-x-auto border-b border-stone-200">
+      {user?.mustChangePassword && (
+        <div role="alert" className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-900">
+          A staff member gave you a temporary password. Please choose your own password below.
+        </div>
+      )}
+
+      {/* Wraps onto two rows on phones so every tab stays visible */}
+      <div role="tablist" aria-label="Account sections" className="flex flex-wrap gap-x-1 border-b border-stone-200">
         {TABS.map((t) => (
           <button
             key={t.id}
             role="tab"
             aria-selected={activeTab === t.id}
             onClick={() => selectTab(t.id)}
-            className={`whitespace-nowrap px-4 py-3 text-sm font-medium border-b-2 -mb-px transition ${
+            className={`whitespace-nowrap px-3 sm:px-4 py-3 text-sm font-medium border-b-2 -mb-px transition ${
               activeTab === t.id ? 'border-stone-900 text-stone-900' : 'border-transparent text-stone-500 hover:text-stone-900'
             }`}
           >

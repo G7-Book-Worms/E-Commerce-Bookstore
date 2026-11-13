@@ -41,7 +41,8 @@
 The app is a single Next.js project: pages live in `app/`, and the backend is a set of **API route handlers** (`app/api/**`) backed by a layered server module (`server/src/`) and a **MySQL** database hosted on **Aiven**, accessed through **Drizzle ORM**.
 
 > [!NOTE]
-> This is an academic project. No real payments are processed. Some catalog pages still read the sample set in `lib/sample-books.ts` while they are moved onto the database.
+> This is an academic project, live at **https://bookwrms.store** with a "class project, don't buy anything" notice.
+> Payments run in Stripe **test mode** and are refunded automatically; nothing ships.
 
 ---
 
@@ -49,17 +50,21 @@ The app is a single Next.js project: pages live in `app/`, and the backend is a 
 
 | | Feature | Route | Status |
 |:-:|:--|:--|:-:|
-| ◆ | Landing page with promotional banner and genre carousels (from the database) | `/` | ● Done |
-| ◆ | Customer registration | `/user-register` | ● Done |
-| ◆ | Customer sign-in / sign-out (httpOnly JWT cookie) | `/user-login` | ● Done |
-| ◆ | Account dashboard — profile, order history, addresses, security | `/account` | ◐ In progress |
-| ◆ | Shopping cart backed by the database (login required) | `/cart` | ● Done |
-| ◆ | Place an order from the cart (stock is decremented) | `POST /api/orders` | ● Done |
-| ◆ | Product catalog organized into sections (bestsellers, trending, new releases…) | `/product-catalog` | ◐ Moving to database |
-| ◆ | Full catalog browser with filtering | `/product-catalog/all` | ◐ Moving to database |
-| ◆ | Product detail page — formats, pricing, sale badges | `/product/[isbn]` | ◐ Moving to database |
-| ◇ | Checkout and payments (Stripe test mode) | `/checkout` | ○ Planned |
-| ◇ | Admin login and dashboard (orders, inventory, activity log) | `/admin` | ○ Planned |
+| ◆ | Homepage: sale banner, promo cards, genre tiles, live book rows | `/` | ● Done |
+| ◆ | Catalog sections, See All with filters/sort/search, product page with formats | `/product-catalog`, `/product/[isbn]` | ● Done |
+| ◆ | Sign up, sign in (Remember me), sign out; password strength meter | `/user-register`, `/user-login` | ● Done |
+| ◆ | Forgot password: emailed one-time reset link (30 minutes) | `/forgot-password`, `/reset-password` | ● Done |
+| ◆ | Account: profile, order history, addresses, password | `/account` | ● Done |
+| ◆ | Cart with formats, sale prices, discount codes, 8.25% tax | `/cart` | ● Done |
+| ◆ | Stripe Checkout (test mode, auto-refund), confirmation page and email | `/checkout` | ● Done |
+| ◆ | Emails from no-reply@bookwrms.store: welcome, order, status, password | — | ● Done |
+| ◆ | Contact Support form saved to the staff inbox; replies emailed from support@ | footer | ● Done |
+| ◆ | Staff portal sign-in (email + password + employee ID) with roles | `/staff-login` | ● Done |
+| ◆ | Dashboard: revenue, sales chart, low-stock alerts, best sellers | `/admin` | ● Done |
+| ◆ | Orders: sort by date/customer/total/status, ship, deliver, cancel (restocks) | `/admin/orders` | ● Done |
+| ◆ | Inventory: restock, correct counts, prices, sale prices, low-stock alerts, movement history | `/admin/inventory` | ● Done |
+| ◆ | Discount codes, customers (deactivate, temporary password, sign out everywhere), staff accounts | `/admin/...` | ● Done |
+| ◆ | Activity log of every customer, staff and system action | `/admin/activity` | ● Done |
 
 <sub>● Done &nbsp; ◐ In progress &nbsp; ○ Planned</sub>
 
@@ -98,9 +103,24 @@ The app is a single Next.js project: pages live in `app/`, and the backend is a 
 <td valign="top">
 
 **Auth & Tooling**
-- bcrypt password hashing, JWT in an httpOnly cookie (`jsonwebtoken`, `jose`)
-- [pnpm](https://pnpm.io) · [ESLint 9](https://eslint.org) · [tsx](https://tsx.is) for scripts
-- Planned: [Stripe](https://stripe.com) for card payments
+- bcrypt (cost 12) password hashing, JWT in httpOnly cookies (`jsonwebtoken`, `jose`)
+- [pnpm](https://pnpm.io) · [ESLint 9](https://eslint.org) · [tsx](https://tsx.is) for scripts · `node:test` unit tests
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+**Payments & Email**
+- [Stripe Checkout](https://stripe.com/docs/payments/checkout) in test mode (auto-refunded)
+- [Nodemailer](https://nodemailer.com) over Namecheap Private Email (SPF, DKIM, DMARC)
+
+</td>
+<td valign="top">
+
+**Hosting**
+- [Vercel](https://vercel.com) at **https://bookwrms.store** (deploys from `main`)
+- Aiven MySQL over TLS
 
 </td>
 </tr>
@@ -142,12 +162,17 @@ Fill in `.env` in the project root (next to `package.json`):
 | Variable | Description |
 |:--|:--|
 | `DATABASE_URL` | MySQL connection string. For Aiven, copy the **Service URI** from the service's overview page and remove `?ssl-mode=REQUIRED` from the end. |
-| `DB_SSL` | `true` for Aiven. `false` only for a local MySQL without SSL. |
+| `DB_SSL` | `true` for Aiven. `false` only for a local MySQL without TLS. |
+| `DB_CA_CERT` | Optional. Aiven's CA certificate (PEM, `\n` for line breaks); when set the database certificate is verified. |
 | `JWT_SECRET` | Random string, at least 32 characters. Generate one with `openssl rand -hex 32`. |
-| `JWT_EXPIRES_IN` | Login session length, e.g. `7d`. |
 | `STRIPE_SECRET_KEY` | Stripe **test** secret key (`sk_test_…`). The server refuses live keys. |
-| `STRIPE_PUBLISHABLE_KEY` | Stripe test publishable key (`pk_test_…`). |
 | `STRIPE_AUTO_REFUND` | Test charges are refunded right after checkout unless this is `false`. |
+| `SITE_URL` | Public URL used in emails and Stripe return links (`https://bookwrms.store` on Vercel). |
+| `SMTP_HOST`, `SMTP_PORT` | `mail.privateemail.com`, `465`. Leave out locally: emails are printed to the server console instead. |
+| `NOREPLY_EMAIL`, `NOREPLY_EMAIL_PASSWORD` | Mailbox that sends account and order emails. |
+| `SUPPORT_EMAIL`, `SUPPORT_EMAIL_PASSWORD` | Reply-to address; staff replies and low-stock alerts use it. |
+
+Security measures are listed in [`docs/security.md`](docs/security.md).
 
 > [!CAUTION]
 > `.env` holds the database password. It is ignored by git (`.env*` in `.gitignore`); never paste it into chat, issues, or commits.
@@ -163,6 +188,14 @@ pnpm db:seed      # load test data; the catalog part (stock, prices, codes) is r
 
 Every seeded account uses the password **`BookWorms123!`** — for example `ada.lovelace@example.com`.
 
+Staff portal (`/staff-login`), one demo account per role, all with `BookWorms123!`:
+
+| Role | Email | Employee ID | Can use |
+|:--|:--|:--|:--|
+| Administrator | `grace@example.com` | `BW-1001` | everything, including staff accounts |
+| Manager | `edsger@example.com` | `BW-1002` | + prices, sales, add/edit books, discounts, customers, activity log |
+| Employee | `barbara@example.com` | `BW-1003` | dashboard, orders, stock counts, messages |
+
 ### Before the presentation
 
 > [!IMPORTANT]
@@ -175,6 +208,7 @@ Every seeded account uses the password **`BookWorms123!`** — for example `ada.
 > It runs the catalog seed (stock, prices, sale prices and discount codes go back to the test data, undoing
 > rehearsal purchases), resets the demo accounts `ada.lovelace@example.com` and `alan.turing@example.com` to
 > the password `BookWorms123!`, and **empties the demo account's cart** so the demo starts from an empty cart.
+> It also resets the three demo staff accounts and clears every sign-in lockout.
 > Then sign in once and check the cart is empty.
 
 To pay during the demo, use Stripe's test card `4242 4242 4242 4242`, any future date and any CVC.
@@ -198,7 +232,7 @@ Then open **[http://localhost:3000](http://localhost:3000)** in your browser.
 | `pnpm db:generate` | Create a new migration after changing `server/db/schema.ts` |
 | `pnpm db:migrate` | Apply pending migrations to the database in `DATABASE_URL` |
 | `pnpm db:seed` | Load test data from `server/db/test-data/`; the catalog part (stock, prices, codes) is re-applied every run |
-| `pnpm demo:reset` | Before the presentation: re-seed the catalog, reset demo passwords and empty the demo carts |
+| `pnpm demo:reset` | Before the presentation: re-seed the catalog, reset demo customer and staff passwords, empty the demo carts, clear lockouts |
 | `pnpm test` | Run the unit tests (`server/**/*.test.ts`) |
 | `pnpm db:studio` | Browse the database in Drizzle Studio |
 
@@ -218,15 +252,24 @@ E-Commerce-Bookstore/
 │   ├── (auth)/
 │   │   ├── user-login/              ─ customer sign-in
 │   │   ├── user-register/           ─ customer registration
-│   │   └── admin-portal-login-obscure/  ─ admin login
-│   ├── api/                         ─ route handlers (auth, books, cart, orders, users, health)
+│   │   ├── forgot-password/         ─ request an emailed reset link
+│   │   └── reset-password/          ─ choose a new password from the link
+│   ├── (staff)/
+│   │   ├── staff-login/             ─ staff sign-in (email + password + employee ID)
+│   │   └── admin/                   ─ staff portal: dashboard, orders, inventory, books,
+│   │                                  discounts, customers, messages, activity, staff
+│   ├── api/                         ─ route handlers (auth, books, cart, checkout, contact,
+│   │                                  orders, users, health, staff/*)
 │   ├── context/                     ─ React context: auth and cart state
 │   ├── error.tsx, global-error.tsx, not-found.tsx  ─ error pages
 │   └── globals.css
-├── components/                      ─ UI: header, footer, home, account tabs, shadcn/ui
+├── components/                      ─ UI: header, footer, home, account tabs, staff portal, shadcn/ui
+├── docs/                            ─ compliance checklist, security overview
 ├── lib/
 │   ├── api/                         ─ browser-side API clients (auth.ts, user.ts)
-│   └── sample-books.ts              ─ legacy sample catalog (being replaced by the database)
+│   ├── catalog.ts, cart-types.ts    ─ shared catalog and cart types
+│   ├── password-policy.ts           ─ password rules (used by forms and the API)
+│   └── staff-permissions.ts         ─ what each staff role can do
 ├── server/
 │   ├── db/
 │   │   ├── schema.ts                ─ ★ single source of truth for every table
@@ -239,9 +282,10 @@ E-Commerce-Bookstore/
 │       ├── modules/<feature>/       ─ schema → repository → service → controller
 │       ├── shared/                  ─ errors, HTTP responses, auth middleware, utils
 │       └── server.ts                ─ createApiHandler(): consistent JSON errors
-├── proxy.ts                         ─ request IDs, security headers, page guards
+├── public/images/                   ─ banners, genre tiles, empty-state photos
+├── proxy.ts                         ─ request IDs, CSRF check, page guards
 ├── .env.example                     ─ template for .env
-└── next.config.ts
+└── next.config.ts                   ─ security headers (CSP, HSTS, …)
 ```
 
 > [!TIP]
@@ -250,15 +294,24 @@ E-Commerce-Bookstore/
 ### How a request flows
 
 ```text
-browser → proxy.ts (security headers, login guard)
+browser → proxy.ts (CSRF check, login guard)
         → app/api/<route>/route.ts
-        → createApiHandler() + authenticateRequest()
+        → createApiHandler() + authenticateRequest()        (customers)
+          or staffApi(permission) → authenticateStaff()     (staff portal)
         → controller → service → repository → Drizzle → MySQL (Aiven)
 ```
+
+- Every signed-in request re-checks the account in the database (deactivated accounts and signed-out sessions stop working at once), and staff routes check the role's permission.
 
 - Errors thrown as `AppError` subclasses (`NotFoundError`, `ConflictError`, …) become JSON `{ success: false, error }` with the right status code; anything unexpected is logged and returned as a generic 500.
 - Successful responses use `{ success: true, message, data }`.
 - Prices are stored in **cents** and always read from the database, never trusted from the browser.
+
+### Deployment
+
+- **Vercel** builds and deploys `main` to **https://bookwrms.store**; other branches get preview URLs. Environment variables (same names as `.env.example`) are set in the Vercel project settings.
+- Database migrations are **not** run by the deploy: after merging a PR that adds a migration, run `pnpm db:migrate` against Aiven from a laptop.
+- Emails go out from `no-reply@bookwrms.store`; replies and low-stock alerts go to `support@bookwrms.store`.
 
 ---
 

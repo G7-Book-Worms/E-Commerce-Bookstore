@@ -11,7 +11,7 @@ import { completeCheckout } from '@/server/src/modules/checkout/checkout-service
 const completeSchema = z.object({ sessionId: z.string().startsWith('cs_', 'Invalid checkout session').max(255) });
 
 export const POST = createApiHandler(async (req: NextRequest) => {
-  const { user } = authenticateRequest(req);
+  const { user } = await authenticateRequest(req);
   const { sessionId } = await validateBody(req, completeSchema);
   const result = await completeCheckout(Number(user.id), sessionId);
   return HttpResponse.success(result, 'Order placed');

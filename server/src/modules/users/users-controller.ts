@@ -1,3 +1,4 @@
+import { setAuthCookie } from '../../shared/utils/cookie-utils';
 import { NextRequest } from 'next/server';
 import { UsersService } from './users-service';
 import {
@@ -39,8 +40,12 @@ export class UsersController {
     const userId = UsersController.getAuthUserId(req);
     const body = await req.json();
     const validated = changePasswordSchema.parse(body);
-    const result = await usersService.changePassword(userId, validated);
-    return HttpResponse.success(result, 'Password changed successfully');
+    const remember = req.headers.get('x-user-remember') === 'true';
+    const { token, ...result } = await usersService.changePassword(userId, validated, remember);
+    const response = HttpResponse.success(result, 'Password changed successfully');
+    // Keep this browser signed in (other devices were signed out); keeps a session cookie a session cookie
+    setAuthCookie(response, token, remember);
+    return response;
   }
 
   // GET /api/users/addresses

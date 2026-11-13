@@ -4,16 +4,19 @@
 // 2. The shopper pays on Stripe's page (test card 4242 4242 4242 4242).
 // 3. complete(): Stripe sends them back with the session id; we ask Stripe whether it was
 //    paid, then take the books out of stock, mark the payment completed and empty the cart.
-import { and, eq, gte, sql } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import type Stripe from 'stripe';
 import { db } from '../../../db';
-import { bookFormats, cartItems, carts, orderItems, orders, payments, users } from '../../../db/schema';
+import { cartItems, carts, orderItems, orders, payments, users } from '../../../db/schema';
 import { CartService } from '../cart/cart-service';
 import { UsersRepository } from '../users/users-repository';
 import { recordDiscountUse } from '../discounts/discounts-repository';
 import { syncBookTotals } from '../books/book-totals';
 import { getStripe, autoRefundEnabled } from '../payments/stripe';
 import { logActivity } from '../activity/activity-log';
+import { alertLowStock, changeStock, type StockChange } from '../inventory/inventory-service';
+import { sendEmail } from '../email/mailer';
+import { orderConfirmationEmail } from '../email/templates';
 import { AppError, BadRequestError, ConflictError, NotFoundError } from '../../shared/errors/app-error';
 
 const cartService = new CartService();
@@ -150,15 +153,15 @@ export async function completeCheckout(userId: number, sessionId: string) {
   const card = charge?.payment_method_details?.card;
   const items = await db.select().from(orderItems).where(eq(orderItems.orderId, order.orderId));
 
+  const stockChanges: StockChange[] = [];
   try {
     await db.transaction(async (tx) => {
-      // Take the copies out of stock; fails if someone else bought the last ones meanwhile
+      // Take the copies out of stock (row-locked, logged as inventory movements);
+      // fails if someone else bought the last ones meanwhile
       for (const item of items) {
-        const [res] = (await tx
-          .update(bookFormats)
-          .set({ stock: sql`${bookFormats.stock} - ${item.quantity}` })
-          .where(and(eq(bookFormats.bookId, item.bookId), eq(bookFormats.format, item.format), gte(bookFormats.stock, item.quantity)))) as unknown as [{ affectedRows: number }];
-        if (!res.affectedRows) throw new ConflictError('OUT_OF_STOCK');
+        stockChanges.push(
+          await changeStock(tx, { bookId: item.bookId, format: item.format }, -item.quantity, 'sale', { orderId: order.orderId })
+        );
       }
       await tx
         .update(payments)
@@ -174,7 +177,7 @@ export async function completeCheckout(userId: number, sessionId: string) {
       }
     });
   } catch (err) {
-    if (err instanceof ConflictError && intent) {
+    if (err instanceof ConflictError && err.message === 'OUT_OF_STOCK' && intent) {
       // Paid, but the books sold out in the meantime: give the money back and cancel
       await stripe.refunds.create({ payment_intent: intent.id });
       await db.update(payments).set({ status: 'refunded' }).where(eq(payments.paymentId, payment.paymentId));
@@ -188,6 +191,7 @@ export async function completeCheckout(userId: number, sessionId: string) {
   await syncBookTotals();
   if (order.discountCodeId) await recordDiscountUse(order.discountCodeId);
   await logActivity('customer', userId, 'order.placed', { orderId: order.orderId, totalCents: order.priceCents });
+  await alertLowStock(stockChanges);
 
   // Class-project safety net: reverse the (test) charge right away
   if (autoRefundEnabled() && intent) {
@@ -200,6 +204,7 @@ export async function completeCheckout(userId: number, sessionId: string) {
     }
   }
 
+  await sendOrderConfirmation(userId, order.orderId);
   return { orderId: order.orderId, alreadyProcessed: false };
 }
 
@@ -227,3 +232,29 @@ export async function getOrderSummary(userId: number, orderId: number) {
   };
 }
 
+
+/** Order confirmation email (SCRUM-212), sent once the payment is verified. */
+async function sendOrderConfirmation(userId: number, orderId: number) {
+  try {
+    const summary = await getOrderSummary(userId, orderId);
+    const [user] = await db.select({ firstName: users.firstName, email: users.email }).from(users).where(eq(users.userId, userId));
+    if (!user) return;
+    await sendEmail(orderConfirmationEmail(user.email, {
+      orderId,
+      firstName: user.firstName,
+      lines: summary.items.map((i) => ({
+        title: i.title,
+        format: FORMAT_LABEL[i.format],
+        quantity: i.quantity,
+        unitPriceCents: Math.round(Number(i.unitPrice) * 100),
+      })),
+      subtotalCents: summary.order.subtotalCents,
+      discountCents: summary.order.discountCents,
+      taxCents: summary.order.taxCents,
+      totalCents: summary.order.priceCents,
+      refunded: summary.payment?.status === 'refunded',
+    }));
+  } catch (err) {
+    console.error('[checkout] confirmation email failed', err);
+  }
+}

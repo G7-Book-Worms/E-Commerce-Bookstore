@@ -16,21 +16,21 @@ import {
 
 const cartService = new CartService();
 
-function getUserId(req: NextRequest): number {
-  const { user } = authenticateRequest(req);
+async function getUserId(req: NextRequest): Promise<number> {
+  const { user } = await authenticateRequest(req);
   return Number(user.id);
 }
 
 // GET /api/cart[?code=BOOKWORMS10] -> the cart with totals
 export const GET = createApiHandler(async (req: NextRequest) => {
-  const userId = getUserId(req);
+  const userId = await getUserId(req);
   const cart = await cartService.getCart(userId, req.nextUrl.searchParams.get('code'));
   return HttpResponse.success(cart, 'Cart retrieved');
 });
 
 // POST /api/cart { bookId, format?, quantity = 1 } -> add a book or increase its quantity
 export const POST = createApiHandler(async (req: NextRequest) => {
-  const userId = getUserId(req);
+  const userId = await getUserId(req);
   const { bookId, format, quantity = 1 } = await validateBody(req, addToCartSchema);
   const cart = await cartService.addItem(userId, bookId, quantity, format);
   return HttpResponse.success(cart, 'Added to cart');
@@ -38,7 +38,7 @@ export const POST = createApiHandler(async (req: NextRequest) => {
 
 // PATCH /api/cart { bookId, format, quantity } -> set the quantity of a line already in the cart
 export const PATCH = createApiHandler(async (req: NextRequest) => {
-  const userId = getUserId(req);
+  const userId = await getUserId(req);
   const { bookId, format, quantity } = await validateBody(req, updateCartItemSchema);
   const cart = await cartService.setQuantity(userId, bookId, format, quantity);
   return HttpResponse.success(cart, 'Cart updated');
@@ -47,7 +47,7 @@ export const PATCH = createApiHandler(async (req: NextRequest) => {
 // DELETE /api/cart { bookId, format? } (or ?bookId=123&format=paperback) -> remove a line
 // (no format = every format of that book)
 export const DELETE = createApiHandler(async (req: NextRequest) => {
-  const userId = getUserId(req);
+  const userId = await getUserId(req);
   const q = req.nextUrl.searchParams;
   const { bookId, format } = q.get('bookId') !== null
     ? removeCartItemSchema.parse({ bookId: Number(q.get('bookId')), format: q.get('format') ?? undefined })

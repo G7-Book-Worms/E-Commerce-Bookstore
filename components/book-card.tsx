@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link'
+import { showToast } from "@/components/toast";
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
@@ -30,8 +31,10 @@ export function BookCard({ book, eager = false }: { book: Book; eager?: boolean 
             return;
         }
         setBusy(true);
+        const wasInCart = inCart;
         await toggleCartItem(book.bookId);
         setBusy(false);
+        showToast(wasInCart ? `Removed “${book.title}” from your cart` : `Added “${book.title}” to your cart`, { href: '/cart', linkText: 'View cart' });
     }
 
     return (

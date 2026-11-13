@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { newPasswordSchema } from '../../../../lib/password-policy';
 
 /**
  * Registration Input Validation
@@ -6,8 +7,8 @@ import { z } from 'zod';
  * - Email: Strict email format, normalized to lowercase.
  * - Phone: optional. Blank or missing is stored as NULL (users.phone is UNIQUE,
  *   so storing '' would make the second phone-less sign-up fail).
- * - Password Complexity: Minimum 8 characters, at least 1 uppercase letter,
- *   1 lowercase letter, 1 number, and 1 special symbol.
+ * - Password: lib/password-policy.ts (10+ characters, upper, lower, number, symbol,
+ *   not a common password, at most 72 bytes because bcrypt ignores the rest).
  */
 export const registerInputSchema = z.object({
   firstName: z
@@ -33,13 +34,8 @@ export const registerInputSchema = z.object({
     .email('Invalid email address')
     .max(100, 'Email cannot exceed 100 characters')
     .toLowerCase(),
-  password: z
-    .string({ required_error: 'Password is required' })
-    .min(8, 'Password must be at least 8 characters long')
-    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
-    .regex(/[0-9]/, 'Password must contain at least one number')
-    .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character'),
+  // Rules live in lib/password-policy.ts (shared with the sign-up form)
+  password: newPasswordSchema,
 });
 
 /**
@@ -54,7 +50,21 @@ export const loginInputSchema = z.object({
   password: z
     .string({ required_error: 'Password is required' })
     .min(1, 'Password is required'),
+  // Unchecked = the login cookie ends when the browser closes
+  rememberMe: z.boolean().optional(),
 });
 
 export type RegisterInput = z.infer<typeof registerInputSchema>;
 export type LoginInput = z.infer<typeof loginInputSchema>;
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().trim().email('Enter a valid email address').max(100).toLowerCase(),
+});
+
+export const resetPasswordSchema = z
+  .object({
+    token: z.string().min(20).max(200),
+    newPassword: newPasswordSchema,
+    confirmPassword: z.string(),
+  })
+  .refine((d) => d.newPassword === d.confirmPassword, { message: 'Passwords do not match', path: ['confirmPassword'] });

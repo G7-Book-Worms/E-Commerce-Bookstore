@@ -1,29 +1,22 @@
-// app/api/contact/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
+// POST /api/contact: the footer "Contact Support" form (SCRUM-207). Saved for the staff inbox.
+import { NextRequest } from 'next/server';
+import { createApiHandler } from '@/server/src/server';
+import { HttpResponse } from '@/server/src/shared/http/api-response';
+import { clientIp } from '@/server/src/shared/security/client-ip';
+import { rateLimit } from '@/server/src/shared/security/rate-limit';
+import { authenticateRequest } from '@/server/src/shared/middleware/auth-middleware';
+import { contactSchema, createContactMessage } from '@/server/src/modules/contact/contact-service';
+import { logActivity } from '@/server/src/modules/activity/activity-log';
 
-const contactSchema = z.object({
-  name: z.string().min(2, 'Name is required').max(100),
-  email: z.string().email('Valid email is required'),
-  message: z.string().min(10, 'Message must be at least 10 characters').max(1000),
+export const POST = createApiHandler(async (req: NextRequest) => {
+  const ip = clientIp(req);
+  await rateLimit(`contact:ip:${ip}`, 5, 60 * 60);
+  const input = contactSchema.parse(await req.json());
+  const userId = await authenticateRequest(req).then((r) => Number(r.user.id)).catch(() => null);
+  const messageId = await createContactMessage(input, userId);
+  await logActivity(userId ? 'customer' : 'system', userId, 'message.received', { messageId, email: input.email }, ip);
+  return HttpResponse.success(
+    { messageId },
+    "Thanks for contacting Book Worms! We'll reply by email from support@bookwrms.store."
+  );
 });
-
-export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-    const validated = contactSchema.parse(body);
-
-    // In production, dispatch email via Resend, Sendgrid, or persist to an inquiries table
-    console.log('[Storefront Inquiry Received]:', validated);
-
-    return NextResponse.json({
-      status: 'success',
-      message: 'Thank you for contacting Book Worms! Our librarians will respond shortly.',
-    });
-  } catch (err: any) {
-    return NextResponse.json(
-      { status: 'error', message: err.errors?.[0]?.message || 'Invalid inquiry submission' },
-      { status: 400 }
-    );
-  }
-}

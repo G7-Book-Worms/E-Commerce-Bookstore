@@ -6,6 +6,14 @@ import {
   UpdateAddressInput,
 } from './users-validation';
 import { comparePassword, hashPassword } from '../../shared/utils/hash-utils';
+import { eq, sql } from 'drizzle-orm';
+import { db } from '../../../db';
+import { users } from '../../../db/schema';
+import { logActivity } from '../activity/activity-log';
+import { sendEmail } from '../email/mailer';
+import { passwordChangedEmail } from '../email/templates';
+import { customerToken } from '../auth/auth-service';
+import { rateLimit } from '../../shared/security/rate-limit';
 import {
   BadRequestError,
   NotFoundError,
@@ -59,7 +67,8 @@ export class UsersService {
   /**
    * SCRUM-96, SCRUM-97, SCRUM-98: Password change flow
    */
-  async changePassword(userId: number, input: ChangePasswordInput) {
+  async changePassword(userId: number, input: ChangePasswordInput, remember = false) {
+    await rateLimit(`change-password:user:${userId}`, 10, 15 * 60);
     const user = await this.usersRepo.findById(userId);
     if (!user) {
       throw new NotFoundError('User not found');
@@ -71,11 +80,22 @@ export class UsersService {
       throw new UnauthorizedError('Current password is incorrect');
     }
 
-    // Hash new password and commit
-    const newHash = await hashPassword(input.newPassword);
-    await this.usersRepo.updatePasswordHash(userId, newHash);
+    if (input.newPassword === input.currentPassword) {
+      throw new BadRequestError('Choose a password different from your current one');
+    }
 
-    return { success: true, message: 'Password updated successfully' };
+    // New hash + bump the token version: every other signed-in device is signed out.
+    // The controller gives this browser a fresh cookie so it stays signed in.
+    await db.update(users).set({
+      passwordHash: await hashPassword(input.newPassword),
+      tokenVersion: sql`${users.tokenVersion} + 1`,
+      mustChangePassword: false,
+    }).where(eq(users.userId, userId));
+    const updated = await this.usersRepo.findById(userId);
+    await logActivity('customer', userId, 'auth.password_changed', {});
+    await sendEmail(passwordChangedEmail(user.email, user.firstName));
+
+    return { success: true, message: 'Password updated successfully', token: customerToken(updated!, remember) };
   }
 
   /**

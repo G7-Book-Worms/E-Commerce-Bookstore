@@ -5,8 +5,10 @@ import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { AuthProvider } from '../context/auth-context';
+import { DemoStrip } from '../../components/demo-notice';
 
 export const metadata = {
+  robots: { index: false, follow: false },
   title: 'Sign In | Book Worms',
   description: 'Sign in to your Book Worms account.',
 };
@@ -20,6 +22,7 @@ export default function AuthLayout({
     <html lang="en">
       <body className="min-h-screen bg-stone-50 text-stone-900 antialiased">
         <AuthProvider>
+          <DemoStrip />
           <div className="grid min-h-screen lg:grid-cols-2">
             {/* Side panel image (public/images, 1200x1600). Hidden on phones and tablets */}
             <div className="relative hidden lg:block">

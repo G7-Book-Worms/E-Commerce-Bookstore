@@ -5,6 +5,7 @@
 // so filters always match real stock and prices, and the link can be shared.
 
 import { useState, useTransition } from "react";
+import { EmptyState } from "@/components/empty-state";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { SlidersHorizontal, X } from "lucide-react";
 import { BookCard, type Book } from "@/components/book-card";
@@ -264,11 +265,10 @@ export function BookBrowser({ books, total, page, totalPages, query }: Props) {
         )}
 
         {books.length === 0 ? (
-          <div className="rounded-lg border bg-white p-10 text-center">
-            <p className="text-lg font-medium">No books match</p>
-            <p className="mt-1 text-sm text-muted-foreground">Try removing a filter or searching for something else.</p>
+          <EmptyState image="search" title="No books match">
+            <p>Try removing a filter or searching for something else.</p>
             {chips.length > 0 && <Button className="mt-4" variant="outline" onClick={clearAll}>Clear all filters</Button>}
-          </div>
+          </EmptyState>
         ) : (
           /* Fits as many 160px+ columns as the screen allows */
           <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-6">

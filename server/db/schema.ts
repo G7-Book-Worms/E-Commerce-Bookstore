@@ -31,6 +31,10 @@ export const users = mysqlTable('users', {
     passwordHash: varchar('password_hash', { length: 255 }).notNull(),
     // Admins can disable an account instead of deleting it (SCRUM-200)
     isActive: boolean('is_active').default(true).notNull(),
+    // Bumped on password change / deactivation / "sign out everywhere": older login tokens stop working
+    tokenVersion: int('token_version').default(0).notNull(),
+    // Set when staff give the customer a temporary password; cleared when they choose a new one
+    mustChangePassword: boolean('must_change_password').default(false).notNull(),
 });
 
 // Addresses Table
@@ -94,6 +98,8 @@ export const bookFormats = mysqlTable('book_formats', {
     priceCents: int('price_cents').notNull(),
     salePriceCents: int('sale_price_cents'),
     stock: int('stock').default(0).notNull(),
+    // At or below this many copies the format shows up in the portal's low-stock alerts
+    lowStockThreshold: int('low_stock_threshold').default(5).notNull(),
 }, (t) => [
     uniqueIndex('book_formats_book_format_unique').on(t.bookId, t.format),
 ]);
@@ -209,10 +215,14 @@ export const admin = mysqlTable('admin', {
     // Third login factor for staff (SCRUM-187)
     employeeId: varchar('employee_id', { length: 20 }).unique(),
     passwordHash: varchar('password_hash', { length: 255 }).notNull(),
+    // employee = orders, inventory, messages; manager = + discounts, customers, activity log;
+    // admin = + staff accounts (see server/src/modules/staff/permissions.ts)
     adminRole: mysqlEnum('admin_role', ['admin', 'employee', 'manager'])
-        .default('manager')
+        .default('employee')
         .notNull(),
     isActive: boolean('is_active').default(true).notNull(),
+    tokenVersion: int('token_version').default(0).notNull(),
+    mustChangePassword: boolean('must_change_password').default(false).notNull(),
     lastLogin: timestamp('last_login'),
     created: timestamp('created').defaultNow().notNull(),
     updated: timestamp('updated').defaultNow().onUpdateNow().notNull(),
@@ -225,7 +235,65 @@ export const activityLog = mysqlTable('activity_log', {
     actorId: int('actor_id'),
     action: varchar('action', { length: 100 }).notNull(),
     details: json('details'),
+    // Client IP (first X-Forwarded-For hop); null for system actions
+    ip: varchar('ip', { length: 45 }),
     created: timestamp('created').defaultNow().notNull(),
+}, (t) => [
+    index('activity_log_created_idx').on(t.created),
+    index('activity_log_action_idx').on(t.action),
+]);
+
+// Inventory Movements Table: every stock change (sale, restock, manual adjustment, cancellation)
+export const inventoryMovements = mysqlTable('inventory_movements', {
+    movementId: int('movement_id').autoincrement().primaryKey().notNull(),
+    bookFormatId: int('book_format_id')
+        .references(() => bookFormats.bookFormatId, { onDelete: 'cascade' })
+        .notNull(),
+    // Positive = copies added, negative = copies removed
+    quantityChange: int('quantity_change').notNull(),
+    stockAfter: int('stock_after').notNull(),
+    reason: mysqlEnum('reason', ['sale', 'restock', 'adjustment', 'cancellation']).notNull(),
+    note: varchar('note', { length: 255 }),
+    orderId: int('order_id').references(() => orders.orderId),
+    adminId: int('admin_id').references(() => admin.adminId),
+    created: timestamp('created').defaultNow().notNull(),
+}, (t) => [
+    index('inventory_movements_format_idx').on(t.bookFormatId),
+]);
+
+// Contact Messages Table: the footer "Contact Support" form; staff answer from the portal inbox
+export const contactMessages = mysqlTable('contact_messages', {
+    messageId: int('message_id').autoincrement().primaryKey().notNull(),
+    userId: int('user_id').references(() => users.userId),
+    name: varchar('name', { length: 100 }).notNull(),
+    email: varchar('email', { length: 100 }).notNull(),
+    message: text('message').notNull(),
+    status: mysqlEnum('status', ['new', 'read', 'replied', 'archived']).default('new').notNull(),
+    reply: text('reply'),
+    repliedBy: int('replied_by').references(() => admin.adminId),
+    repliedAt: timestamp('replied_at'),
+    created: timestamp('created').defaultNow().notNull(),
+});
+
+// Password Reset Tokens Table: emailed one-time links. Only a SHA-256 hash of the token is stored.
+export const passwordResetTokens = mysqlTable('password_reset_tokens', {
+    tokenId: int('token_id').autoincrement().primaryKey().notNull(),
+    userId: int('user_id')
+        .references(() => users.userId, { onDelete: 'cascade' })
+        .notNull(),
+    tokenHash: varchar('token_hash', { length: 64 }).notNull().unique(),
+    expiresAt: timestamp('expires_at').notNull(),
+    usedAt: timestamp('used_at'),
+    created: timestamp('created').defaultNow().notNull(),
+});
+
+// Rate Limits Table: counters for sign-in lockout and per-IP limits (kept in the DB so they work
+// across serverless instances). key examples: "login:email:ada@example.com", "contact:ip:1.2.3.4"
+export const rateLimits = mysqlTable('rate_limits', {
+    rateKey: varchar('rate_key', { length: 191 }).primaryKey().notNull(),
+    hits: int('hits').default(0).notNull(),
+    windowStart: timestamp('window_start').defaultNow().notNull(),
+    lockedUntil: timestamp('locked_until'),
 });
 
 export type User = typeof users.$inferSelect;
@@ -252,3 +320,5 @@ export type Event = typeof events.$inferSelect;
 export type Payment = typeof payments.$inferSelect;
 export type Admin = typeof admin.$inferSelect;
 export type ActivityLogEntry = typeof activityLog.$inferSelect;
+export type InventoryMovement = typeof inventoryMovements.$inferSelect;
+export type ContactMessage = typeof contactMessages.$inferSelect;

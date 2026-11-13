@@ -10,6 +10,7 @@ import { Minus, Plus, Trash2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { BookCover } from "@/components/book-cover";
 import { OrderSummary } from "@/components/cart/order-summary";
+import { EmptyState } from "@/components/empty-state";
 import { useCart } from "@/app/context/CartContext";
 import { formatPrice, stockLabel } from "@/lib/catalog";
 import { loadDiscountCode, saveDiscountCode, type CartData, type CartLine } from "@/lib/cart-types";
@@ -22,6 +23,7 @@ export default function CartPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [busyLine, setBusyLine] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [signedOut, setSignedOut] = useState(false);
   const [code, setCode] = useState("");
   const [codeInput, setCodeInput] = useState("");
 
@@ -36,7 +38,8 @@ export default function CartPage() {
     });
     const json = await res.json().catch(() => null);
     if (res.status === 401) {
-      window.location.href = `/user-login?callbackUrl=${encodeURIComponent("/cart")}`;
+      // Signed out: show the "sign in to see your cart" message instead of jumping to the login page
+      setSignedOut(true);
       return;
     }
     if (!res.ok) throw new Error(json?.error || "Something went wrong with your cart");
@@ -120,11 +123,19 @@ export default function CartPage() {
 
       {isLoading ? (
         <div className="h-64 animate-pulse rounded-xl bg-stone-200" />
+      ) : signedOut ? (
+        <EmptyState image="signIn" title="Sign in to see your cart">
+          <p>Your cart is saved to your account, so it follows you to any device.</p>
+          <div className="mt-5 flex flex-wrap justify-center gap-3">
+            <Link href={`/user-login?callbackUrl=${encodeURIComponent("/cart")}`} className={buttonVariants()}>Sign in</Link>
+            <Link href="/user-register" className={buttonVariants({ variant: "outline" })}>Create an account</Link>
+          </div>
+        </EmptyState>
       ) : lines.length === 0 ? (
-        <div className="rounded-xl border bg-white p-12 text-center">
-          <p className="text-lg font-medium">Your cart is empty.</p>
-          <Link href="/product-catalog" className="mt-4 inline-block font-medium underline">Browse books</Link>
-        </div>
+        <EmptyState image="cart" title="Your cart is empty">
+          <p>This pup is waiting for you to find a good book.</p>
+          <Link href="/product-catalog" className={`${buttonVariants()} mt-5`}>Browse books</Link>
+        </EmptyState>
       ) : (
         <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
           <ul className="divide-y rounded-xl border bg-white">

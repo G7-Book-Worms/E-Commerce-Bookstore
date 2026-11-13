@@ -22,10 +22,10 @@ export const Footer: React.FC = () => {
       });
       const data = await res.json();
       if (res.ok) {
-        setStatus('Message received! Our team will get back to you.');
+        setStatus(data.message || 'Message received! Our team will get back to you.');
         setFormData({ name: '', email: '', message: '' });
       } else {
-        setStatus(data.message || 'Error sending message.');
+        setStatus(data.error || data.message || 'Error sending message.');
       }
     } catch {
       setStatus('Failed to dispatch message.');
@@ -47,9 +47,8 @@ export const Footer: React.FC = () => {
             Independent bookstore dedicated to literary preservation, curated genre feeds, and readers worldwide.
           </p>
           <div className="text-xs text-stone-500 space-y-1 pt-2 font-mono">
-            <p>support@bookworms.com</p>
-            <p>(555) 019-2834</p>
-            <p>Mon - Sat: 9:00 AM - 8:00 PM CST</p>
+            <p><a href="mailto:support@bookwrms.store" className="hover:text-stone-900 underline-offset-2 hover:underline">support@bookwrms.store</a></p>
+            <p>A student project for a software engineering class at UTSA, not a real store</p>
           </div>
         </div>
 
@@ -63,10 +62,16 @@ export const Footer: React.FC = () => {
           {status && <p className="text-xs text-stone-900 font-medium mb-3">{status}</p>}
 
           <form onSubmit={handleSubmit} className="space-y-3">
+            {/* Spam trap: hidden from people, bots fill it in (the server rejects those) */}
+            <div aria-hidden="true" className="hidden">
+              <label>Leave this empty <input type="text" name="website" tabIndex={-1} autoComplete="off" defaultValue="" /></label>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <input
                 type="text"
                 required
+                aria-label="Your name"
+                autoComplete="name"
                 placeholder="Name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -75,6 +80,8 @@ export const Footer: React.FC = () => {
               <input
                 type="email"
                 required
+                aria-label="Your email"
+                autoComplete="email"
                 placeholder="Email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -84,6 +91,7 @@ export const Footer: React.FC = () => {
             <textarea
               required
               rows={2}
+              aria-label="Your message"
               placeholder="How can we help?"
               value={formData.message}
               onChange={(e) => setFormData({ ...formData, message: e.target.value })}
@@ -103,11 +111,12 @@ export const Footer: React.FC = () => {
       {/* Footer Navigation */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 flex flex-wrap items-center justify-between gap-4 text-xs text-stone-400">
         <p>© 2026 Book Worms Bookstore. All rights reserved.</p>
-        <div className="flex gap-4">
-          <Link href="/about" className="hover:text-stone-900 transition">About</Link>
-          <Link href="/about#shipping" className="hover:text-stone-900 transition">Shipping</Link>
-          <Link href="/about#privacy" className="hover:text-stone-900 transition">Privacy</Link>
-          <Link href="/about#terms" className="hover:text-stone-900 transition">Terms</Link>
+        <div className="flex flex-wrap gap-x-2">
+          <Link href="/about" className="inline-flex min-h-8 items-center px-1 hover:text-stone-900 transition">About</Link>
+          <Link href="/about#shipping" className="inline-flex min-h-8 items-center px-1 hover:text-stone-900 transition">Shipping</Link>
+          <Link href="/about#privacy" className="inline-flex min-h-8 items-center px-1 hover:text-stone-900 transition">Privacy</Link>
+          <Link href="/about#terms" className="inline-flex min-h-8 items-center px-1 hover:text-stone-900 transition">Terms</Link>
+          <Link href="/staff-login" className="inline-flex min-h-8 items-center px-1 hover:text-stone-900 transition">Staff sign in</Link>
         </div>
       </div>
     </footer>

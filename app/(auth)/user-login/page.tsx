@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { z } from 'zod';
 import { loginUser, AuthApiError } from '@/lib/api/auth';
 import { useAuth } from '../../context/auth-context';
+import { PasswordInput } from '@/components/ui/password-input';
 
 
 // SCRUM-159: Zod Validation Schema matching backend rules
@@ -33,7 +34,7 @@ function LoginForm() {
   useEffect(() => {
     if (!isLoading && user) {
       const next = searchParams.get('callbackUrl');
-      router.replace(next && next.startsWith('/') && !next.startsWith('//') ? next : '/');
+      router.replace(user.mustChangePassword ? '/account?tab=security' : next && next.startsWith('/') && !next.startsWith('//') ? next : '/');
     }
   }, [user, isLoading, router, searchParams]);
 
@@ -89,8 +90,9 @@ function LoginForm() {
 
         // Force a full browser navigation to ensure cookie is read in (main)
         // Only same-site paths: '//evil.com' would leave the site
-        window.location.href =
-          callbackUrl && callbackUrl.startsWith('/') && !callbackUrl.startsWith('//') ? callbackUrl : '/';
+        window.location.href = sessionData.user.mustChangePassword
+          ? '/account?tab=security'
+          : callbackUrl && callbackUrl.startsWith('/') && !callbackUrl.startsWith('//') ? callbackUrl : '/';
       } catch (err: any) {
         if (err instanceof AuthApiError) {
           setServerError(err.message);
@@ -167,11 +169,10 @@ function LoginForm() {
           <label htmlFor="password" className="block text-xs font-semibold uppercase tracking-wider text-neutral-700">
             Password
           </label>
-          <input
+          <PasswordInput
             id="password"
             name="password"
-            type="password"
-            autoComplete="current-password"
+                        autoComplete="current-password"
             disabled={isSubmitting}
             value={formData.password}
             onChange={handleInputChange}
