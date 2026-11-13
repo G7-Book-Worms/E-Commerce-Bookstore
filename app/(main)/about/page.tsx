@@ -7,7 +7,7 @@ export default function AboutPage() {
       <section id="about">
         <h1 className="font-serif text-3xl font-bold text-stone-900">About Book Worms</h1>
         <p className="mt-3">
-          Book Worms is an online bookstore built by CS 3773 Group 7 at UTSA as a class project.
+          Book Worms is an online bookstore built by a group of students for a software engineering class at UTSA.
           Browse the catalog, add books to your cart, and check out with a test payment.
         </p>
       </section>

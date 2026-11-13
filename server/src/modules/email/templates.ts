@@ -11,7 +11,7 @@ export function escapeHtml(value: string): string {
 const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
 const DISCLAIMER =
-  'Book Worms (bookwrms.store) is a student project for CS 3773 Software Engineering at UTSA. ' +
+  'Book Worms (bookwrms.store) was built by a group of students for a software engineering class at UTSA. ' +
   'It is not a real bookstore: no order will ever be shipped, and every payment is a Stripe test ' +
   'payment that is cancelled and refunded automatically. Please do not buy anything here.';
 

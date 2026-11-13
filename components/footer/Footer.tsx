@@ -48,7 +48,7 @@ export const Footer: React.FC = () => {
           </p>
           <div className="text-xs text-stone-500 space-y-1 pt-2 font-mono">
             <p><a href="mailto:support@bookwrms.store" className="hover:text-stone-900 underline-offset-2 hover:underline">support@bookwrms.store</a></p>
-            <p>A CS 3773 class project at UTSA, not a real store</p>
+            <p>A student project for a software engineering class at UTSA, not a real store</p>
           </div>
         </div>
 
