@@ -103,9 +103,24 @@ The app is a single Next.js project: pages live in `app/`, and the backend is a 
 <td valign="top">
 
 **Auth & Tooling**
-- bcrypt password hashing, JWT in an httpOnly cookie (`jsonwebtoken`, `jose`)
-- [pnpm](https://pnpm.io) · [ESLint 9](https://eslint.org) · [tsx](https://tsx.is) for scripts
-- Planned: [Stripe](https://stripe.com) for card payments
+- bcrypt (cost 12) password hashing, JWT in httpOnly cookies (`jsonwebtoken`, `jose`)
+- [pnpm](https://pnpm.io) · [ESLint 9](https://eslint.org) · [tsx](https://tsx.is) for scripts · `node:test` unit tests
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+**Payments & Email**
+- [Stripe Checkout](https://stripe.com/docs/payments/checkout) in test mode (auto-refunded)
+- [Nodemailer](https://nodemailer.com) over Namecheap Private Email (SPF, DKIM, DMARC)
+
+</td>
+<td valign="top">
+
+**Hosting**
+- [Vercel](https://vercel.com) at **https://bookwrms.store** (deploys from `main`)
+- Aiven MySQL over TLS
 
 </td>
 </tr>
@@ -237,15 +252,24 @@ E-Commerce-Bookstore/
 │   ├── (auth)/
 │   │   ├── user-login/              ─ customer sign-in
 │   │   ├── user-register/           ─ customer registration
-│   │   └── admin-portal-login-obscure/  ─ admin login
-│   ├── api/                         ─ route handlers (auth, books, cart, orders, users, health)
+│   │   ├── forgot-password/         ─ request an emailed reset link
+│   │   └── reset-password/          ─ choose a new password from the link
+│   ├── (staff)/
+│   │   ├── staff-login/             ─ staff sign-in (email + password + employee ID)
+│   │   └── admin/                   ─ staff portal: dashboard, orders, inventory, books,
+│   │                                  discounts, customers, messages, activity, staff
+│   ├── api/                         ─ route handlers (auth, books, cart, checkout, contact,
+│   │                                  orders, users, health, staff/*)
 │   ├── context/                     ─ React context: auth and cart state
 │   ├── error.tsx, global-error.tsx, not-found.tsx  ─ error pages
 │   └── globals.css
-├── components/                      ─ UI: header, footer, home, account tabs, shadcn/ui
+├── components/                      ─ UI: header, footer, home, account tabs, staff portal, shadcn/ui
+├── docs/                            ─ compliance checklist, security overview
 ├── lib/
 │   ├── api/                         ─ browser-side API clients (auth.ts, user.ts)
-│   └── sample-books.ts              ─ legacy sample catalog (being replaced by the database)
+│   ├── catalog.ts, cart-types.ts    ─ shared catalog and cart types
+│   ├── password-policy.ts           ─ password rules (used by forms and the API)
+│   └── staff-permissions.ts         ─ what each staff role can do
 ├── server/
 │   ├── db/
 │   │   ├── schema.ts                ─ ★ single source of truth for every table
@@ -258,9 +282,10 @@ E-Commerce-Bookstore/
 │       ├── modules/<feature>/       ─ schema → repository → service → controller
 │       ├── shared/                  ─ errors, HTTP responses, auth middleware, utils
 │       └── server.ts                ─ createApiHandler(): consistent JSON errors
-├── proxy.ts                         ─ request IDs, security headers, page guards
+├── public/images/                   ─ banners, genre tiles, empty-state photos
+├── proxy.ts                         ─ request IDs, CSRF check, page guards
 ├── .env.example                     ─ template for .env
-└── next.config.ts
+└── next.config.ts                   ─ security headers (CSP, HSTS, …)
 ```
 
 > [!TIP]
@@ -269,15 +294,24 @@ E-Commerce-Bookstore/
 ### How a request flows
 
 ```text
-browser → proxy.ts (security headers, login guard)
+browser → proxy.ts (CSRF check, login guard)
         → app/api/<route>/route.ts
-        → createApiHandler() + authenticateRequest()
+        → createApiHandler() + authenticateRequest()        (customers)
+          or staffApi(permission) → authenticateStaff()     (staff portal)
         → controller → service → repository → Drizzle → MySQL (Aiven)
 ```
+
+- Every signed-in request re-checks the account in the database (deactivated accounts and signed-out sessions stop working at once), and staff routes check the role's permission.
 
 - Errors thrown as `AppError` subclasses (`NotFoundError`, `ConflictError`, …) become JSON `{ success: false, error }` with the right status code; anything unexpected is logged and returned as a generic 500.
 - Successful responses use `{ success: true, message, data }`.
 - Prices are stored in **cents** and always read from the database, never trusted from the browser.
+
+### Deployment
+
+- **Vercel** builds and deploys `main` to **https://bookwrms.store**; other branches get preview URLs. Environment variables (same names as `.env.example`) are set in the Vercel project settings.
+- Database migrations are **not** run by the deploy: after merging a PR that adds a migration, run `pnpm db:migrate` against Aiven from a laptop.
+- Emails go out from `no-reply@bookwrms.store`; replies and low-stock alerts go to `support@bookwrms.store`.
 
 ---
 
