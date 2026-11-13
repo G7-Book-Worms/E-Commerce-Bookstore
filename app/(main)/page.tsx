@@ -4,13 +4,12 @@ import { Suspense } from 'react';
 import { connection } from 'next/server';
 import { HeroBanner } from '@/components/home/HeroBanner';
 import { PromoCards } from '@/components/home/PromoCards';
+import { GenreTiles } from '@/components/home/GenreTiles';
 import { BookSection } from '@/components/book-section';
 import { catalogRows } from '@/server/src/modules/books/catalog-repository';
 import { findFeaturedDiscount } from '@/server/src/modules/discounts/discounts-repository';
 import { describeDiscount } from '@/server/src/modules/cart/pricing';
 
-// Rows shown on the homepage, in order (the full set is on /product-catalog)
-const HOME_ROWS = ['bestseller', 'new-release', 'on-sale', 'fiction', 'nonfiction'];
 
 async function Banner() {
   await connection();
@@ -18,11 +17,12 @@ async function Banner() {
   return <HeroBanner code={code?.code} label={code ? describeDiscount(code) : null} />;
 }
 
-async function Rows() {
+// Some of the catalog rows, in the given order (the full set is on /product-catalog)
+async function Rows({ keys }: { keys: string[] }) {
   // Books come from the database, so render at request time
   await connection();
-  const rows = (await catalogRows(12)).filter((r) => HOME_ROWS.includes(r.key));
-  rows.sort((a, b) => HOME_ROWS.indexOf(a.key) - HOME_ROWS.indexOf(b.key));
+  const rows = (await catalogRows(12)).filter((r) => keys.includes(r.key));
+  rows.sort((a, b) => keys.indexOf(a.key) - keys.indexOf(b.key));
   return (
     <>
       {rows.map((row) => (
@@ -51,7 +51,11 @@ export default function HomePage() {
       </Suspense>
       <PromoCards />
       <Suspense fallback={<RowsSkeleton />}>
-        <Rows />
+        <Rows keys={['bestseller', 'new-release']} />
+      </Suspense>
+      <GenreTiles />
+      <Suspense fallback={<RowsSkeleton />}>
+        <Rows keys={['on-sale', 'fiction', 'nonfiction']} />
       </Suspense>
     </div>
   );
