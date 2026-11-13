@@ -1,4 +1,5 @@
 import { Lock } from "lucide-react";
+import { PasswordInput } from '@/components/ui/password-input';
 
 // 1. This completely hides the page from Google and other search engines
 export const metadata = {
@@ -49,10 +50,9 @@ export default function AdminSignInPage() {
             <label htmlFor="admin-password" className="text-sm font-medium">
               Password
             </label>
-            <input
+            <PasswordInput
               id="admin-password"
-              type="password"
-              placeholder="••••••••"
+                            placeholder="••••••••"
               className="w-full border rounded-md px-4 py-2 text-sm bg-transparent outline-none focus:ring-2 focus:ring-primary"
               required
             />

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { z } from 'zod';
 import { registerUser, AuthApiError } from '@/lib/api/auth';
 import { useAuth } from '../../context/auth-context';
+import { PasswordInput } from '@/components/ui/password-input';
 
 // Mirrors registerInputSchema in server/src/modules/auth/auth-schema.ts
 const clientRegisterSchema = z
@@ -137,19 +138,34 @@ function RegisterForm() {
       <label htmlFor={name} className={labelClass}>
         {label}
       </label>
-      <input
-        id={name}
-        name={name}
-        type={type}
-        autoComplete={autoComplete}
-        disabled={isSubmitting}
-        value={formData[name]}
-        onChange={handleInputChange}
-        aria-invalid={!!fieldErrors[name]}
-        aria-describedby={fieldErrors[name] ? `${name}-error` : undefined}
-        className={inputClass(!!fieldErrors[name])}
-        placeholder={placeholder}
-      />
+      {type === 'password' ? (
+        <PasswordInput
+          id={name}
+          name={name}
+          autoComplete={autoComplete}
+          disabled={isSubmitting}
+          value={formData[name]}
+          onChange={handleInputChange}
+          aria-invalid={!!fieldErrors[name]}
+          aria-describedby={fieldErrors[name] ? `${name}-error` : undefined}
+          className={inputClass(!!fieldErrors[name])}
+          placeholder={placeholder}
+        />
+      ) : (
+        <input
+          id={name}
+          name={name}
+          type={type}
+          autoComplete={autoComplete}
+          disabled={isSubmitting}
+          value={formData[name]}
+          onChange={handleInputChange}
+          aria-invalid={!!fieldErrors[name]}
+          aria-describedby={fieldErrors[name] ? `${name}-error` : undefined}
+          className={inputClass(!!fieldErrors[name])}
+          placeholder={placeholder}
+        />
+      )}
       {fieldErrors[name] && (
         <p id={`${name}-error`} className="mt-1 text-xs text-red-600">
           {fieldErrors[name]}

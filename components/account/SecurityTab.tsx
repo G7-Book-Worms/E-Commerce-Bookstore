@@ -4,6 +4,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { changeUserPassword } from '@/lib/api/user';
+import { PasswordInput } from '@/components/ui/password-input';
 
 export const SecurityTab: React.FC = () => {
   const router = useRouter();
@@ -80,9 +81,10 @@ export const SecurityTab: React.FC = () => {
 
         <form onSubmit={handlePasswordSubmit} className="space-y-5">
           <div className="space-y-1.5">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-stone-700">Current Password</label>
-            <input
-              type="password"
+            <label htmlFor="currentPassword" className="block text-xs font-semibold uppercase tracking-wider text-stone-700">Current Password</label>
+            <PasswordInput
+              id="currentPassword"
+              autoComplete="current-password"
               required
               value={passwordForm.currentPassword}
               onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
@@ -91,9 +93,10 @@ export const SecurityTab: React.FC = () => {
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-stone-700">New Password</label>
-            <input
-              type="password"
+            <label htmlFor="newPassword" className="block text-xs font-semibold uppercase tracking-wider text-stone-700">New Password</label>
+            <PasswordInput
+              id="newPassword"
+              autoComplete="new-password"
               required
               value={passwordForm.newPassword}
               onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
@@ -102,9 +105,10 @@ export const SecurityTab: React.FC = () => {
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-stone-700">Confirm New Password</label>
-            <input
-              type="password"
+            <label htmlFor="confirmPassword" className="block text-xs font-semibold uppercase tracking-wider text-stone-700">Confirm New Password</label>
+            <PasswordInput
+              id="confirmPassword"
+              autoComplete="new-password"
               required
               value={passwordForm.confirmPassword}
               onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}

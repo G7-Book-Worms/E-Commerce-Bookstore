@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { z } from 'zod';
 import { loginUser, AuthApiError } from '@/lib/api/auth';
 import { useAuth } from '../../context/auth-context';
+import { PasswordInput } from '@/components/ui/password-input';
 
 
 // SCRUM-159: Zod Validation Schema matching backend rules
@@ -167,11 +168,10 @@ function LoginForm() {
           <label htmlFor="password" className="block text-xs font-semibold uppercase tracking-wider text-neutral-700">
             Password
           </label>
-          <input
+          <PasswordInput
             id="password"
             name="password"
-            type="password"
-            autoComplete="current-password"
+                        autoComplete="current-password"
             disabled={isSubmitting}
             value={formData.password}
             onChange={handleInputChange}
