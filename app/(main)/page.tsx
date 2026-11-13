@@ -1,55 +1,43 @@
 // app/(main)/page.tsx
+// Homepage: seasonal sale banner, promo cards, then book rows (all from the database).
 import { Suspense } from 'react';
 import { connection } from 'next/server';
-import { BooksService } from '../../server/src/modules/books/books-service';
 import { HeroBanner } from '@/components/home/HeroBanner';
-import { GenreCarousel } from '@/components/home/GenreCarousel';
+import { PromoCards } from '@/components/home/PromoCards';
+import { BookSection } from '@/components/book-section';
+import { catalogRows } from '@/server/src/modules/books/catalog-repository';
+import { findFeaturedDiscount } from '@/server/src/modules/discounts/discounts-repository';
+import { describeDiscount } from '@/server/src/modules/cart/pricing';
 
-async function HomepageContent() {
-  // Books and promotions come from the database, so render at request time
+// Rows shown on the homepage, in order (the full set is on /product-catalog)
+const HOME_ROWS = ['bestseller', 'new-release', 'on-sale', 'fiction', 'nonfiction'];
+
+async function Banner() {
   await connection();
-  const booksService = new BooksService();
-  const feed = await booksService.getHomepageFeed();
+  const code = await findFeaturedDiscount();
+  return <HeroBanner code={code?.code} label={code ? describeDiscount(code) : null} />;
+}
 
-  const promotion = feed?.promotion ?? {
-    headline: 'Welcome to Book Worms',
-    code: 'READMORE10',
-    startDate: null,
-    endDate: null,
-  };
-
-  const carousels = feed?.carousels ?? [];
-
+async function Rows() {
+  // Books come from the database, so render at request time
+  await connection();
+  const rows = (await catalogRows(12)).filter((r) => HOME_ROWS.includes(r.key));
+  rows.sort((a, b) => HOME_ROWS.indexOf(a.key) - HOME_ROWS.indexOf(b.key));
   return (
     <>
-      {/* SCRUM-116: Promotional Hero */}
-      <HeroBanner promotion={promotion} />
-
-      {/* SCRUM-117: Genre Carousels */}
-      {carousels.map((carousel) => (
-        <GenreCarousel
-          key={carousel.categoryId}
-          categoryName={carousel.categoryName}
-          categorySlug={carousel.categorySlug}
-          books={carousel.books}
-        />
+      {rows.map((row) => (
+        <BookSection key={row.key} title={row.label} books={row.books} total={row.total} href={`/product-catalog/all?${row.param}`} />
       ))}
     </>
   );
 }
 
-function HomepageSkeleton() {
+function RowsSkeleton() {
   return (
-    <div className="space-y-12 animate-pulse">
-      <div className="h-64 bg-stone-200 rounded-2xl" />
-      <div className="space-y-4">
-        <div className="h-6 w-48 bg-stone-200 rounded" />
-        <div className="flex gap-4">
-          <div className="h-72 w-52 bg-stone-200 rounded-xl" />
-          <div className="h-72 w-52 bg-stone-200 rounded-xl" />
-          <div className="h-72 w-52 bg-stone-200 rounded-xl" />
-          <div className="h-72 w-52 bg-stone-200 rounded-xl" />
-        </div>
+    <div className="space-y-4 animate-pulse">
+      <div className="h-7 w-48 bg-stone-200 rounded" />
+      <div className="flex gap-4 overflow-hidden">
+        {[0, 1, 2, 3, 4, 5].map((i) => <div key={i} className="h-80 w-44 shrink-0 bg-stone-200 rounded-lg" />)}
       </div>
     </div>
   );
@@ -57,9 +45,13 @@ function HomepageSkeleton() {
 
 export default function HomePage() {
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <Suspense fallback={<HomepageSkeleton />}>
-        <HomepageContent />
+    <div className="max-w-7xl mx-auto w-full min-w-0 px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-10">
+      <Suspense fallback={<div className="aspect-[8/3] rounded-2xl bg-stone-200 animate-pulse" />}>
+        <Banner />
+      </Suspense>
+      <PromoCards />
+      <Suspense fallback={<RowsSkeleton />}>
+        <Rows />
       </Suspense>
     </div>
   );

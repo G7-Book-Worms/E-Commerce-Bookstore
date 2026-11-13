@@ -24,3 +24,16 @@ export async function recordDiscountUse(discountCodeId: number) {
     .set({ timesUsed: sql`${discountCodes.timesUsed} + 1` })
     .where(eq(discountCodes.discountCodeId, discountCodeId));
 }
+
+// The code to advertise on the homepage: the active percent-off code with the biggest discount
+export async function findFeaturedDiscount(): Promise<DiscountCode | null> {
+  const now = new Date();
+  const rows = await db.select().from(discountCodes).where(eq(discountCodes.isActive, true));
+  const usable = rows.filter(
+    (r) =>
+      (!r.startsAt || r.startsAt <= now) &&
+      (!r.endsAt || r.endsAt >= now) &&
+      (r.maxUses === null || r.timesUsed < r.maxUses)
+  );
+  return usable.sort((a, b) => (b.percentOff ?? 0) - (a.percentOff ?? 0))[0] ?? null;
+}
