@@ -7,8 +7,12 @@ interface CartContextType {
   cartCount: number;
   cartItemIds: Set<number>;
   toggleCartItem: (bookId: number) => Promise<boolean>;
+  /** Adds copies of one format. Resolves to an error message, or null on success */
+  addToCart: (bookId: number, format: 'hardcover' | 'paperback', quantity: number) => Promise<string | null>;
   isInCart: (bookId: number) => boolean;
   refreshCart: () => Promise<void>;
+  /** Lets the cart page push the fresh cart after it changes something */
+  applyServerCart: (data: CartResponseData | undefined) => void;
 }
 
 // Shape of `data` in every /api/cart response
@@ -24,11 +28,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [cartItemIds, setCartItemIds] = useState<Set<number>>(new Set());
 
   // Mirror the server cart into local state
-  const applyServerCart = (data: CartResponseData | undefined) => {
+  const applyServerCart = useCallback((data: CartResponseData | undefined) => {
     if (!data) return;
     setCartCount(data.totalCount ?? 0);
     setCartItemIds(new Set((data.items ?? []).map((i) => i.bookId)));
-  };
+  }, []);
 
   // Load the logged-in user's cart (guests get 401 and simply see an empty cart)
   const refreshCart = useCallback(async () => {
@@ -44,7 +48,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch {
       // Network error: keep whatever we had
     }
-  }, []);
+  }, [applyServerCart]);
 
   useEffect(() => {
     refreshCart();
@@ -99,10 +103,31 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const addToCart = async (bookId: number, format: 'hardcover' | 'paperback', quantity: number) => {
+    try {
+      const res = await fetch('/api/cart', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ bookId, format, quantity }),
+      });
+      const json = await res.json().catch(() => null);
+      if (res.status === 401) {
+        window.location.href = `/user-login?callbackUrl=${encodeURIComponent(window.location.pathname)}`;
+        return 'Please sign in to add books to your cart';
+      }
+      if (!res.ok) return json?.error || 'Could not add this book to your cart';
+      applyServerCart(json?.data);
+      return null;
+    } catch {
+      return 'Network error. Please try again.';
+    }
+  };
+
   const isInCart = (bookId: number) => cartItemIds.has(bookId);
 
   return (
-    <CartContext.Provider value={{ cartCount, cartItemIds, toggleCartItem, isInCart, refreshCart }}>
+    <CartContext.Provider value={{ cartCount, cartItemIds, toggleCartItem, addToCart, isInCart, refreshCart, applyServerCart }}>
       {children}
     </CartContext.Provider>
   );
