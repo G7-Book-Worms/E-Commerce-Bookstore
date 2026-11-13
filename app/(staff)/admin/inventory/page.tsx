@@ -3,7 +3,7 @@ import { Suspense } from 'react';
 import { requireStaffPage } from '@/server/src/modules/staff/staff-page';
 import { can } from '@/lib/staff-permissions';
 import { inventoryCounts, listInventory, recentMovements, type InventoryFilter, type InventorySort } from '@/server/src/modules/inventory/inventory-service';
-import { btnPrimary, EmptyState, PageHeader, Panel, SortLink, StatCard, Table, dateTime, td, th } from '@/components/staff/ui';
+import { btnPrimary, EmptyState, PageHeader, Panel, SortLink, StatCard, Table, dateTime, th } from '@/components/staff/ui';
 import { FilterBar } from '@/components/staff/filter-bar';
 import { InventoryRow } from './inventory-row';
 

@@ -2,7 +2,7 @@
 
 // "This is a class project" notices (SCRUM-211): a strip on every page, and a big dialog the
 // first time someone visits (remembered in this browser once they click "I understand").
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
 const KEY = 'bw-demo-notice-v1';
 
@@ -14,19 +14,21 @@ export function DemoStrip() {
   );
 }
 
-export function DemoDialog() {
-  const [open, setOpen] = useState(false);
-  const button = useRef<HTMLButtonElement>(null);
+function readSeen() {
+  try {
+    return localStorage.getItem(KEY) === '1';
+  } catch {
+    return false; // storage blocked: show the notice
+  }
+}
+const noSubscribe = () => () => {};
 
-  useEffect(() => {
-    let seen = false;
-    try {
-      seen = localStorage.getItem(KEY) === '1';
-    } catch {
-      /* storage blocked: show the notice */
-    }
-    if (!seen) setOpen(true);
-  }, []);
+export function DemoDialog() {
+  // Server render: treated as seen (no dialog); the browser then reads localStorage
+  const seen = useSyncExternalStore(noSubscribe, readSeen, () => true);
+  const [dismissed, setDismissed] = useState(false);
+  const open = !seen && !dismissed;
+  const button = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (open) button.current?.focus();
@@ -39,7 +41,7 @@ export function DemoDialog() {
     } catch {
       /* ignore */
     }
-    setOpen(false);
+    setDismissed(true);
   };
 
   return (
