@@ -10,7 +10,13 @@ import {
   date,
   boolean,
   json,
+  index,
+  uniqueIndex,
 } from 'drizzle-orm/mysql-core'
+
+// Editions a book can be bought in (cart lines and order lines record which one)
+export const BOOK_FORMATS = ['hardcover', 'paperback'] as const;
+export type BookFormat = (typeof BOOK_FORMATS)[number];
 
 // Users Table
 export const users = mysqlTable('users', {
@@ -23,6 +29,8 @@ export const users = mysqlTable('users', {
     created: timestamp('created').defaultNow().notNull(),
     updated: timestamp('updated').defaultNow().onUpdateNow().notNull(),
     passwordHash: varchar('password_hash', { length: 255 }).notNull(),
+    // Admins can disable an account instead of deleting it (SCRUM-200)
+    isActive: boolean('is_active').default(true).notNull(),
 });
 
 // Addresses Table
@@ -51,11 +59,44 @@ export const books = mysqlTable('books', {
     isbn: varchar('isbn', { length: 17 }).notNull().unique(),
     author: varchar('author', { length: 100 }).notNull(),
     title: varchar('title', { length: 200 }).notNull(),
-    description: text('description').notNull(),
+    // MySQL 8 only allows a TEXT default written as an expression
+    description: text('description').default(sql`('')`).notNull(),
+    // Lowest regular format price and total stock across formats.
+    // Kept in sync with book_formats (see syncBookTotals) for simple sorting and legacy callers.
     priceCents: int("price_cents").notNull().default(0),
     stock: int('stock').default(0).notNull(),
     coverImageUrl: varchar('cover_image_url', { length: 500 }),
+    // Star rating shown on tiles and the product page (demo values; written reviews are out of scope)
+    ratingAvg: decimal('rating_avg', { precision: 2, scale: 1 }).default('0.0').notNull(),
+    ratingCount: int('rating_count').default(0).notNull(),
 });
+
+// Book Tags Table: catalog sections (bestseller, new-release, ...) and genre tags
+export const bookTags = mysqlTable('book_tags', {
+    bookTagId: int('book_tag_id').autoincrement().primaryKey().notNull(),
+    bookId: int('book_id')
+        .references(() => books.bookId, { onDelete: 'cascade' })
+        .notNull(),
+    tag: varchar('tag', { length: 50 }).notNull(),
+}, (t) => [
+    uniqueIndex('book_tags_book_tag_unique').on(t.bookId, t.tag),
+    index('book_tags_tag_idx').on(t.tag),
+]);
+
+// Book Formats Table: each edition has its own price, sale price and stock.
+// No row (or stock 0) = that format shows as unavailable on the product page.
+export const bookFormats = mysqlTable('book_formats', {
+    bookFormatId: int('book_format_id').autoincrement().primaryKey().notNull(),
+    bookId: int('book_id')
+        .references(() => books.bookId, { onDelete: 'cascade' })
+        .notNull(),
+    format: mysqlEnum('format', BOOK_FORMATS).notNull(),
+    priceCents: int('price_cents').notNull(),
+    salePriceCents: int('sale_price_cents'),
+    stock: int('stock').default(0).notNull(),
+}, (t) => [
+    uniqueIndex('book_formats_book_format_unique').on(t.bookId, t.format),
+]);
 
 // Carts Table
 export const carts = mysqlTable('carts', {
@@ -71,7 +112,24 @@ export const cartItems = mysqlTable('cart_items', {
         .references(() => carts.cartId, { onDelete: 'cascade' })
         .notNull(),
     bookId: int('book_id').references(() => books.bookId).notNull(),
+    format: mysqlEnum('format', BOOK_FORMATS).default('paperback').notNull(),
     quantity: int('quantity').notNull(),
+}, (t) => [
+    uniqueIndex('cart_items_cart_book_format_unique').on(t.cartId, t.bookId, t.format),
+]);
+
+// Discount Codes Table: created by admins, applied in the cart (percent OR fixed amount off)
+export const discountCodes = mysqlTable('discount_codes', {
+    discountCodeId: int('discount_code_id').autoincrement().primaryKey().notNull(),
+    code: varchar('code', { length: 32 }).notNull().unique(),
+    percentOff: int('percent_off'),
+    amountOffCents: int('amount_off_cents'),
+    startsAt: timestamp('starts_at'),
+    endsAt: timestamp('ends_at'),
+    isActive: boolean('is_active').default(true).notNull(),
+    maxUses: int('max_uses'),
+    timesUsed: int('times_used').default(0).notNull(),
+    created: timestamp('created').defaultNow().notNull(),
 });
 
 // Orders Table
@@ -86,6 +144,11 @@ export const orders = mysqlTable('orders', {
         .notNull(),
     note: varchar('note', { length: 500 }),
     trackingNumber: varchar('tracking_number', { length: 100 }),
+    // Totals in cents: subtotal - discount + tax = priceCents (the grand total)
+    subtotalCents: int('subtotal_cents').default(0).notNull(),
+    discountCents: int('discount_cents').default(0).notNull(),
+    taxCents: int('tax_cents').default(0).notNull(),
+    discountCodeId: int('discount_code_id').references(() => discountCodes.discountCodeId),
     priceCents: int('price_cents').notNull(),
     created: timestamp('created').defaultNow().notNull(),
 });
@@ -95,7 +158,9 @@ export const orderItems = mysqlTable('order_items', {
     orderItemId: int('order_item_id').autoincrement().primaryKey().notNull(),
     orderId: int('order_id').references(() => orders.orderId).notNull(),
     bookId: int('book_id').references(() => books.bookId).notNull(),
+    format: mysqlEnum('format', BOOK_FORMATS).default('paperback').notNull(),
     quantity: int('quantity').notNull(),
+    // The price actually charged per copy (the sale price when on sale)
     unitPrice: decimal('unit_price', { precision: 10, scale: 2 }).notNull(),
     unitTotal: decimal('unit_total', { precision: 10, scale: 2 }).generatedAlwaysAs(
         sql`\`quantity\` * \`unit_price\``,
@@ -128,7 +193,10 @@ export const payments = mysqlTable('payments', {
     ])
         .default('pending')
         .notNull(),
-    stripeSessionId: varchar('stripe_session_id', { length: 255 }),
+    stripeSessionId: varchar('stripe_session_id', { length: 255 }).unique(),
+    // From Stripe; never the full card number
+    cardBrand: varchar('card_brand', { length: 20 }),
+    cardLast4: varchar('card_last4', { length: 4 }),
     created: timestamp('created').defaultNow().notNull(),
 });
 
@@ -138,6 +206,8 @@ export const admin = mysqlTable('admin', {
     firstName: varchar('first_name', { length: 50 }).notNull(),
     lastName: varchar('last_name', { length: 50 }).notNull(),
     email: varchar('email', { length: 100 }).notNull().unique(),
+    // Third login factor for staff (SCRUM-187)
+    employeeId: varchar('employee_id', { length: 20 }).unique(),
     passwordHash: varchar('password_hash', { length: 255 }).notNull(),
     adminRole: mysqlEnum('admin_role', ['admin', 'employee', 'manager'])
         .default('manager')
@@ -165,6 +235,11 @@ export type NewAddress = typeof addresses.$inferInsert;
 export type BookCategory = typeof bookCategories.$inferSelect;
 export type Book = typeof books.$inferSelect;
 export type NewBook = typeof books.$inferInsert;
+export type BookTag = typeof bookTags.$inferSelect;
+export type BookFormatRow = typeof bookFormats.$inferSelect;
+export type NewBookFormatRow = typeof bookFormats.$inferInsert;
+export type DiscountCode = typeof discountCodes.$inferSelect;
+export type NewDiscountCode = typeof discountCodes.$inferInsert;
 export type Cart = typeof carts.$inferSelect;
 export type NewCart = typeof carts.$inferInsert;
 export type CartItem = typeof cartItems.$inferSelect;

@@ -2,271 +2,796 @@
   {
     "categorySlug": "fiction",
     "isbn": "978-0-00-000000-0",
-    "author": "Author 1",
-    "title": "Sample Book 1",
-    "description": "Description for sample book 1.",
-    "stock": 10,
-    "priceCents": 1299
+    "author": "Elena Brooks",
+    "title": "The Last Bookshop",
+    "description": "A young bookseller returns home to restore her family's bookstore and the town that grew up around it.",
+    "ratingAvg": "4.6",
+    "ratingCount": 1284,
+    "tags": [
+      "bestseller",
+      "trending",
+      "fiction"
+    ],
+    "formats": [
+      {
+        "format": "paperback",
+        "priceCents": 799,
+        "salePriceCents": 599,
+        "stock": 12
+      },
+      {
+        "format": "hardcover",
+        "priceCents": 1899,
+        "salePriceCents": null,
+        "stock": 5
+      }
+    ]
   },
   {
     "categorySlug": "science",
     "isbn": "978-0-00-000001-0",
-    "author": "Author 2",
-    "title": "Sample Book 2",
-    "description": "Description for sample book 2.",
-    "stock": 15,
-    "priceCents": 1499
+    "author": "Amelia Grant",
+    "title": "The Science of Everyday Life",
+    "description": "The scientific principles behind familiar experiences, from brewing coffee to predicting the weather.",
+    "ratingAvg": "4.2",
+    "ratingCount": 96,
+    "tags": [
+      "new-release",
+      "nonfiction",
+      "science"
+    ],
+    "formats": [
+      {
+        "format": "paperback",
+        "priceCents": 799,
+        "salePriceCents": null,
+        "stock": 5
+      },
+      {
+        "format": "hardcover",
+        "priceCents": 2099,
+        "salePriceCents": null,
+        "stock": 7
+      }
+    ]
   },
   {
     "categorySlug": "history",
     "isbn": "978-0-00-000002-0",
-    "author": "Author 3",
-    "title": "Sample Book 3",
-    "description": "Description for sample book 3.",
-    "stock": 20,
-    "priceCents": 1699
+    "author": "Thomas Okafor",
+    "title": "Rivers of Empire",
+    "description": "How the great river valleys shaped the first cities, trade routes and empires of the ancient world.",
+    "ratingAvg": "3.9",
+    "ratingCount": 57,
+    "tags": [
+      "paperback-pick",
+      "nonfiction",
+      "history"
+    ],
+    "formats": [
+      {
+        "format": "paperback",
+        "priceCents": 899,
+        "salePriceCents": null,
+        "stock": 27
+      },
+      {
+        "format": "hardcover",
+        "priceCents": 2299,
+        "salePriceCents": null,
+        "stock": 0
+      }
+    ]
   },
   {
     "categorySlug": "technology",
     "isbn": "978-0-00-000003-0",
-    "author": "Author 4",
-    "title": "Sample Book 4",
-    "description": "Description for sample book 4.",
-    "stock": 25,
-    "priceCents": 1899
+    "author": "Daniel Chen",
+    "title": "Foundations of Computer Science",
+    "description": "Algorithms, programming fundamentals and computer systems, explained with clear examples and exercises.",
+    "ratingAvg": "4.4",
+    "ratingCount": 412,
+    "tags": [
+      "bestseller",
+      "nonfiction",
+      "technology"
+    ],
+    "formats": [
+      {
+        "format": "paperback",
+        "priceCents": 1099,
+        "salePriceCents": null,
+        "stock": 8
+      },
+      {
+        "format": "hardcover",
+        "priceCents": 2499,
+        "salePriceCents": null,
+        "stock": 4
+      }
+    ]
   },
   {
     "categorySlug": "fantasy",
     "isbn": "978-0-00-000004-0",
-    "author": "Author 5",
-    "title": "Sample Book 5",
-    "description": "Description for sample book 5.",
-    "stock": 30,
-    "priceCents": 2199
+    "author": "Nora Ellis",
+    "title": "Beyond the Silver Forest",
+    "description": "An apprentice mapmaker discovers a hidden kingdom beyond the forest and a war no map has recorded.",
+    "ratingAvg": "4.8",
+    "ratingCount": 2310,
+    "tags": [
+      "bestseller",
+      "special-edition",
+      "fiction",
+      "fantasy"
+    ],
+    "formats": [
+      {
+        "format": "hardcover",
+        "priceCents": 2799,
+        "salePriceCents": null,
+        "stock": 11
+      }
+    ]
   },
   {
     "categorySlug": "fiction",
     "isbn": "978-0-00-000005-0",
-    "author": "Author 6",
-    "title": "Sample Book 6",
-    "description": "Description for sample book 6.",
-    "stock": 10,
-    "priceCents": 2499
+    "author": "Marcus Reed",
+    "title": "The Midnight Letter",
+    "description": "An unsigned letter leads a detective to a decades-old disappearance in a quiet Texas town.",
+    "ratingAvg": "4.1",
+    "ratingCount": 688,
+    "tags": [
+      "trending",
+      "bestseller",
+      "fiction"
+    ],
+    "formats": [
+      {
+        "format": "paperback",
+        "priceCents": 1699,
+        "salePriceCents": 1199,
+        "stock": 16
+      },
+      {
+        "format": "hardcover",
+        "priceCents": 3099,
+        "salePriceCents": null,
+        "stock": 2
+      }
+    ]
   },
   {
     "categorySlug": "science",
     "isbn": "978-0-00-000006-0",
-    "author": "Author 7",
-    "title": "Sample Book 7",
-    "description": "Description for sample book 7.",
-    "stock": 15,
-    "priceCents": 2799
+    "author": "Maya Collins",
+    "title": "A Life Among the Stars",
+    "description": "A small-town student's curiosity and determination lead to a career in astronomy.",
+    "ratingAvg": "4.5",
+    "ratingCount": 154,
+    "tags": [
+      "new-release",
+      "trending",
+      "nonfiction",
+      "science"
+    ],
+    "formats": [
+      {
+        "format": "paperback",
+        "priceCents": 1999,
+        "salePriceCents": null,
+        "stock": 1
+      },
+      {
+        "format": "hardcover",
+        "priceCents": 3399,
+        "salePriceCents": null,
+        "stock": 0
+      }
+    ]
   },
   {
     "categorySlug": "history",
     "isbn": "978-0-00-000007-0",
-    "author": "Author 8",
-    "title": "Sample Book 8",
-    "description": "Description for sample book 8.",
-    "stock": 20,
-    "priceCents": 999
+    "author": "Harriet Lane",
+    "title": "The Quiet Revolution",
+    "description": "The overlooked inventors and workers who powered the industrial age, told through their letters.",
+    "ratingAvg": "3.7",
+    "ratingCount": 33,
+    "tags": [
+      "paperback-pick",
+      "nonfiction",
+      "history"
+    ],
+    "formats": [
+      {
+        "format": "paperback",
+        "priceCents": 799,
+        "salePriceCents": null,
+        "stock": 31
+      }
+    ]
   },
   {
     "categorySlug": "technology",
     "isbn": "978-0-00-000008-0",
-    "author": "Author 9",
-    "title": "Sample Book 9",
-    "description": "Description for sample book 9.",
-    "stock": 25,
-    "priceCents": 3499
+    "author": "Priya Raman",
+    "title": "Secure by Design",
+    "description": "A practical guide to building software that resists attackers, from passwords to encryption.",
+    "ratingAvg": "4.3",
+    "ratingCount": 275,
+    "tags": [
+      "new-release",
+      "bestseller",
+      "nonfiction",
+      "technology"
+    ],
+    "formats": [
+      {
+        "format": "paperback",
+        "priceCents": 2699,
+        "salePriceCents": null,
+        "stock": 8
+      },
+      {
+        "format": "hardcover",
+        "priceCents": 4099,
+        "salePriceCents": null,
+        "stock": 0
+      }
+    ]
   },
   {
     "categorySlug": "fantasy",
     "isbn": "978-0-00-000009-0",
-    "author": "Author 10",
-    "title": "Sample Book 10",
-    "description": "Description for sample book 10.",
-    "stock": 30,
-    "priceCents": 1599
+    "author": "Lucas Thorne",
+    "title": "The Ember Crown",
+    "description": "A reluctant heir must master forbidden fire magic before rival houses claim the throne.",
+    "ratingAvg": "4.7",
+    "ratingCount": 941,
+    "tags": [
+      "special-edition",
+      "trending",
+      "fiction",
+      "fantasy"
+    ],
+    "formats": [
+      {
+        "format": "hardcover",
+        "priceCents": 2199,
+        "salePriceCents": 1499,
+        "stock": 9
+      }
+    ]
   },
   {
     "categorySlug": "fiction",
     "isbn": "978-0-00-000010-0",
-    "author": "Author 11",
-    "title": "Sample Book 11",
-    "description": "Description for sample book 11.",
-    "stock": 10,
-    "priceCents": 1299
+    "author": "Isabel Moreno",
+    "title": "Salt and Sunlight",
+    "description": "Three generations of women run a seaside cafe through storms, secrets and one unforgettable summer.",
+    "ratingAvg": "4.0",
+    "ratingCount": 120,
+    "tags": [
+      "paperback-pick",
+      "new-release",
+      "fiction"
+    ],
+    "formats": [
+      {
+        "format": "paperback",
+        "priceCents": 799,
+        "salePriceCents": null,
+        "stock": 13
+      },
+      {
+        "format": "hardcover",
+        "priceCents": 1899,
+        "salePriceCents": null,
+        "stock": 5
+      }
+    ]
   },
   {
     "categorySlug": "science",
     "isbn": "978-0-00-000011-0",
-    "author": "Author 12",
-    "title": "Sample Book 12",
-    "description": "Description for sample book 12.",
-    "stock": 15,
-    "priceCents": 1499
+    "author": "Ethan Parker",
+    "title": "How Cities Grow",
+    "description": "How transportation, housing and local economies shape the modern city.",
+    "ratingAvg": "3.8",
+    "ratingCount": 0,
+    "tags": [
+      "coming-soon",
+      "nonfiction",
+      "science"
+    ],
+    "formats": [
+      {
+        "format": "paperback",
+        "priceCents": 799,
+        "salePriceCents": null,
+        "stock": 6
+      },
+      {
+        "format": "hardcover",
+        "priceCents": 2099,
+        "salePriceCents": null,
+        "stock": 7
+      }
+    ]
   },
   {
     "categorySlug": "history",
     "isbn": "978-0-00-000012-0",
-    "author": "Author 13",
-    "title": "Sample Book 13",
-    "description": "Description for sample book 13.",
-    "stock": 20,
-    "priceCents": 1699
+    "author": "Gregory Hale",
+    "title": "The Map Makers",
+    "description": "Explorers, surveyors and cartographers who drew the world, and the mistakes that changed history.",
+    "ratingAvg": "4.2",
+    "ratingCount": 48,
+    "tags": [
+      "paperback-pick",
+      "nonfiction",
+      "history"
+    ],
+    "formats": [
+      {
+        "format": "paperback",
+        "priceCents": 899,
+        "salePriceCents": null,
+        "stock": 25
+      },
+      {
+        "format": "hardcover",
+        "priceCents": 2299,
+        "salePriceCents": null,
+        "stock": 0
+      }
+    ]
   },
   {
     "categorySlug": "technology",
     "isbn": "978-0-00-000013-0",
-    "author": "Author 14",
-    "title": "Sample Book 14",
-    "description": "Description for sample book 14.",
-    "stock": 25,
-    "priceCents": 1899
+    "author": "Samira Patel",
+    "title": "Learning to Code with Python",
+    "description": "A beginner's path from first variables to building small web apps, with projects in every chapter.",
+    "ratingAvg": "4.6",
+    "ratingCount": 530,
+    "tags": [
+      "trending",
+      "nonfiction",
+      "technology"
+    ],
+    "formats": [
+      {
+        "format": "paperback",
+        "priceCents": 1099,
+        "salePriceCents": 799,
+        "stock": 9
+      },
+      {
+        "format": "hardcover",
+        "priceCents": 2499,
+        "salePriceCents": null,
+        "stock": 4
+      }
+    ]
   },
   {
     "categorySlug": "fantasy",
     "isbn": "978-0-00-000014-0",
-    "author": "Author 15",
-    "title": "Sample Book 15",
-    "description": "Description for sample book 15.",
-    "stock": 30,
-    "priceCents": 2199
+    "author": "Wren Calloway",
+    "title": "The Dragon's Archive",
+    "description": "A librarian discovers that the books in her archive are the memories of sleeping dragons.",
+    "ratingAvg": "4.9",
+    "ratingCount": 0,
+    "tags": [
+      "special-edition",
+      "coming-soon",
+      "fiction",
+      "fantasy"
+    ],
+    "formats": [
+      {
+        "format": "hardcover",
+        "priceCents": 2799,
+        "salePriceCents": null,
+        "stock": 11
+      }
+    ]
   },
   {
     "categorySlug": "fiction",
     "isbn": "978-0-00-000015-0",
-    "author": "Author 16",
-    "title": "Sample Book 16",
-    "description": "Description for sample book 16.",
-    "stock": 10,
-    "priceCents": 2499
+    "author": "Adrian Vale",
+    "title": "Glass Houses",
+    "description": "A psychological thriller about a perfect neighborhood where every family is hiding something.",
+    "ratingAvg": "3.6",
+    "ratingCount": 377,
+    "tags": [
+      "bestseller",
+      "trending",
+      "fiction"
+    ],
+    "formats": [
+      {
+        "format": "paperback",
+        "priceCents": 1699,
+        "salePriceCents": null,
+        "stock": 14
+      },
+      {
+        "format": "hardcover",
+        "priceCents": 3099,
+        "salePriceCents": null,
+        "stock": 2
+      }
+    ]
   },
   {
     "categorySlug": "science",
     "isbn": "978-0-00-000016-0",
-    "author": "Author 17",
-    "title": "Sample Book 17",
-    "description": "Description for sample book 17.",
-    "stock": 15,
-    "priceCents": 2799
+    "author": "Leah Nakamura",
+    "title": "The Hidden Ocean",
+    "description": "A deep dive into the strange ecosystems living miles below the surface of the sea.",
+    "ratingAvg": "4.4",
+    "ratingCount": 88,
+    "tags": [
+      "new-release",
+      "nonfiction",
+      "science"
+    ],
+    "formats": [
+      {
+        "format": "paperback",
+        "priceCents": 1999,
+        "salePriceCents": null,
+        "stock": 0
+      },
+      {
+        "format": "hardcover",
+        "priceCents": 3399,
+        "salePriceCents": null,
+        "stock": 0
+      }
+    ]
   },
   {
     "categorySlug": "history",
     "isbn": "978-0-00-000017-0",
-    "author": "Author 18",
-    "title": "Sample Book 18",
-    "description": "Description for sample book 18.",
-    "stock": 20,
-    "priceCents": 999
+    "author": "James Whitaker",
+    "title": "Building Tomorrow",
+    "description": "An engineer who dedicated her life to designing affordable housing for growing communities.",
+    "ratingAvg": "4.1",
+    "ratingCount": 0,
+    "tags": [
+      "coming-soon",
+      "nonfiction",
+      "history"
+    ],
+    "formats": [
+      {
+        "format": "paperback",
+        "priceCents": 799,
+        "salePriceCents": null,
+        "stock": 32
+      },
+      {
+        "format": "hardcover",
+        "priceCents": 1599,
+        "salePriceCents": null,
+        "stock": 6
+      }
+    ]
   },
   {
     "categorySlug": "technology",
     "isbn": "978-0-00-000018-0",
-    "author": "Author 19",
-    "title": "Sample Book 19",
-    "description": "Description for sample book 19.",
-    "stock": 25,
-    "priceCents": 3499
+    "author": "Victor Alvarez",
+    "title": "Data Structures in Practice",
+    "description": "Arrays, trees, graphs and hash tables, with real problems you will meet on the job.",
+    "ratingAvg": "3.9",
+    "ratingCount": 64,
+    "tags": [
+      "paperback-pick",
+      "nonfiction",
+      "technology"
+    ],
+    "formats": [
+      {
+        "format": "paperback",
+        "priceCents": 2699,
+        "salePriceCents": null,
+        "stock": 6
+      },
+      {
+        "format": "hardcover",
+        "priceCents": 4099,
+        "salePriceCents": null,
+        "stock": 0
+      }
+    ]
   },
   {
     "categorySlug": "fantasy",
     "isbn": "978-0-00-000019-0",
-    "author": "Author 20",
-    "title": "Sample Book 20",
-    "description": "Description for sample book 20.",
-    "stock": 30,
-    "priceCents": 1599
+    "author": "Aria Blackwood",
+    "title": "Song of the Seventh Moon",
+    "description": "Seven moons, seven kingdoms and one singer whose voice can bend the tides.",
+    "ratingAvg": "4.5",
+    "ratingCount": 612,
+    "tags": [
+      "special-edition",
+      "fiction",
+      "fantasy"
+    ],
+    "formats": [
+      {
+        "format": "hardcover",
+        "priceCents": 2199,
+        "salePriceCents": null,
+        "stock": 9
+      }
+    ]
   },
   {
     "categorySlug": "fiction",
     "isbn": "978-0-00-000020-0",
-    "author": "Author 21",
-    "title": "Sample Book 21",
-    "description": "Description for sample book 21.",
-    "stock": 10,
-    "priceCents": 1299
+    "author": "Benjamin Cross",
+    "title": "Letters to Lucia",
+    "description": "A widower answers letters addressed to his late wife and finds an unexpected friend.",
+    "ratingAvg": "4.3",
+    "ratingCount": 140,
+    "tags": [
+      "new-release",
+      "fiction"
+    ],
+    "formats": [
+      {
+        "format": "paperback",
+        "priceCents": 799,
+        "salePriceCents": 599,
+        "stock": 14
+      },
+      {
+        "format": "hardcover",
+        "priceCents": 1899,
+        "salePriceCents": null,
+        "stock": 5
+      }
+    ]
   },
   {
     "categorySlug": "science",
     "isbn": "978-0-00-000021-0",
-    "author": "Author 22",
-    "title": "Sample Book 22",
-    "description": "Description for sample book 22.",
-    "stock": 15,
-    "priceCents": 1499
+    "author": "Clara Bennett",
+    "title": "Statistics Made Simple",
+    "description": "Probability, data analysis and statistical reasoning with practical exercises.",
+    "ratingAvg": "4.0",
+    "ratingCount": 203,
+    "tags": [
+      "paperback-pick",
+      "nonfiction",
+      "science"
+    ],
+    "formats": [
+      {
+        "format": "paperback",
+        "priceCents": 799,
+        "salePriceCents": null,
+        "stock": 4
+      }
+    ]
   },
   {
     "categorySlug": "history",
     "isbn": "978-0-00-000022-0",
-    "author": "Author 23",
-    "title": "Sample Book 23",
-    "description": "Description for sample book 23.",
-    "stock": 20,
-    "priceCents": 1699
+    "author": "Samuel Ortiz",
+    "title": "The Long Road West",
+    "description": "Pioneer diaries and maps tell the story of the families who crossed the continent.",
+    "ratingAvg": "3.5",
+    "ratingCount": 0,
+    "tags": [
+      "coming-soon",
+      "nonfiction",
+      "history"
+    ],
+    "formats": [
+      {
+        "format": "hardcover",
+        "priceCents": 2299,
+        "salePriceCents": null,
+        "stock": 0
+      }
+    ]
   },
   {
     "categorySlug": "technology",
     "isbn": "978-0-00-000023-0",
-    "author": "Author 24",
-    "title": "Sample Book 24",
-    "description": "Description for sample book 24.",
-    "stock": 25,
-    "priceCents": 1899
+    "author": "Grace Kim",
+    "title": "The Cloud Handbook",
+    "description": "Servers, containers and databases in the cloud, explained for people shipping their first product.",
+    "ratingAvg": "4.2",
+    "ratingCount": 91,
+    "tags": [
+      "trending",
+      "nonfiction",
+      "technology"
+    ],
+    "formats": [
+      {
+        "format": "paperback",
+        "priceCents": 1099,
+        "salePriceCents": null,
+        "stock": 10
+      },
+      {
+        "format": "hardcover",
+        "priceCents": 2499,
+        "salePriceCents": null,
+        "stock": 4
+      }
+    ]
   },
   {
     "categorySlug": "fantasy",
     "isbn": "978-0-00-000024-0",
-    "author": "Author 25",
-    "title": "Sample Book 25",
-    "description": "Description for sample book 25.",
-    "stock": 30,
-    "priceCents": 2199
+    "author": "Selene Hart",
+    "title": "Kingdom of Ash and Ivy",
+    "description": "A thief and a prince make a fragile alliance to break a curse that is swallowing their land.",
+    "ratingAvg": "4.7",
+    "ratingCount": 1502,
+    "tags": [
+      "bestseller",
+      "fiction",
+      "fantasy"
+    ],
+    "formats": [
+      {
+        "format": "paperback",
+        "priceCents": 1399,
+        "salePriceCents": null,
+        "stock": 3
+      },
+      {
+        "format": "hardcover",
+        "priceCents": 2799,
+        "salePriceCents": null,
+        "stock": 11
+      }
+    ]
   },
   {
     "categorySlug": "fiction",
     "isbn": "978-0-00-000025-0",
-    "author": "Author 26",
-    "title": "Sample Book 26",
-    "description": "Description for sample book 26.",
-    "stock": 10,
-    "priceCents": 2499
+    "author": "Sofia Martinez",
+    "title": "The Everyday Kitchen",
+    "description": "Simple recipes with affordable ingredients and step-by-step instructions for home cooking.",
+    "ratingAvg": "4.6",
+    "ratingCount": 350,
+    "tags": [
+      "new-release",
+      "fiction"
+    ],
+    "formats": [
+      {
+        "format": "paperback",
+        "priceCents": 1699,
+        "salePriceCents": null,
+        "stock": 15
+      },
+      {
+        "format": "hardcover",
+        "priceCents": 3099,
+        "salePriceCents": null,
+        "stock": 2
+      }
+    ]
   },
   {
     "categorySlug": "science",
     "isbn": "978-0-00-000026-0",
-    "author": "Author 27",
-    "title": "Sample Book 27",
-    "description": "Description for sample book 27.",
-    "stock": 15,
-    "priceCents": 2799
+    "author": "Rachel Dunn",
+    "title": "Wild Minds",
+    "description": "What animals think, feel and remember, from crows that solve puzzles to octopuses that escape.",
+    "ratingAvg": "4.1",
+    "ratingCount": 77,
+    "tags": [
+      "trending",
+      "nonfiction",
+      "science"
+    ],
+    "formats": [
+      {
+        "format": "paperback",
+        "priceCents": 1999,
+        "salePriceCents": null,
+        "stock": 11
+      },
+      {
+        "format": "hardcover",
+        "priceCents": 3399,
+        "salePriceCents": 2399,
+        "stock": 1
+      }
+    ]
   },
   {
     "categorySlug": "history",
     "isbn": "978-0-00-000027-0",
-    "author": "Author 28",
-    "title": "Sample Book 28",
-    "description": "Description for sample book 28.",
-    "stock": 20,
-    "priceCents": 999
+    "author": "Carlos Mendez",
+    "title": "Echoes of the Alamo",
+    "description": "A fresh look at the 1836 siege and the people on every side of the walls.",
+    "ratingAvg": "3.8",
+    "ratingCount": 29,
+    "tags": [
+      "paperback-pick",
+      "nonfiction",
+      "history"
+    ],
+    "formats": [
+      {
+        "format": "paperback",
+        "priceCents": 799,
+        "salePriceCents": null,
+        "stock": 30
+      }
+    ]
   },
   {
     "categorySlug": "technology",
     "isbn": "978-0-00-000028-0",
-    "author": "Author 29",
-    "title": "Sample Book 29",
-    "description": "Description for sample book 29.",
-    "stock": 25,
-    "priceCents": 3499
+    "author": "Noah Fischer",
+    "title": "Agile from Scratch",
+    "description": "Scrum, user stories and sprints for small teams building their first software product.",
+    "ratingAvg": "4.4",
+    "ratingCount": 186,
+    "tags": [
+      "bestseller",
+      "nonfiction",
+      "technology"
+    ],
+    "formats": [
+      {
+        "format": "paperback",
+        "priceCents": 2699,
+        "salePriceCents": null,
+        "stock": 7
+      },
+      {
+        "format": "hardcover",
+        "priceCents": 4099,
+        "salePriceCents": null,
+        "stock": 0
+      }
+    ]
   },
   {
     "categorySlug": "fantasy",
     "isbn": "978-0-00-000029-0",
-    "author": "Author 30",
-    "title": "Sample Book 30",
-    "description": "Description for sample book 30.",
-    "stock": 30,
-    "priceCents": 1599
+    "author": "Mira Solace",
+    "title": "The Starlit Tower",
+    "description": "A young astronomer climbs a tower that appears only once a century to rescue her brother.",
+    "ratingAvg": "0.0",
+    "ratingCount": 0,
+    "tags": [
+      "coming-soon",
+      "fiction",
+      "fantasy"
+    ],
+    "formats": [
+      {
+        "format": "paperback",
+        "priceCents": 799,
+        "salePriceCents": null,
+        "stock": 4
+      },
+      {
+        "format": "hardcover",
+        "priceCents": 2199,
+        "salePriceCents": null,
+        "stock": 9
+      }
+    ]
   }
 ]

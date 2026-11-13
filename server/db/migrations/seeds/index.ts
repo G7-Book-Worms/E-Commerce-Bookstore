@@ -2,6 +2,7 @@ import "dotenv/config";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { db } from "../../index";
+import { seedCatalog } from "./catalog";
 import {
   users, addresses, bookCategories, books,
   carts, cartItems, orders, orderItems, events, payments, admin,
@@ -29,13 +30,23 @@ function ref(map: Map<string, number>, key: string, what: string): number {
 }
 
 async function seed() {
-  // Seeding inserts fixed rows, so only run it on an empty database.
+  // The base seed inserts fixed rows, so it only runs on an empty database.
+  // The catalog seed after it is idempotent and runs every time (also on Aiven).
   const existing = await db.select({ id: books.bookId }).from(books).limit(1);
   if (existing.length > 0) {
-    console.log("Database already has books; skipping seed (run it on an empty database).");
-    return;
+    console.log("Database already has books; skipping the base seed.");
+  } else {
+    await seedBase();
   }
 
+  await seedCatalog({
+    books: load("books"),
+    codes: load("discount_codes"),
+    admins: load("admin"),
+  });
+}
+
+async function seedBase() {
   // ---------- No-dependency tables ----------
   const userRows = load("users");
   const [userRes] = await db.insert(users).values(userRows);
@@ -46,7 +57,7 @@ async function seed() {
   const categoryIds = idMap(categoryRows, catRes.insertId, (c) => c.slug);
 
   await db.insert(events).values(load("events"));
-  await db.insert(admin).values(load("admin"));
+  await db.insert(admin).values(load("admin").map(({ employeeId: _e, ...a }) => a));
 
   // ---------- Depend on users / categories ----------
   const addressRows = load("addresses");
@@ -63,9 +74,10 @@ async function seed() {
   });
 
   const bookRows = load("books");
+  // Prices, stock, tags and ratings are filled in by the catalog seed (book_formats etc.)
   const [bookRes] = await db.insert(books).values(
-    bookRows.map(({ categorySlug, ...b }) => ({
-      ...b,
+    bookRows.map(({ categorySlug, isbn, title, author, description }) => ({
+      isbn, title, author, description,
       categoryId: ref(categoryIds, categorySlug, "category"),
     }))
   );
@@ -112,11 +124,14 @@ async function seed() {
     }))
   );
 
-  console.log("Seeded successfully");
+  console.log("Base seed inserted");
 }
 
 seed()
-  .then(() => process.exit(0))
+  .then(() => {
+    console.log("Seeded successfully");
+    process.exit(0);
+  })
   .catch((err) => {
     console.error("Seed failed:", err);
     process.exit(1);

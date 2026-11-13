@@ -4,13 +4,15 @@
     "lastName": "Hopper",
     "email": "grace@example.com",
     "passwordHash": "$2b$10$lTuW6bDzSY/Cc.wLVfoIWuQvnoodhKW4.cpbVGu7hcoavC.FdKx1K",
-    "adminRole": "admin"
+    "adminRole": "admin",
+    "employeeId": "BW-1001"
   },
   {
     "firstName": "Edsger",
     "lastName": "Dijkstra",
     "email": "edsger@example.com",
     "passwordHash": "$2b$10$lTuW6bDzSY/Cc.wLVfoIWuQvnoodhKW4.cpbVGu7hcoavC.FdKx1K",
-    "adminRole": "admin"
+    "adminRole": "admin",
+    "employeeId": "BW-1002"
   }
 ]
