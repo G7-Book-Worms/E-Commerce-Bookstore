@@ -2,15 +2,13 @@
 
 import Link from 'next/link'
 import { showToast } from "@/components/toast";
-import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Minus, Plus } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { BookCover } from "@/components/book-cover";
 import { StarRating } from "@/components/star-rating";
-import { formatPrice, stockLabel, type CatalogBook } from "@/lib/catalog";
+import { defaultCartFormat, formatPrice, stockLabel, type CatalogBook } from "@/lib/catalog";
 import { useCart, type CartFormat } from "@/app/context/CartContext";
-import { useAuth } from "@/app/context/auth-context";
 
 // Kept as the name other files import. Same shape as a book from GET /api/books
 export type Book = CatalogBook;
@@ -95,9 +93,7 @@ export function CartStepper({
 // One book tile. Cover, title, author, rating, price (sale marked), quantity and an Add to Cart button
 // eager = load the cover right away instead of waiting for the user to scroll near it
 export function BookCard({ book, eager = false }: { book: Book; eager?: boolean }) {
-    const router = useRouter();
-    const { user } = useAuth();
-    const { toggleCartItem, isInCart, linesForBook } = useCart();
+    const { toggleCartItem, addToCart: addLine, isGuest, isInCart, linesForBook } = useCart();
     const [busy, setBusy] = useState(false);
     const inCart = isInCart(book.bookId);
     const soldOut = book.totalStock <= 0;
@@ -110,14 +106,14 @@ export function BookCard({ book, eager = false }: { book: Book; eager?: boolean 
     const lineStock = line ? (book.formats.find((f) => f.format === line.format)?.stock ?? 0) : 0;
 
     async function addToCart() {
-        // Guests sign in first, then come back to the catalog
-        if (!user) {
-            router.push(`/user-login?callbackUrl=${encodeURIComponent(window.location.pathname + window.location.search)}`);
-            return;
-        }
         setBusy(true);
         const wasInCart = inCart;
-        await toggleCartItem(book.bookId);
+        // A guest's cart lives in this browser (SCRUM-208). Adding stores the edition the server
+        // would choose - the cheapest in stock - so the line gets a quantity stepper straight away.
+        // Removing, and every signed-in change, goes through the toggle as before.
+        const guestFormat = isGuest && !wasInCart ? defaultCartFormat(book) : null;
+        if (guestFormat) await addLine(book.bookId, guestFormat, 1);
+        else await toggleCartItem(book.bookId);
         setBusy(false);
         showToast(wasInCart ? `Removed “${book.title}” from your cart` : `Added “${book.title}” to your cart`, { href: '/cart', linkText: 'View cart' });
     }

@@ -5,7 +5,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Check, Lock, Minus, Plus, ShoppingCart } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -14,15 +13,12 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { BookCover } from "@/components/book-cover";
 import { CartStepper } from "@/components/book-card";
 import { StarRating } from "@/components/star-rating";
-import { useAuth } from "@/app/context/auth-context";
 import { useCart } from "@/app/context/CartContext";
 import { FORMATS, effectivePrice, formatPrice, stockLabel, type CatalogBook, type Format } from "@/lib/catalog";
 
 const LABELS: Record<Format, string> = { hardcover: "Hardcover", paperback: "Paperback" };
 
 export function ProductView({ book }: { book: CatalogBook }) {
-  const router = useRouter();
-  const { user } = useAuth();
   const { addToCart, quantityOf } = useCart();
 
   // Every format is shown; ones the book isn't sold in, or that are sold out, are locked
@@ -51,10 +47,8 @@ export function ProductView({ book }: { book: CatalogBook }) {
 
   async function handleAddToCart() {
     if (!selected || !current) return;
-    if (!user) {
-      router.push(`/user-login?callbackUrl=${encodeURIComponent(window.location.pathname)}`);
-      return;
-    }
+    // Guests add to the cart in this browser and can check out without an account (SCRUM-208);
+    // addToCart handles both cases.
     setBusy(true);
     const error = await addToCart(book.bookId, selected, quantity);
     setBusy(false);

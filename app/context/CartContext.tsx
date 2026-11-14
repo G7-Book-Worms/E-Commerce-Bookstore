@@ -344,10 +344,20 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // --- Quantity per book + format (catalogue and product-page stepper) ---
 
-  const linesForBook = (bookId: number) => cartLines.filter((l) => l.bookId === bookId);
+  // The lines the steppers work with: the server cart when signed in, the browser's cart for a
+  // guest. A guest line stored without a format (added from a homepage card) is left out on
+  // purpose: its edition is only decided when the server prices the cart, and a stepper here would
+  // have to guess one. Such a book still counts as in the cart and keeps its in/out toggle.
+  const activeLines: CartLineSummary[] = isGuest
+    ? guestItems
+        .filter((l): l is GuestCartLine & { format: CartFormat } => l.format !== undefined)
+        .map((l) => ({ bookId: l.bookId, format: l.format, quantity: l.quantity }))
+    : cartLines;
+
+  const linesForBook = (bookId: number) => activeLines.filter((l) => l.bookId === bookId);
 
   const quantityOf = (bookId: number, format?: CartFormat) =>
-    cartLines.reduce((sum, l) => (l.bookId === bookId && (!format || l.format === format) ? sum + l.quantity : sum), 0);
+    activeLines.reduce((sum, l) => (l.bookId === bookId && (!format || l.format === format) ? sum + l.quantity : sum), 0);
 
   /**
    * Sets one line's quantity. 0 removes the line (DELETE); anything else is a PATCH, which
@@ -355,6 +365,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
    */
   const setCartQuantity = async (bookId: number, format: CartFormat, quantity: number): Promise<string | null> => {
     const next = Math.max(0, Math.floor(quantity));
+    // Guests: the cart lives in this browser. Stock is checked again when the cart is priced.
+    if (isGuest) {
+      setGuestQuantity(bookId, format, Math.min(GUEST_MAX_QUANTITY, next));
+      return null;
+    }
     try {
       const res = await fetch('/api/cart', {
         method: next === 0 ? 'DELETE' : 'PATCH',
@@ -391,7 +406,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isInCart,
         refreshCart,
         applyServerCart,
-        cartLines,
+        cartLines: activeLines,
         linesForBook,
         quantityOf,
         setCartQuantity,
