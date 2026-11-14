@@ -10,6 +10,7 @@
 
 import Link from "next/link";
 import { Suspense, useCallback, useEffect, useState } from "react";
+import { AddressAutocomplete } from "@/components/address-autocomplete";
 import { useSearchParams } from "next/navigation";
 import { Lock, Minus, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -178,6 +179,17 @@ function Checkout() {
     </label>
   );
 
+  // Street with address suggestions: picking one fills in every address field at once.
+  const streetField = () => (
+    <AddressAutocomplete
+      label="Street"
+      required
+      value={form.street}
+      onChange={(street) => setForm((f) => ({ ...f, street }))}
+      onSelect={(a) => setForm({ street: a.street, city: a.city, state: a.state, zip: a.zip, country: a.country })}
+    />
+  );
+
   // A guest can only pay once there is an email and every address field is filled in.
   const guestReady =
     email.trim().length > 3 &&
@@ -238,7 +250,7 @@ function Checkout() {
             </h2>
             {isGuestCheckout ? (
               <div className="grid gap-3 sm:grid-cols-2">
-                <div className="sm:col-span-2">{field("street", "Street", "street-address")}</div>
+                <div className="sm:col-span-2">{streetField()}</div>
                 {field("city", "City", "address-level2")}
                 {field("state", "State", "address-level1")}
                 {field("zip", "ZIP code", "postal-code")}
@@ -261,7 +273,7 @@ function Checkout() {
                 )}
                 {adding ? (
                   <form onSubmit={saveAddress} className="mt-4 grid gap-3 sm:grid-cols-2">
-                    <div className="sm:col-span-2">{field("street", "Street", "street-address")}</div>
+                    <div className="sm:col-span-2">{streetField()}</div>
                     {field("city", "City", "address-level2")}
                     {field("state", "State", "address-level1")}
                     {field("zip", "ZIP code", "postal-code")}
