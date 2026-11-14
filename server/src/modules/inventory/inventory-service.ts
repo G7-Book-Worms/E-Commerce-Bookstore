@@ -10,6 +10,7 @@ import { syncBookTotals } from '../books/book-totals';
 import { sendEmail } from '../email/mailer';
 import { lowStockEmail } from '../email/templates';
 import { logActivity } from '../activity/activity-log';
+import { recordStaffNotification } from '../tickets/notification-service';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Reason = 'sale' | 'restock' | 'adjustment' | 'cancellation';
@@ -66,15 +67,35 @@ export async function alertLowStock(changes: StockChange[]): Promise<void> {
   const low = changes.filter((c) => c.becameLow);
   if (!low.length) return;
   const rows = await db
-    .select({ id: bookFormats.bookFormatId, title: books.title, format: bookFormats.format })
+    .select({ id: bookFormats.bookFormatId, bookId: books.bookId, title: books.title, format: bookFormats.format })
     .from(bookFormats)
     .innerJoin(books, eq(books.bookId, bookFormats.bookId))
     .where(sql`${bookFormats.bookFormatId} IN (${sql.join(low.map((l) => sql`${l.bookFormatId}`), sql`, `)})`);
   const items = low.map((l) => {
     const r = rows.find((x) => x.id === l.bookFormatId);
-    return { title: r?.title ?? `Format #${l.bookFormatId}`, format: r?.format ?? '', stock: l.stockAfter, threshold: l.threshold };
+    return {
+      title: r?.title ?? `Format #${l.bookFormatId}`,
+      format: r?.format ?? '',
+      stock: l.stockAfter,
+      threshold: l.threshold,
+      bookId: r?.bookId ?? null,
+    };
   });
   await logActivity('system', null, 'inventory.low_stock', { items });
+
+  // Also file each alert in the portal's Alerts tab. Until now a low-stock alert was only
+  // emailed to support@, so it fired with nowhere to show and looked like a bug (Session 4).
+  // recordStaffNotification() swallows its own failures, so this cannot break a restock.
+  for (const i of items) {
+    await recordStaffNotification({
+      kind: i.stock === 0 ? 'sold_out' : 'low_stock',
+      title: i.stock === 0 ? `Sold out: ${i.title} (${i.format})` : `Low stock: ${i.title} (${i.format})`,
+      body: `${i.stock} ${i.stock === 1 ? 'copy' : 'copies'} left; the alert level is ${i.threshold}.`,
+      subjectType: 'book',
+      subjectId: i.bookId,
+    });
+  }
+
   const to = process.env.SUPPORT_EMAIL;
   if (to) await sendEmail(lowStockEmail(to, items));
 }

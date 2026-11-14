@@ -23,6 +23,7 @@
     "dotenv": "^16.4.5",
     "drizzle-orm": "^1.0.0-beta.22",
     "embla-carousel-react": "^8.6.0",
+    "imapflow": "^2.11.0",
     "jose": "^6.2.12",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.52.0",

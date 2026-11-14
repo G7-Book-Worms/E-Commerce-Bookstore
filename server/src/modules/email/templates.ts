@@ -189,3 +189,49 @@ export function lowStockEmail(to: string, items: { title: string; format: string
     ),
   };
 }
+
+// --- Support tickets (Session 4) -------------------------------------------------------------
+// Everything below echoes customer-supplied text (a ticket subject, a reply, the quoted
+// history) into HTML, so every one of those values goes through escapeHtml() first. `layout()`
+// already escapes the title it is given.
+
+/** Acknowledgement sent when a ticket is opened, carrying the number the customer can quote. */
+export function ticketReceivedEmail(to: string, name: string, ticketNumber: number, subject: string): Email {
+  return {
+    to,
+    from: 'support',
+    subject: `[Ticket #${ticketNumber}] ${subject}`,
+    ...layout(
+      `Thanks, ${name}`,
+      `<p>We received your message and opened ticket <strong>#${ticketNumber}</strong>. A staff member will reply from support@bookwrms.store.</p>
+<p style="margin-top:20px;padding-left:12px;border-left:3px solid #d6d3d1;color:#57534e;font-size:13px">Subject: ${escapeHtml(subject)}</p>
+<p style="font-size:13px;color:#57534e">Replying to this email adds your reply to the same ticket.</p>`,
+      `We received your message and opened ticket #${ticketNumber}. A staff member will reply from support@bookwrms.store.\n\nSubject: ${subject}\n\nReplying to this email adds your reply to the same ticket.`
+    ),
+  };
+}
+
+/**
+ * A staff reply on a ticket. The subject is built by buildReplySubject() in the tickets module
+ * so that the `[Ticket #n]` token stays exactly in step with the matcher that reads it back.
+ */
+export function ticketReplyEmail(
+  to: string,
+  opts: { replySubject: string; ticketNumber: number; body: string; quoted?: string | null }
+): Email {
+  const quote = (s: string) => escapeHtml(s).replace(/\n/g, '<br>');
+  const history = opts.quoted
+    ? `<p style="margin-top:20px;padding-left:12px;border-left:3px solid #d6d3d1;color:#57534e;font-size:13px">Previously:<br>${quote(opts.quoted)}</p>`
+    : '';
+  return {
+    to,
+    from: 'support',
+    subject: opts.replySubject,
+    ...layout(
+      `Ticket #${opts.ticketNumber}`,
+      `<p>${quote(opts.body)}</p>${history}
+<p style="font-size:13px;color:#57534e">Reply to this email to continue on ticket #${opts.ticketNumber}.</p>`,
+      `${opts.body}\n${opts.quoted ? `\n> Previously:\n> ${opts.quoted.replace(/\n/g, '\n> ')}\n` : ''}\nReply to this email to continue on ticket #${opts.ticketNumber}.`
+    ),
+  };
+}
