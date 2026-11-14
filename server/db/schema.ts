@@ -150,6 +150,12 @@ export const orders = mysqlTable('orders', {
         .notNull(),
     note: varchar('note', { length: 500 }),
     trackingNumber: varchar('tracking_number', { length: 100 }),
+    // Real carrier for the tracking number above, so the order page can link to the carrier's
+    // own tracking page. Null until staff mark the order shipped.
+    carrier: mysqlEnum('carrier', ['ups', 'fedex', 'usps', 'dhl']),
+    // Set for guest checkout (SCRUM-208), where there is no user_id to get an address or an
+    // email from. Order confirmation and the signed view-order link go here.
+    guestEmail: varchar('guest_email', { length: 100 }),
     // Totals in cents: subtotal - discount + tax = priceCents (the grand total)
     subtotalCents: int('subtotal_cents').default(0).notNull(),
     discountCents: int('discount_cents').default(0).notNull(),
@@ -217,7 +223,9 @@ export const admin = mysqlTable('admin', {
     passwordHash: varchar('password_hash', { length: 255 }).notNull(),
     // employee = orders, inventory, messages; manager = + discounts, customers, activity log;
     // admin = + staff accounts (see server/src/modules/staff/permissions.ts)
-    adminRole: mysqlEnum('admin_role', ['admin', 'employee', 'manager'])
+    // owner outranks admin and can never be managed by anyone; see lib/staff-permissions.ts
+    // for who may act on whom. There is exactly one owner.
+    adminRole: mysqlEnum('admin_role', ['owner', 'admin', 'employee', 'manager'])
         .default('employee')
         .notNull(),
     isActive: boolean('is_active').default(true).notNull(),
@@ -275,6 +283,60 @@ export const contactMessages = mysqlTable('contact_messages', {
     created: timestamp('created').defaultNow().notNull(),
 });
 
+// Support Tickets: a conversation with one customer, built from the footer contact form and from
+// mail arriving at support@. contact_messages stays as it is for the Session 3 demo; tickets is
+// the threaded replacement that the staff inbox reads.
+export const tickets = mysqlTable('tickets', {
+    ticketId: int('ticket_id').autoincrement().primaryKey().notNull(),
+    // Shown to the customer and used to thread replies: "[Ticket #123]" in the subject line.
+    number: int('number').notNull().unique(),
+    subject: varchar('subject', { length: 200 }).notNull(),
+    // Null when the sender has no account; the email address is the only identity we have.
+    userId: int('user_id').references(() => users.userId),
+    customerName: varchar('customer_name', { length: 100 }).notNull(),
+    customerEmail: varchar('customer_email', { length: 100 }).notNull(),
+    status: mysqlEnum('status', ['open', 'pending', 'resolved', 'closed']).default('open').notNull(),
+    assignedTo: int('assigned_to').references(() => admin.adminId),
+    created: timestamp('created').defaultNow().notNull(),
+    updated: timestamp('updated').defaultNow().onUpdateNow().notNull(),
+}, (t) => [
+    index('tickets_status_idx').on(t.status),
+    index('tickets_email_idx').on(t.customerEmail),
+]);
+
+// One message in a ticket thread, inbound (from the customer) or outbound (a staff reply).
+export const ticketMessages = mysqlTable('ticket_messages', {
+    ticketMessageId: int('ticket_message_id').autoincrement().primaryKey().notNull(),
+    ticketId: int('ticket_id')
+        .references(() => tickets.ticketId, { onDelete: 'cascade' })
+        .notNull(),
+    direction: mysqlEnum('direction', ['in', 'out']).notNull(),
+    fromEmail: varchar('from_email', { length: 100 }).notNull(),
+    body: text('body').notNull(),
+    // RFC 5322 Message-ID of this message and of the one it replies to, so a reply that comes
+    // back by email is attached to the right thread instead of opening a new ticket.
+    messageId: varchar('message_id', { length: 255 }).unique(),
+    inReplyTo: varchar('in_reply_to', { length: 255 }),
+    // Which staff member sent it; null for inbound messages.
+    staffId: int('staff_id').references(() => admin.adminId),
+    created: timestamp('created').defaultNow().notNull(),
+}, (t) => [index('ticket_messages_ticket_idx').on(t.ticketId)]);
+
+// Staff Notifications: things the portal should surface that are not customer messages -
+// low stock, sold out. Previously these were emailed to support@ only, so they were invisible
+// in the portal and looked like a bug.
+export const staffNotifications = mysqlTable('staff_notifications', {
+    notificationId: int('notification_id').autoincrement().primaryKey().notNull(),
+    kind: mysqlEnum('kind', ['low_stock', 'sold_out']).notNull(),
+    title: varchar('title', { length: 200 }).notNull(),
+    body: text('body'),
+    // What it refers to, so the UI can link straight to the book or order.
+    subjectType: mysqlEnum('subject_type', ['book', 'order']),
+    subjectId: int('subject_id'),
+    readAt: timestamp('read_at'),
+    created: timestamp('created').defaultNow().notNull(),
+}, (t) => [index('staff_notifications_read_idx').on(t.readAt)]);
+
 // Password Reset Tokens Table: emailed one-time links. Only a SHA-256 hash of the token is stored.
 export const passwordResetTokens = mysqlTable('password_reset_tokens', {
     tokenId: int('token_id').autoincrement().primaryKey().notNull(),
@@ -322,3 +384,9 @@ export type Admin = typeof admin.$inferSelect;
 export type ActivityLogEntry = typeof activityLog.$inferSelect;
 export type InventoryMovement = typeof inventoryMovements.$inferSelect;
 export type ContactMessage = typeof contactMessages.$inferSelect;
+export type Ticket = typeof tickets.$inferSelect;
+export type NewTicket = typeof tickets.$inferInsert;
+export type TicketMessage = typeof ticketMessages.$inferSelect;
+export type NewTicketMessage = typeof ticketMessages.$inferInsert;
+export type StaffNotification = typeof staffNotifications.$inferSelect;
+export type NewStaffNotification = typeof staffNotifications.$inferInsert;
