@@ -155,6 +155,7 @@ export class UsersService {
           address: o.address?.street ? o.address : null,
           payment: o.payment?.status ? o.payment : null,
           shippingAddressId: o.shippingAddressId,
+          carrier: o.carrier,
           trackingNumber: o.trackingNumber,
           created: o.created,
           totalItems: items.reduce((sum, i) => sum + i.quantity, 0),

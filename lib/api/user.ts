@@ -46,6 +46,7 @@ export interface UserOrder {
   address: { street: string; city: string; state: string; zip: string } | null;
   payment: { status: string; cardBrand: string | null; cardLast4: string | null } | null;
   shippingAddressId: number;
+  carrier: 'ups' | 'fedex' | 'usps' | 'dhl' | null;
   trackingNumber: string | null;
   created: string;
   totalItems: number;

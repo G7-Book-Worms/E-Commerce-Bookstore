@@ -152,6 +152,7 @@ export class UsersRepository {
         discountCents: orders.discountCents,
         taxCents: orders.taxCents,
         shippingAddressId: orders.shippingAddressId,
+        carrier: orders.carrier,
         trackingNumber: orders.trackingNumber,
         created: orders.created,
         address: {
