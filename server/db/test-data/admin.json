@@ -4,7 +4,7 @@
     "lastName": "Hopper",
     "email": "grace@example.com",
     "passwordHash": "$2b$12$Gcy1ZWxMIO/bBn1vMMKRked9oXLt9SdGDEbEOUBgk1v1IWQB0kkc2",
-    "adminRole": "admin",
+    "adminRole": "owner",
     "employeeId": "BW-1001"
   },
   {
@@ -22,5 +22,13 @@
     "passwordHash": "$2b$12$Gcy1ZWxMIO/bBn1vMMKRked9oXLt9SdGDEbEOUBgk1v1IWQB0kkc2",
     "adminRole": "employee",
     "employeeId": "BW-1003"
+  },
+  {
+    "firstName": "Ken",
+    "lastName": "Thompson",
+    "email": "ken@example.com",
+    "passwordHash": "$2b$12$Gcy1ZWxMIO/bBn1vMMKRked9oXLt9SdGDEbEOUBgk1v1IWQB0kkc2",
+    "adminRole": "admin",
+    "employeeId": "BW-1004"
   }
 ]

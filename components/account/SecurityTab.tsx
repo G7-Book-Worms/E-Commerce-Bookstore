@@ -11,7 +11,7 @@ import { useAuth } from '@/app/context/auth-context';
 
 export const SecurityTab: React.FC = () => {
   const router = useRouter();
-  const { user, refreshSession } = useAuth();
+  const { user } = useAuth();
 
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
@@ -40,9 +40,12 @@ export const SecurityTab: React.FC = () => {
     try {
       setIsUpdating(true);
       await changeUserPassword(passwordForm);
-      setStatusMsg({ type: 'success', text: 'Password updated. Every other device was signed out, and we emailed you a confirmation.' });
+      // Changing the password signs out every device, this one included, so there is no session
+      // left to refresh: send them to the sign-in page, which says why they are back there.
+      setStatusMsg({ type: 'success', text: 'Password updated. You have been signed out everywhere - signing you back in now.' });
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-      await refreshSession();
+      setTimeout(() => { window.location.href = '/user-login?passwordChanged=1'; }, 1200);
+      return;
     } catch (err: any) {
       setStatusMsg({ type: 'error', text: err.message || 'Failed to update password.' });
     } finally {
@@ -116,6 +119,7 @@ export const SecurityTab: React.FC = () => {
             <PasswordInput
               id="confirmPassword"
               autoComplete="new-password"
+              reveal={false}
               required
               value={passwordForm.confirmPassword}
               onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}

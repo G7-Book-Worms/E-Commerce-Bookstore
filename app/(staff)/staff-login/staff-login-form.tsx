@@ -39,6 +39,11 @@ export function StaffLoginForm() {
   return (
     <form onSubmit={submit} noValidate className="space-y-4">
       {error && <div role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</div>}
+      {params.get('passwordChanged') === '1' && !error && (
+        <div role="status" className="rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-900">
+          Your password was changed, so every staff session was signed out - this browser included. Sign in with your new password.
+        </div>
+      )}
       <div className="space-y-1.5">
         <label htmlFor="staff-email" className="text-sm font-medium">Work email</label>
         <input id="staff-email" name="email" type="email" autoComplete="username" value={form.email} onChange={set} className={inputCls} disabled={busy} />

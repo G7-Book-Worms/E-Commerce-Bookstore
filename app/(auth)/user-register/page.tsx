@@ -139,6 +139,8 @@ function RegisterForm() {
         <PasswordInput
           id={name}
           name={name}
+          // The confirmation box stays masked: re-typing it from memory is the whole check.
+          reveal={name !== 'confirmPassword'}
           autoComplete={autoComplete}
           disabled={isSubmitting}
           value={formData[name]}
