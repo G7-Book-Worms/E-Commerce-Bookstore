@@ -48,3 +48,6 @@ shots/
 
 # agent worktrees (local only)
 .claude/worktrees/
+
+# stray screenshot output from a tool with an unset path variable
+undefined/
