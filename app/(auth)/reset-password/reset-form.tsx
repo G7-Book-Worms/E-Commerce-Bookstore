@@ -64,7 +64,7 @@ export function ResetPasswordForm() {
           </div>
           <div className="space-y-1.5">
             <label htmlFor="confirmPassword" className="block text-xs font-semibold uppercase tracking-wider text-neutral-700">Confirm new password</label>
-            <PasswordInput id="confirmPassword" autoComplete="new-password" value={f.confirmPassword} onChange={(e) => setF({ ...f, confirmPassword: e.target.value })} className={field} />
+            <PasswordInput id="confirmPassword" autoComplete="new-password" value={f.confirmPassword} onChange={(e) => setF({ ...f, confirmPassword: e.target.value })} className={field} reveal={false} />
           </div>
           <button type="submit" disabled={busy} className="h-10 w-full rounded-md bg-neutral-900 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-60">
             {busy ? 'Saving…' : 'Save new password'}

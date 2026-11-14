@@ -69,14 +69,16 @@ export async function staffChangePassword(staffId: number, input: z.infer<typeof
     throw new UnauthorizedError('Current password is incorrect');
   }
   if (input.newPassword === input.currentPassword) throw new BadRequestError('Choose a different password');
+  // Bumping the token version invalidates every staff session for this account - including the one
+  // that just changed the password. That is deliberate: if the password was changed because it may
+  // have been seen or shared, leaving this browser signed in leaves the hole open. The caller
+  // clears the cookie and sends them back to the sign-in page to use the new password.
   await db.update(admin).set({
     passwordHash: await hashPassword(input.newPassword),
     mustChangePassword: false,
     tokenVersion: sql`${admin.tokenVersion} + 1`,
   }).where(eq(admin.adminId, staffId));
-  const [updated] = await db.select().from(admin).where(eq(admin.adminId, staffId));
   await logActivity('admin', staffId, 'staff.password_changed', {}, ip);
-  return staffToken(updated!);
 }
 
 /**

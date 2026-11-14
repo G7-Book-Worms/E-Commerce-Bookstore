@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import { requireStaffPage } from '@/server/src/modules/staff/staff-page';
 import { getCustomer } from '@/server/src/modules/users/customers-admin';
+import { isAnonymised } from '@/server/src/modules/staff/staff-guards';
 import { can } from '@/lib/staff-permissions';
 import { Badge, ORDER_STATUS_BADGE, PageHeader, Panel, dateOnly, dateTime, money } from '@/components/staff/ui';
 import { CustomerActions } from './customer-actions';
@@ -17,13 +18,19 @@ async function Content({ params }: { params: Promise<{ id: string }> }) {
   const data = await getCustomer(id).catch(() => null);
   if (!data) notFound();
   const { user, addresses, orders } = data;
+  // What this role may do is enforced by the API for every request; these two flags only decide
+  // which controls are drawn. An employee answering a ticket can correct details and send a reset
+  // link (customers.edit); everything destructive needs customers.manage.
+  const canEdit = can(staff.role, 'customers.edit');
+  const canManage = can(staff.role, 'customers.manage');
+  const anonymised = isAnonymised(user.email);
   return (
     <>
       <Link href="/admin/customers" className="mb-3 inline-block text-sm text-stone-500 underline-offset-2 hover:underline">← All customers</Link>
       <PageHeader
         title={`${user.firstName} ${user.lastName}`}
-        description={`${user.email} · joined ${dateOnly(user.created)}`}
-        actions={<div className="flex gap-1">{user.isActive ? <Badge color="green">Active</Badge> : <Badge color="red">Deactivated</Badge>}{user.mustChangePassword && <Badge color="amber">Temp password</Badge>}</div>}
+        description={anonymised ? `Deleted account · joined ${dateOnly(user.created)}` : `${user.email} · joined ${dateOnly(user.created)}`}
+        actions={<div className="flex gap-1">{anonymised ? <Badge color="gray">Deleted</Badge> : user.isActive ? <Badge color="green">Active</Badge> : <Badge color="red">Deactivated</Badge>}{user.mustChangePassword && <Badge color="amber">Must reset</Badge>}</div>}
       />
       <div className="grid gap-6 xl:grid-cols-3">
         <Panel title={`Orders (${orders.length})`} className="xl:col-span-2">
@@ -42,10 +49,12 @@ async function Content({ params }: { params: Promise<{ id: string }> }) {
         </Panel>
         <div className="space-y-6">
           <Panel title="Account actions">
-            {can(staff.role, 'customers.manage') ? <CustomerActions userId={user.userId} isActive={user.isActive} name={user.firstName} /> : <p className="text-sm text-stone-500">View only.</p>}
+            {canEdit
+              ? <CustomerActions userId={user.userId} isActive={user.isActive} name={user.firstName} canManage={canManage} anonymised={anonymised} />
+              : <p className="text-sm text-stone-500">View only.</p>}
           </Panel>
           <Panel title="Details">
-            {can(staff.role, 'customers.manage') ? (
+            {canEdit && !anonymised ? (
               <CustomerDetailsForm userId={user.userId} initial={{ firstName: user.firstName, lastName: user.lastName, email: user.email, phone: user.phone }} />
             ) : (
               <><p className="text-sm">{user.email}</p><p className="text-sm text-stone-600">{user.phone ?? 'No phone'}</p></>
