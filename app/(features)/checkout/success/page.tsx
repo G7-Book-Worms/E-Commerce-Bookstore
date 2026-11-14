@@ -2,15 +2,21 @@
 
 // Checkout success (SCRUM-186): confirm the payment with the server (which asks Stripe),
 // then show the order confirmation.
+//
+// SCRUM-208: a guest comes back with ?guest=1 and is confirmed through the guest endpoints. They
+// have no order history, so the page shows the private link to this one order and offers to turn
+// the email they just used into an account.
 
 import Link from "next/link";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { CheckCircle2 } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { useCart } from "@/app/context/CartContext";
+import { useAuth } from "@/app/context/auth-context";
 import { formatPrice } from "@/lib/catalog";
 import { saveDiscountCode } from "@/lib/cart-types";
+import { registerUser } from "@/lib/api/auth";
 
 type Summary = {
   order: { orderId: number; subtotalCents: number; discountCents: number; taxCents: number; priceCents: number; created: string };
@@ -29,9 +35,13 @@ export default function SuccessPage() {
 }
 
 function Success() {
-  const sessionId = useSearchParams().get("session_id");
-  const { refreshCart } = useCart();
+  const params = useSearchParams();
+  const sessionId = params.get("session_id");
+  const isGuestOrder = params.get("guest") === "1";
+  const { refreshCart, clearGuestCart } = useCart();
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [guestEmail, setGuestEmail] = useState<string | null>(null);
+  const [viewToken, setViewToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const started = useRef(false); // React dev mode runs effects twice
 
@@ -40,6 +50,31 @@ function Success() {
     started.current = true;
     (async () => {
       try {
+        if (isGuestOrder) {
+          const res = await fetch("/api/checkout/guest/complete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionId }),
+          });
+          const json = await res.json().catch(() => null);
+          if (!res.ok) throw new Error(json?.error || "We couldn't confirm your payment");
+          saveDiscountCode("");
+          clearGuestCart();
+          setGuestEmail(json.data.email ?? null);
+          setViewToken(json.data.viewToken ?? null);
+
+          // The guest order view only returns what's safe to show behind a forwardable link,
+          // so the shipping street and email are not part of it.
+          const order = await fetch("/api/checkout/guest/order", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token: json.data.viewToken }),
+          }).then((r) => r.json());
+          const d = order.data;
+          setSummary({ ...d, address: null, email: json.data.email ?? undefined });
+          return;
+        }
+
         const res = await fetch("/api/checkout/complete", {
           method: "POST",
           credentials: "include",
@@ -56,7 +91,7 @@ function Success() {
         setError((err as Error).message);
       }
     })();
-  }, [sessionId, refreshCart]);
+  }, [sessionId, isGuestOrder, refreshCart, clearGuestCart]);
 
   if (!sessionId) return <p className="p-16 text-center">Missing checkout session. <Link href="/cart" className="underline">Back to cart</Link></p>;
   if (error) {
@@ -109,10 +144,111 @@ function Success() {
         </div>
       </div>
 
-      <div className="mt-8 flex flex-wrap justify-center gap-3">
-        <Link href="/account?tab=orders" className={buttonVariants({ variant: "outline" })}>View order history</Link>
-        <Link href="/product-catalog" className={buttonVariants()}>Keep shopping</Link>
-      </div>
+      {isGuestOrder ? (
+        <>
+          {viewToken && (
+            <p className="mt-6 rounded-xl border bg-stone-50 p-4 text-sm">
+              You checked out as a guest, so there&apos;s no order history to look in. We emailed you a
+              private link to this order{guestEmail ? ` at ${guestEmail}` : ""}, and you can{" "}
+              <Link href={`/checkout/guest-order?token=${encodeURIComponent(viewToken)}`} className="font-medium underline">
+                open it here
+              </Link>
+              . The link works for this one order and expires in 30 days — please don&apos;t forward it.
+            </p>
+          )}
+          <CreateAccountOffer email={guestEmail} />
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <Link href="/product-catalog" className={buttonVariants()}>Keep shopping</Link>
+          </div>
+        </>
+      ) : (
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <Link href="/account?tab=orders" className={buttonVariants({ variant: "outline" })}>View order history</Link>
+          <Link href="/product-catalog" className={buttonVariants()}>Keep shopping</Link>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * SCRUM-208: offer the guest an account on the email they just used. It posts to the normal
+ * registration endpoint, which applies the same password policy as the sign-up page; the email is
+ * pre-filled and fixed so the account matches the order they just placed.
+ */
+function CreateAccountOffer({ email }: { email: string | null }) {
+  const { refreshSession } = useAuth();
+  const [open, setOpen] = useState(false);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+
+  if (!email) return null;
+
+  if (done) {
+    return (
+      <p className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+        Your account is ready. Future orders will show up in{" "}
+        <Link href="/account?tab=orders" className="font-medium underline">your order history</Link>.
+      </p>
+    );
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!email) return; // the form is only rendered when we know the address
+    setBusy(true);
+    setError(null);
+    try {
+      await registerUser({ firstName: firstName.trim(), lastName: lastName.trim(), email, password });
+      await refreshSession();
+      setDone(true);
+    } catch (err) {
+      setError((err as Error).message || "Could not create your account");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-6 rounded-xl border bg-white p-5">
+      <h2 className="font-serif text-lg font-bold">Want an account for next time?</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        We&apos;ll set one up for <strong>{email}</strong> so your next orders are saved and checkout is
+        one click. Your cart and this order stay exactly as they are.
+      </p>
+      {!open ? (
+        <Button className="mt-4" variant="outline" onClick={() => setOpen(true)}>
+          Create an account with {email}
+        </Button>
+      ) : (
+        <form onSubmit={submit} className="mt-4 grid gap-3 sm:grid-cols-2">
+          {error && <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-2 text-sm text-red-700 sm:col-span-2">{error}</p>}
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium">First name</span>
+            <input required maxLength={50} autoComplete="given-name" value={firstName} onChange={(e) => setFirstName(e.target.value)} className="h-9 rounded-md border px-3" />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium">Last name</span>
+            <input required maxLength={50} autoComplete="family-name" value={lastName} onChange={(e) => setLastName(e.target.value)} className="h-9 rounded-md border px-3" />
+          </label>
+          <label className="flex flex-col gap-1 text-sm sm:col-span-2">
+            <span className="font-medium">Email</span>
+            <input readOnly value={email} className="h-9 rounded-md border bg-stone-100 px-3 text-muted-foreground" />
+          </label>
+          <label className="flex flex-col gap-1 text-sm sm:col-span-2">
+            <span className="font-medium">Choose a password</span>
+            <input required type="password" minLength={8} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} className="h-9 rounded-md border px-3" />
+          </label>
+          <div className="flex gap-2 sm:col-span-2">
+            <Button type="submit" disabled={busy}>{busy ? "Creating…" : "Create account"}</Button>
+            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Not now</Button>
+          </div>
+        </form>
+      )}
     </div>
   );
 }

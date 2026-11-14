@@ -2,6 +2,7 @@
 // Safe to run on a database that already has the base seed (Aiven): every step is an upsert keyed
 // by a natural key (ISBN, tag, format, code, email), so running it twice changes nothing.
 // Re-running it also resets demo stock and prices to the values in test-data.
+import type { StaffRole } from '@/lib/staff-permissions';
 import { eq, inArray, and, notInArray, sql } from "drizzle-orm";
 import { db } from "../../index";
 import { admin, bookFormats, bookTags, books, discountCodes } from "../../schema";
@@ -65,8 +66,8 @@ export async function seedCatalog(data: { books: SeedBook[]; codes: SeedCode[]; 
   for (const a of data.admins) {
     await db
       .insert(admin)
-      .values({ ...a, adminRole: a.adminRole as 'admin' | 'manager' | 'employee' })
-      .onDuplicateKeyUpdate({ set: { employeeId: a.employeeId, adminRole: a.adminRole as 'admin' | 'manager' | 'employee' } });
+      .values({ ...a, adminRole: a.adminRole as StaffRole })
+      .onDuplicateKeyUpdate({ set: { employeeId: a.employeeId, adminRole: a.adminRole as StaffRole } });
   }
 
   console.log(`Catalog seeded: ${idByIsbn.size} books, ${data.codes.length} discount codes`);

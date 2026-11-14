@@ -45,3 +45,6 @@ next-env.d.ts
 
 # audit/debug screenshots (never commit: they can capture credentials)
 shots/
+
+# agent worktrees (local only)
+.claude/worktrees/
