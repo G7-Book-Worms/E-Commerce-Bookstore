@@ -189,3 +189,43 @@ export function lowStockEmail(to: string, items: { title: string; format: string
     ),
   };
 }
+
+// --- Guest checkout (SCRUM-208) -------------------------------------------------------------
+
+export interface GuestOrderEmailData extends Omit<OrderEmailData, 'firstName'> {
+  /** Signed, expiring token for this one order (see checkout/guest-order-token.ts). */
+  viewToken: string;
+}
+
+/**
+ * Order confirmation for someone who bought without an account. The only way back to the order
+ * is the signed link below, so the email says so and warns that forwarding it shares the order.
+ * The token is in the link and nowhere else: it is never logged.
+ */
+export function guestOrderConfirmationEmail(to: string, o: GuestOrderEmailData): Email {
+  const link = `${SITE()}/checkout/guest-order?token=${encodeURIComponent(o.viewToken)}`;
+  const rows = o.lines
+    .map(
+      (l) => `<tr><td style="padding:6px 0">${escapeHtml(l.title)} <span style="color:#78716c">(${escapeHtml(l.format)}) × ${l.quantity}</span></td><td align="right">${money(l.unitPriceCents * l.quantity)}</td></tr>`
+    )
+    .join('');
+  const totals = `<tr><td style="padding-top:10px;border-top:1px solid #e7e5e4">Subtotal</td><td align="right" style="padding-top:10px;border-top:1px solid #e7e5e4">${money(o.subtotalCents)}</td></tr>
+${o.discountCents ? `<tr><td>Discount</td><td align="right">−${money(o.discountCents)}</td></tr>` : ''}
+<tr><td>Tax (8.25%)</td><td align="right">${money(o.taxCents)}</td></tr>
+<tr><td><strong>Total</strong></td><td align="right"><strong>${money(o.totalCents)}</strong></td></tr>`;
+  const refundNote = o.refunded
+    ? '<p style="background:#ecfdf5;border:1px solid #a7f3d0;padding:10px;border-radius:6px">This was a Stripe <strong>test</strong> payment and it has already been refunded. Nothing will ship.</p>'
+    : '<p>This was a Stripe test payment. Nothing will ship.</p>';
+  return {
+    to,
+    subject: `Order #${o.orderId} received (class project: nothing will ship)`,
+    ...layout(
+      'Thanks for your order',
+      `<p>We received order <strong>#${o.orderId}</strong>. You checked out as a guest, so this link is how you look it up — it works for this one order only and expires in 30 days.</p>${refundNote}
+<table role="presentation" width="100%" style="font-size:14px">${rows}${totals}</table>
+${button(link, 'View your order')}
+<p style="font-size:13px;color:#57534e">Anyone with this link can see this order, so please don't forward it. Creating an account with this email address keeps your orders in one place instead.</p>`,
+      `Order #${o.orderId}\n${o.lines.map((l) => `- ${l.title} (${l.format}) x${l.quantity}: ${money(l.unitPriceCents * l.quantity)}`).join('\n')}\nSubtotal ${money(o.subtotalCents)}${o.discountCents ? `\nDiscount -${money(o.discountCents)}` : ''}\nTax ${money(o.taxCents)}\nTotal ${money(o.totalCents)}\n${o.refunded ? 'This test payment has been refunded. ' : ''}Nothing will ship.\n\nView this order (this one order only, expires in 30 days; don't forward it):\n${link}`
+    ),
+  };
+}

@@ -12,13 +12,17 @@ import { BookCover } from "@/components/book-cover";
 import { OrderSummary } from "@/components/cart/order-summary";
 import { EmptyState } from "@/components/empty-state";
 import { useCart } from "@/app/context/CartContext";
+import { useAuth } from "@/app/context/auth-context";
 import { formatPrice, stockLabel } from "@/lib/catalog";
 import { loadDiscountCode, saveDiscountCode, type CartData, type CartLine } from "@/lib/cart-types";
 
 const LABEL = { hardcover: "Hardcover", paperback: "Paperback" } as const;
 
 export default function CartPage() {
-  const { applyServerCart } = useCart();
+  // SCRUM-208: a guest's cart lives in this browser, so it is priced by the guest quote endpoint
+  // and edited through the cart context instead of /api/cart.
+  const { applyServerCart, isGuest, guestItems, setGuestQuantity, removeGuestItem } = useCart();
+  const { isLoading: authLoading } = useAuth();
   const [cart, setCart] = useState<CartData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [busyLine, setBusyLine] = useState<number | null>(null);
@@ -29,6 +33,25 @@ export default function CartPage() {
 
   // Every /api/cart response returns the full updated cart in `data`
   const callCart = useCallback(async (appliedCode: string, init?: RequestInit) => {
+    // Guests: send the ids, formats and quantities this browser is holding and let the server
+    // price them. Quantity changes and removals never reach here (see changeQuantity/removeLine).
+    if (isGuest) {
+      setSignedOut(false);
+      if (guestItems.length === 0) {
+        setCart(null);
+        return;
+      }
+      const res = await fetch("/api/checkout/guest/quote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: guestItems, discountCode: appliedCode || undefined }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(json?.error || "Could not price your cart");
+      setCart(json.data);
+      return;
+    }
+
     const url = appliedCode ? `/api/cart?code=${encodeURIComponent(appliedCode)}` : "/api/cart";
     const res = await fetch(init ? "/api/cart" : url, {
       credentials: "include",
@@ -51,9 +74,13 @@ export default function CartPage() {
     } else {
       setCart(json.data);
     }
-  }, [applyServerCart]);
+    // guestItems changes identity on every guest edit, which re-prices the cart below.
+  }, [applyServerCart, isGuest, guestItems]);
 
   useEffect(() => {
+    // Wait until we know whether anyone is signed in, so a guest never sees a flash of
+    // "sign in to see your cart" from a 401 on /api/cart.
+    if (authLoading) return;
     // The code saved earlier in this tab (sessionStorage only exists in the browser)
     const saved = loadDiscountCode();
     callCart(saved)
@@ -63,7 +90,7 @@ export default function CartPage() {
       })
       .catch((err: Error) => setError(err.message))
       .finally(() => setIsLoading(false));
-  }, [callCart]);
+  }, [callCart, authLoading]);
 
   const mutate = async (line: CartLine, init: RequestInit) => {
     setBusyLine(line.cartItemId);
@@ -80,11 +107,15 @@ export default function CartPage() {
   const changeQuantity = (line: CartLine, amount: number) => {
     const quantity = line.quantity + amount;
     if (quantity < 1 || quantity > line.stock) return;
+    // A guest's cart is local, so this is a state change, not a request.
+    if (isGuest) return setGuestQuantity(line.bookId, line.format, quantity);
     mutate(line, { method: "PATCH", body: JSON.stringify({ bookId: line.bookId, format: line.format, quantity }) });
   };
 
-  const removeLine = (line: CartLine) =>
-    mutate(line, { method: "DELETE", body: JSON.stringify({ bookId: line.bookId, format: line.format }) });
+  const removeLine = (line: CartLine) => {
+    if (isGuest) return removeGuestItem(line.bookId, line.format);
+    return mutate(line, { method: "DELETE", body: JSON.stringify({ bookId: line.bookId, format: line.format }) });
+  };
 
   async function applyCode(e: React.FormEvent) {
     e.preventDefault();
