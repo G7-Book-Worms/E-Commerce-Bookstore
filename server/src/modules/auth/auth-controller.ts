@@ -3,8 +3,9 @@ import { AuthService } from './auth-service';
 import { registerInputSchema, loginInputSchema, forgotPasswordSchema, resetPasswordSchema } from './auth-schema';
 import { HttpResponse } from '../../shared/http/api-response';
 import { HttpStatus } from '../../shared/http/status-codes';
-import { setAuthCookie, clearAuthCookie } from '../../shared/utils/cookie-utils';
+import { setAuthCookie, clearAuthCookie, AUTH_COOKIE_NAME } from '../../shared/utils/cookie-utils';
 import { clientIp } from '../../shared/security/client-ip';
+import { verifyToken } from '../../shared/utils/token-util';
 
 const authService = new AuthService();
 
@@ -36,8 +37,23 @@ export class AuthController {
     return HttpResponse.success({ user }, 'Session retrieved');
   }
 
-  /** POST /api/auth/logout */
-  static async logout() {
+  /**
+   * POST /api/auth/logout
+   *
+   * Clearing the cookie alone does not end the session: the JWT stays valid until it expires,
+   * so a copy captured before logout keeps working (pentest finding M-1). Bumping the user's
+   * token_version revokes every outstanding token for them, the same mechanism a password
+   * change uses. Logout stays idempotent - an already-invalid or missing token is not an error,
+   * the cookie is cleared and 200 is returned regardless.
+   */
+  static async logout(req: NextRequest) {
+    const token = req.cookies.get(AUTH_COOKIE_NAME)?.value;
+    if (token) {
+      const payload = verifyToken(token, 'customer');
+      if (payload?.id) {
+        await authService.revokeSessions(Number(payload.id));
+      }
+    }
     const response = HttpResponse.success({ loggedOut: true }, 'Logged out successfully');
     clearAuthCookie(response);
     return response;

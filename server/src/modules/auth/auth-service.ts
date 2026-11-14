@@ -2,7 +2,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { and, eq, gt, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../../../db';
-import { passwordResetTokens, users } from '../../../db/schema';
+import { admin, passwordResetTokens, users } from '../../../db/schema';
 import { UsersRepository } from '../users/users-repository';
 import { User } from '../users/users-schema';
 import { loginInputSchema, registerInputSchema } from './auth-schema';
@@ -88,6 +88,15 @@ export class AuthService {
       throw new ConflictError("We couldn't create an account with that email. If it's yours, try signing in.");
     }
 
+    // A staff member's email must not spawn a parallel customer account under their identity
+    // (pentest finding M-2). The customer and staff tables have separate uniqueness, so this is
+    // checked explicitly. The message is the same as above so registration still can't be used
+    // to probe which emails are staff.
+    const [existingStaff] = await db.select({ id: admin.adminId }).from(admin).where(eq(admin.email, normalizedEmail));
+    if (existingStaff) {
+      throw new ConflictError("We couldn't create an account with that email. If it's yours, try signing in.");
+    }
+
     const hashedPassword = await hashPassword(input.password);
 
     let newUser: User;
@@ -117,6 +126,15 @@ export class AuthService {
     const user = await this.usersRepo.findById(userId);
     if (!user) throw new NotFoundError('User does not exist');
     return this.sanitizeUser(user);
+  }
+
+  /**
+   * Revoke every outstanding token for a customer by bumping token_version, which every
+   * authenticated request checks against the database. Used by logout so that signing out
+   * actually ends the session rather than only forgetting the cookie.
+   */
+  async revokeSessions(userId: number): Promise<void> {
+    await db.update(users).set({ tokenVersion: sql`${users.tokenVersion} + 1` }).where(eq(users.userId, userId));
   }
 
   /**
