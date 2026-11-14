@@ -186,9 +186,12 @@ pnpm db:migrate   # create/update all tables from server/db/migrations
 pnpm db:seed      # load test data; the catalog part (stock, prices, codes) is re-applied every run
 ```
 
-Every seeded account uses the password **`BookWorms123!`** — for example `ada.lovelace@example.com`.
+Every seeded account shares one demo password. It is deliberately not written down in this repository,
+which is public — ask a team member for it. Changing it means hashing the new one into
+`server/db/test-data/users.json` and `admin.json` (bcrypt, cost 12) and updating the database, so that
+`pnpm demo:reset` restores the new password rather than the old one.
 
-Staff portal (`/staff-login`), one demo account per role, all with `BookWorms123!`:
+Staff portal (`/staff-login`), one demo account per role:
 
 | Role | Email | Employee ID | Can use |
 |:--|:--|:--|:--|
@@ -207,7 +210,7 @@ Staff portal (`/staff-login`), one demo account per role, all with `BookWorms123
 >
 > It runs the catalog seed (stock, prices, sale prices and discount codes go back to the test data, undoing
 > rehearsal purchases), resets the demo accounts `ada.lovelace@example.com` and `alan.turing@example.com` to
-> the password `BookWorms123!`, and **empties the demo account's cart** so the demo starts from an empty cart.
+> the demo password, and **empties the demo account's cart** so the demo starts from an empty cart.
 > It also resets the three demo staff accounts and clears every sign-in lockout.
 > Then sign in once and check the cart is empty.
 
