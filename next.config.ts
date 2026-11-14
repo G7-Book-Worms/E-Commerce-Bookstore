@@ -36,7 +36,16 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      // API responses are per-request and some carry the signed-in user's own data, so they
+      // must never be stored by a shared cache (pentest finding L-4). no-store is the safe
+      // default for every API route; the catalogue is served through RSC, not these handlers.
+      {
+        source: "/api/:path*",
+        headers: [{ key: "Cache-Control", value: "private, no-store" }],
+      },
+    ];
   },
   experimental: {
     agentUpgrade: "security",
