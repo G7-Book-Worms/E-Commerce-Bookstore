@@ -9,7 +9,7 @@ import { changeStock } from '../inventory/inventory-service';
 import { syncBookTotals } from '../books/book-totals';
 import { sendEmail } from '../email/mailer';
 import { orderStatusEmail } from '../email/templates';
-import { formatShipment, normalizeTrackingNumber, validateTrackingNumber } from './carriers';
+import { isCarrier, normalizeTrackingNumber, validateTrackingNumber, type Carrier } from './carriers';
 
 export const ORDER_STATUSES = ['pending', 'transit', 'arrived', 'cancelled'] as const;
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
@@ -127,18 +127,21 @@ export async function updateOrderStatus(
   if (!order) throw new NotFoundError('Order not found');
   const from = order.status as OrderStatus;
 
-  // The carrier rides along in tracking_number (there is no carrier column; see carriers.ts).
-  // A blank number leaves whatever was already stored alone.
+  // Carrier and number live in their own columns. A blank number leaves both alone, so a
+  // status change that says nothing about shipping keeps whatever was already recorded.
   let tracking = order.trackingNumber;
+  let carrier: Carrier | null = order.carrier;
   if (input.trackingNumber != null && normalizeTrackingNumber(input.trackingNumber) !== '') {
     const check = validateTrackingNumber(input.carrier, input.trackingNumber);
     if (!check.ok) throw new BadRequestError(check.error ?? 'That tracking number does not look right');
-    tracking = formatShipment(input.carrier, check.value);
+    tracking = check.value;
+    carrier = isCarrier(input.carrier) ? input.carrier : null;
   }
 
   if (from === input.status) {
     // Same status: only the tracking number / note change
     await db.update(orders).set({
+      carrier,
       trackingNumber: tracking,
       note: input.note ?? order.note,
     }).where(eq(orders.orderId, orderId));
@@ -152,6 +155,7 @@ export async function updateOrderStatus(
   await db.transaction(async (tx) => {
     await tx.update(orders).set({
       status: input.status,
+      carrier,
       trackingNumber: tracking,
       note: input.note ?? order.note,
     }).where(eq(orders.orderId, orderId));
@@ -170,7 +174,7 @@ export async function updateOrderStatus(
   let emailed = false;
   if (order.userId) {
     const [u] = await db.select({ email: users.email, firstName: users.firstName }).from(users).where(eq(users.userId, order.userId));
-    if (u) emailed = await sendEmail(orderStatusEmail(u.email, u.firstName, orderId, input.status, tracking));
+    if (u) emailed = await sendEmail(orderStatusEmail(u.email, u.firstName, orderId, input.status, carrier, tracking));
   }
   return { from, to: input.status, emailed };
 }

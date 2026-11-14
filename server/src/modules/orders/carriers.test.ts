@@ -4,11 +4,8 @@ import assert from 'node:assert/strict';
 import {
   CARRIERS,
   carrierTrackingUrl,
-  formatShipment,
-  inferCarrier,
   isCarrier,
   normalizeTrackingNumber,
-  parseShipment,
   shipmentView,
   validateTrackingNumber,
 } from './carriers';
@@ -156,56 +153,10 @@ test('isCarrier only passes the four real carriers', () => {
   }
 });
 
-// --- formatShipment / parseShipment ----------------------------------------
-
-test('the carrier is stored alongside the number and read back', () => {
-  const stored = formatShipment('ups', '1z999aa1-0123456784');
-  assert.equal(stored, `ups:${UPS}`);
-  assert.deepEqual(parseShipment(stored), { carrier: 'ups', trackingNumber: UPS });
-});
-
-test('no number means nothing is stored', () => {
-  assert.equal(formatShipment('ups', ''), null);
-  assert.equal(formatShipment('ups', null), null);
-  assert.equal(formatShipment('ups', '  -- '), null);
-  assert.equal(parseShipment(null), null);
-  assert.equal(parseShipment(''), null);
-});
-
-test('an unknown carrier is dropped rather than stored, and the number is kept', () => {
-  assert.equal(formatShipment('ontrac', UPS), UPS);
-  assert.equal(formatShipment(null, FEDEX), FEDEX);
-});
-
-test('a bare number saved before carriers existed still reads back', () => {
-  // Unambiguous shape: the carrier is inferred so the link still works.
-  assert.deepEqual(parseShipment(UPS), { carrier: 'ups', trackingNumber: UPS });
-  // Ambiguous shape (20 digits is both FedEx and USPS): no carrier, so no misleading link.
-  assert.deepEqual(parseShipment(USPS), { carrier: null, trackingNumber: USPS });
-});
-
-test('a bogus prefix is not mistaken for a carrier', () => {
-  // "evil" is not in the enum, so the prefix is not honoured. The whole string is treated
-  // as one number, which matches no carrier shape, so there is no carrier and no link.
-  assert.deepEqual(parseShipment(`evil:${UPS}`), { carrier: null, trackingNumber: `EVIL${UPS}` });
-  assert.equal(shipmentView(`evil:${UPS}`)?.trackingUrl, null);
-  // A prefix with no number behind it is not a shipment with a carrier.
-  assert.deepEqual(parseShipment('ups:'), { carrier: null, trackingNumber: 'UPS' });
-});
-
-test('inferCarrier refuses to guess when the shape fits more than one carrier', () => {
-  assert.equal(inferCarrier(UPS), 'ups');
-  assert.equal(inferCarrier(DHL), 'dhl');
-  assert.equal(inferCarrier(USPS), null, '20 digits is FedEx SmartPost or USPS IMpb');
-  assert.equal(inferCarrier('nonsense'), null);
-  assert.equal(inferCarrier(''), null);
-  assert.equal(inferCarrier(null), null);
-});
-
-// --- shipmentView -----------------------------------------------------------
+// --- shipmentView (orders.carrier + orders.tracking_number) ----------------
 
 test('shipmentView gives the UI a label, a number and a link in one go', () => {
-  assert.deepEqual(shipmentView(`fedex:${FEDEX}`), {
+  assert.deepEqual(shipmentView('fedex', FEDEX), {
     carrier: 'fedex',
     carrierLabel: 'FedEx',
     trackingNumber: FEDEX,
@@ -213,19 +164,32 @@ test('shipmentView gives the UI a label, a number and a link in one go', () => {
   });
 });
 
-test('shipmentView shows a number with no link when the carrier is unknown', () => {
-  const view = shipmentView(USPS);
-  assert.deepEqual(view, {
+test('shipmentView cleans the number as it came out of the column', () => {
+  assert.deepEqual(shipmentView('ups', ' 1z999aa1-0123456784 '), {
+    carrier: 'ups',
+    carrierLabel: 'UPS',
+    trackingNumber: UPS,
+    trackingUrl: `https://www.ups.com/track?loc=en_US&requester=ST&tracknum=${UPS}`,
+  });
+});
+
+test('shipmentView shows a number with no link when the carrier column is empty', () => {
+  // An order imported or edited without a carrier: the number is still worth showing,
+  // but there is nowhere honest to link to.
+  assert.deepEqual(shipmentView(null, USPS), {
     carrier: null,
     carrierLabel: null,
     trackingNumber: USPS,
     trackingUrl: null,
   });
+  assert.equal(shipmentView('ontrac', USPS)?.trackingUrl, null);
 });
 
-test('shipmentView is null when there is nothing to show', () => {
-  assert.equal(shipmentView(null), null);
-  assert.equal(shipmentView(''), null);
+test('shipmentView is null when there is no tracking number to show', () => {
+  assert.equal(shipmentView('ups', null), null);
+  assert.equal(shipmentView('ups', ''), null);
+  assert.equal(shipmentView('ups', '  -- '), null);
+  assert.equal(shipmentView(null, null), null);
 });
 
 // --- orderProgress ----------------------------------------------------------

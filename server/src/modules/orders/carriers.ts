@@ -3,11 +3,8 @@
 // Pure functions only — no database, no network, no `server-only`, so client components
 // (the account Orders tab, the staff order form) import this file directly.
 //
-// IMPORTANT: `orders` has a `tracking_number` column but **no `carrier` column**, and this
-// sprint may not change the schema or add a migration. So the carrier travels inside the
-// same varchar(100) as a short prefix: `"ups:1Z999AA10123456784"`. `parseShipment` reads
-// both that form and the bare numbers older rows already hold (guessing the carrier from
-// the number's shape in that case), and `formatShipment` writes the prefixed form.
+// `orders.carrier` holds the carrier and `orders.tracking_number` holds the bare number;
+// this file is the only place that knows what either value means.
 //
 // No carrier API is ever called: the only thing built from a tracking number is a link to
 // the carrier's own public tracking page, from the fixed allow-list below.
@@ -98,48 +95,6 @@ export function validateTrackingNumber(carrier: unknown, raw: string | null | un
 }
 
 /**
- * The carrier a bare tracking number most likely belongs to, for rows saved before the
- * carrier was recorded. Returns null when the shape fits several carriers or none, so the
- * UI shows the number without a misleading link rather than guessing wrong.
- */
-export function inferCarrier(raw: string | null | undefined): Carrier | null {
-  const value = normalizeTrackingNumber(raw);
-  if (!value) return null;
-  const matches = CARRIERS.filter((c) => PATTERNS[c].some((re) => re.test(value)));
-  return matches.length === 1 ? matches[0] : null;
-}
-
-/** What `orders.tracking_number` holds, unpacked. */
-export interface Shipment {
-  carrier: Carrier | null;
-  trackingNumber: string;
-}
-
-/**
- * Builds the value stored in `orders.tracking_number`: `"<carrier>:<number>"`, or the bare
- * number when no carrier is known, or null when there is no number at all.
- */
-export function formatShipment(carrier: unknown, raw: string | null | undefined): string | null {
-  const value = normalizeTrackingNumber(raw);
-  if (!value) return null;
-  return isCarrier(carrier) ? `${carrier}:${value}` : value;
-}
-
-/** Reads a stored `tracking_number` back into a carrier and a number. */
-export function parseShipment(stored: string | null | undefined): Shipment | null {
-  if (!stored) return null;
-  const colon = stored.indexOf(':');
-  if (colon > 0) {
-    const prefix = stored.slice(0, colon).trim().toLowerCase();
-    const number = normalizeTrackingNumber(stored.slice(colon + 1));
-    if (isCarrier(prefix) && number) return { carrier: prefix, trackingNumber: number };
-  }
-  const number = normalizeTrackingNumber(stored);
-  if (!number) return null;
-  return { carrier: inferCarrier(number), trackingNumber: number };
-}
-
-/**
  * A link to the carrier's own tracking page, or null when the carrier is unknown or there
  * is no number. The URL template comes from the allow-list above and the number is
  * URL-encoded, so nothing user-supplied can change where the link points.
@@ -150,19 +105,28 @@ export function carrierTrackingUrl(carrier: unknown, raw: string | null | undefi
   return TRACKING_URLS[carrier](encodeURIComponent(value));
 }
 
-/** Everything the UI needs about an order's shipment, from the stored column alone. */
-export function shipmentView(stored: string | null | undefined): {
+/**
+ * Everything the UI needs about an order's shipment, straight from the two columns.
+ *
+ * Null when there is no tracking number, which is the only thing worth showing: an order
+ * can carry a carrier with no number yet, and that is nothing to display.
+ */
+export function shipmentView(
+  carrier: unknown,
+  rawTrackingNumber: string | null | undefined
+): {
   carrier: Carrier | null;
   carrierLabel: string | null;
   trackingNumber: string;
   trackingUrl: string | null;
 } | null {
-  const parsed = parseShipment(stored);
-  if (!parsed) return null;
+  const trackingNumber = normalizeTrackingNumber(rawTrackingNumber);
+  if (!trackingNumber) return null;
+  const known = isCarrier(carrier) ? carrier : null;
   return {
-    carrier: parsed.carrier,
-    carrierLabel: parsed.carrier ? CARRIER_LABELS[parsed.carrier] : null,
-    trackingNumber: parsed.trackingNumber,
-    trackingUrl: carrierTrackingUrl(parsed.carrier, parsed.trackingNumber),
+    carrier: known,
+    carrierLabel: known ? CARRIER_LABELS[known] : null,
+    trackingNumber,
+    trackingUrl: carrierTrackingUrl(known, trackingNumber),
   };
 }

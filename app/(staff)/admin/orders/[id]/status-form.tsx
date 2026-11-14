@@ -7,8 +7,8 @@ import { staffFetch } from '@/components/staff/staff-fetch';
 import {
   CARRIERS,
   CARRIER_LABELS,
+  isCarrier,
   normalizeTrackingNumber,
-  parseShipment,
   validateTrackingNumber,
   type Carrier,
 } from '@/server/src/modules/orders/carriers';
@@ -22,12 +22,23 @@ const PLACEHOLDER: Record<Carrier, string> = {
   dhl: '1234567890',
 };
 
-export function OrderStatusForm({ orderId, status, next, trackingNumber }: { orderId: number; status: string; next: string[]; trackingNumber: string | null }) {
+export function OrderStatusForm({
+  orderId,
+  status,
+  next,
+  carrier: storedCarrier,
+  trackingNumber,
+}: {
+  orderId: number;
+  status: string;
+  next: string[];
+  carrier: string | null;
+  trackingNumber: string | null;
+}) {
   const router = useRouter();
-  // Whatever is already stored carries its carrier with it, so an edit starts where it left off
-  const stored = parseShipment(trackingNumber);
-  const [carrier, setCarrier] = useState<Carrier | ''>(stored?.carrier ?? '');
-  const [tracking, setTracking] = useState(stored?.trackingNumber ?? '');
+  // An edit starts from what is already stored
+  const [carrier, setCarrier] = useState<Carrier | ''>(isCarrier(storedCarrier) ? storedCarrier : '');
+  const [tracking, setTracking] = useState(trackingNumber ?? '');
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
 

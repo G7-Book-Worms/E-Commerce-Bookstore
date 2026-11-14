@@ -80,7 +80,7 @@ export const OrdersTab: React.FC<Props> = ({ orders, isLoading }) => {
             {/* Where this order has got to, always visible: the tracker, the tracking number
                 and a link to the carrier's own page (session 4) */}
             <div className="border-t border-stone-200 px-5 pb-5 pt-4 sm:px-6">
-              <OrderTracker status={order.status} trackingNumber={order.trackingNumber} orderId={order.orderId} />
+              <OrderTracker status={order.status} carrier={order.carrier} trackingNumber={order.trackingNumber} orderId={order.orderId} />
             </div>
 
             {isExpanded && (

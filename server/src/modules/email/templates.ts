@@ -98,13 +98,19 @@ const STATUS_TEXT: Record<string, string> = {
 };
 
 /**
- * The "your order moved on" email. `trackingNumber` is the raw `orders.tracking_number`
- * value, which carries the carrier too (see modules/orders/carriers.ts); when a carrier is
- * known the email carries a link to that carrier's own tracking page.
+ * The "your order moved on" email. `carrier` and `trackingNumber` are the two order columns;
+ * when the carrier is known the email carries a link to that carrier's own tracking page.
  */
-export function orderStatusEmail(to: string, firstName: string, orderId: number, status: string, trackingNumber?: string | null): Email {
+export function orderStatusEmail(
+  to: string,
+  firstName: string,
+  orderId: number,
+  status: string,
+  carrier?: string | null,
+  trackingNumber?: string | null
+): Email {
   const line = `Your order #${orderId} ${STATUS_TEXT[status] ?? `is now "${status}"`}.`;
-  const shipment = shipmentView(trackingNumber);
+  const shipment = shipmentView(carrier, trackingNumber);
 
   // The tracking number is real and so is the carrier's page, even though nothing ships
   // from this class project: the number is whatever a staff member typed in.

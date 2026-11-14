@@ -18,7 +18,7 @@ async function Content({ params }: { params: Promise<{ id: string }> }) {
   if (!detail) notFound();
   const { order, items, payment, address, customer, history } = detail;
   const status = order.status as OrderStatus;
-  const shipment = shipmentView(order.trackingNumber);
+  const shipment = shipmentView(order.carrier, order.trackingNumber);
 
   return (
     <>
@@ -69,7 +69,7 @@ async function Content({ params }: { params: Promise<{ id: string }> }) {
         <div className="space-y-6">
           <Panel title="Update status">
             {can(staff.role, 'orders.update') ? (
-              <OrderStatusForm orderId={order.orderId} status={status} next={NEXT_STATUSES[status]} trackingNumber={order.trackingNumber} />
+              <OrderStatusForm orderId={order.orderId} status={status} next={NEXT_STATUSES[status]} carrier={order.carrier} trackingNumber={order.trackingNumber} />
             ) : <p className="text-sm text-stone-500">Your role can view orders but not change them.</p>}
           </Panel>
           <Panel title="Customer">

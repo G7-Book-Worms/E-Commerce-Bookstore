@@ -18,16 +18,18 @@ import { shipmentView } from '@/server/src/modules/orders/carriers';
 
 export function OrderTracker({
   status,
+  carrier,
   trackingNumber,
   orderId,
 }: {
   status: string;
-  /** The raw orders.tracking_number value: it carries the carrier too */
+  /** orders.carrier and orders.tracking_number, as the API returns them */
+  carrier: string | null;
   trackingNumber: string | null;
   orderId: number;
 }) {
   const progress = orderProgress(status);
-  const shipment = shipmentView(trackingNumber);
+  const shipment = shipmentView(carrier, trackingNumber);
 
   if (progress.cancelled) {
     return (
