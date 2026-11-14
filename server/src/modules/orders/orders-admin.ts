@@ -9,6 +9,7 @@ import { changeStock } from '../inventory/inventory-service';
 import { syncBookTotals } from '../books/book-totals';
 import { sendEmail } from '../email/mailer';
 import { orderStatusEmail } from '../email/templates';
+import { formatShipment, normalizeTrackingNumber, validateTrackingNumber } from './carriers';
 
 export const ORDER_STATUSES = ['pending', 'transit', 'arrived', 'cancelled'] as const;
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
@@ -120,15 +121,25 @@ export async function getOrderDetail(orderId: number) {
 export async function updateOrderStatus(
   staffId: number,
   orderId: number,
-  input: { status: OrderStatus; trackingNumber?: string | null; note?: string | null }
+  input: { status: OrderStatus; carrier?: string | null; trackingNumber?: string | null; note?: string | null }
 ) {
   const [order] = await db.select().from(orders).where(eq(orders.orderId, orderId));
   if (!order) throw new NotFoundError('Order not found');
   const from = order.status as OrderStatus;
+
+  // The carrier rides along in tracking_number (there is no carrier column; see carriers.ts).
+  // A blank number leaves whatever was already stored alone.
+  let tracking = order.trackingNumber;
+  if (input.trackingNumber != null && normalizeTrackingNumber(input.trackingNumber) !== '') {
+    const check = validateTrackingNumber(input.carrier, input.trackingNumber);
+    if (!check.ok) throw new BadRequestError(check.error ?? 'That tracking number does not look right');
+    tracking = formatShipment(input.carrier, check.value);
+  }
+
   if (from === input.status) {
     // Same status: only the tracking number / note change
     await db.update(orders).set({
-      trackingNumber: input.trackingNumber ?? order.trackingNumber,
+      trackingNumber: tracking,
       note: input.note ?? order.note,
     }).where(eq(orders.orderId, orderId));
     return { from, to: from, emailed: false };
@@ -141,7 +152,7 @@ export async function updateOrderStatus(
   await db.transaction(async (tx) => {
     await tx.update(orders).set({
       status: input.status,
-      trackingNumber: input.trackingNumber ?? order.trackingNumber,
+      trackingNumber: tracking,
       note: input.note ?? order.note,
     }).where(eq(orders.orderId, orderId));
     if (input.status === 'cancelled') {
@@ -159,9 +170,39 @@ export async function updateOrderStatus(
   let emailed = false;
   if (order.userId) {
     const [u] = await db.select({ email: users.email, firstName: users.firstName }).from(users).where(eq(users.userId, order.userId));
-    if (u) emailed = await sendEmail(orderStatusEmail(u.email, u.firstName, orderId, input.status, input.trackingNumber ?? order.trackingNumber));
+    if (u) emailed = await sendEmail(orderStatusEmail(u.email, u.firstName, orderId, input.status, tracking));
   }
   return { from, to: input.status, emailed };
+}
+
+/** The most orders one bulk action may touch. Also enforced by the API route's schema. */
+export const BULK_LIMIT = 50;
+
+/**
+ * Applies one status change to several orders (the bulk action bar on the orders list).
+ *
+ * Orders are handled one at a time and independently: an order that can't make the move
+ * (already delivered, already cancelled, no longer there) is reported as skipped with the
+ * reason instead of failing the whole batch. Nothing here bypasses `updateOrderStatus`, so
+ * cancelling still restocks and still emails the customer.
+ */
+export async function bulkUpdateOrderStatus(staffId: number, orderIds: number[], status: OrderStatus) {
+  const unique = [...new Set(orderIds)];
+  if (unique.length === 0) throw new BadRequestError('Pick at least one order');
+  if (unique.length > BULK_LIMIT) throw new BadRequestError(`Too many orders at once (limit ${BULK_LIMIT})`);
+
+  const updated: number[] = [];
+  const skipped: { orderId: number; reason: string }[] = [];
+  for (const orderId of unique) {
+    try {
+      const result = await updateOrderStatus(staffId, orderId, { status });
+      if (result.from === result.to) skipped.push({ orderId, reason: `Already ${STATUS_LABELS[status]}` });
+      else updated.push(orderId);
+    } catch (err) {
+      skipped.push({ orderId, reason: err instanceof Error ? err.message : 'Could not be updated' });
+    }
+  }
+  return { status, updated, skipped };
 }
 
 /** Revenue and order counts per day for the dashboard chart (placed orders, excluding cancelled). */

@@ -1,6 +1,7 @@
 // Email contents (SCRUM-212). Every email carries the class-project disclaimer.
 // Anything a user typed is HTML-escaped before it goes into the HTML version.
 import type { Email } from './mailer';
+import { shipmentView } from '../orders/carriers';
 
 const SITE = () => (process.env.SITE_URL || 'http://localhost:3000').replace(/\/$/, '');
 
@@ -96,16 +97,34 @@ const STATUS_TEXT: Record<string, string> = {
   cancelled: 'has been cancelled',
 };
 
+/**
+ * The "your order moved on" email. `trackingNumber` is the raw `orders.tracking_number`
+ * value, which carries the carrier too (see modules/orders/carriers.ts); when a carrier is
+ * known the email carries a link to that carrier's own tracking page.
+ */
 export function orderStatusEmail(to: string, firstName: string, orderId: number, status: string, trackingNumber?: string | null): Email {
   const line = `Your order #${orderId} ${STATUS_TEXT[status] ?? `is now "${status}"`}.`;
-  const tracking = trackingNumber ? `Tracking number (not real): ${trackingNumber}` : '';
+  const shipment = shipmentView(trackingNumber);
+
+  // The tracking number is real and so is the carrier's page, even though nothing ships
+  // from this class project: the number is whatever a staff member typed in.
+  const trackingText = shipment
+    ? `${shipment.carrierLabel ? `${shipment.carrierLabel} tracking number` : 'Tracking number'}: ${shipment.trackingNumber}`
+    : '';
+  const trackingHtml = shipment
+    ? `<p style="margin:0 0 4px">${escapeHtml(trackingText)}</p>` +
+      (shipment.trackingUrl
+        ? `<p style="margin:0"><a href="${shipment.trackingUrl}" style="color:#14532d">Track it on ${escapeHtml(shipment.carrierLabel ?? 'the carrier')}'s website</a></p>`
+        : '')
+    : '';
+
   return {
     to,
     subject: `Order #${orderId} update`,
     ...layout(
       `Hi ${firstName}, there's an update`,
-      `<p>${escapeHtml(line)}</p>${tracking ? `<p>${escapeHtml(tracking)}</p>` : ''}${button(`${SITE()}/account?tab=orders`, 'View your orders')}`,
-      `${line}\n${tracking}\n${SITE()}/account?tab=orders`
+      `<p>${escapeHtml(line)}</p>${trackingHtml}${button(`${SITE()}/account?tab=orders`, 'View your orders and their status')}`,
+      `${line}\n${trackingText}${shipment?.trackingUrl ? `\nTrack it: ${shipment.trackingUrl}` : ''}\nView your orders and their status: ${SITE()}/account?tab=orders`
     ),
   };
 }
