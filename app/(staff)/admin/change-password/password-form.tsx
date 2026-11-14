@@ -18,7 +18,9 @@ export function StaffPasswordForm({ email, temporary }: { email: string; tempora
     const res = await staffFetch('/api/staff/change-password', 'POST', f);
     setBusy(false);
     setMsg({ ok: res.ok, text: res.message });
-    if (res.ok) setTimeout(() => (window.location.href = '/admin'), 800);
+    // Changing the password signs this browser out too, so there is nowhere in the portal left to
+    // go: straight to the sign-in page, which explains why.
+    if (res.ok) setTimeout(() => (window.location.href = '/staff-login?passwordChanged=1'), 1200);
   }
 
   return (
@@ -36,7 +38,7 @@ export function StaffPasswordForm({ email, temporary }: { email: string; tempora
       </div>
       <div className="space-y-1.5">
         <label htmlFor="confirm" className="text-sm font-medium">Confirm new password</label>
-        <PasswordInput id="confirm" name="confirmPassword" autoComplete="new-password" value={f.confirmPassword} onChange={set} className={inputCls} />
+        <PasswordInput id="confirm" name="confirmPassword" autoComplete="new-password" value={f.confirmPassword} onChange={set} className={inputCls} reveal={false} />
       </div>
       <button className={btnPrimary} disabled={busy}>{busy ? 'Saving…' : 'Save password'}</button>
     </form>

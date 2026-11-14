@@ -5,24 +5,21 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Check, Lock, Minus, Plus, ShoppingCart } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { BookCover } from "@/components/book-cover";
+import { CartStepper } from "@/components/book-card";
 import { StarRating } from "@/components/star-rating";
-import { useAuth } from "@/app/context/auth-context";
 import { useCart } from "@/app/context/CartContext";
 import { FORMATS, effectivePrice, formatPrice, stockLabel, type CatalogBook, type Format } from "@/lib/catalog";
 
 const LABELS: Record<Format, string> = { hardcover: "Hardcover", paperback: "Paperback" };
 
 export function ProductView({ book }: { book: CatalogBook }) {
-  const router = useRouter();
-  const { user } = useAuth();
-  const { addToCart } = useCart();
+  const { addToCart, quantityOf } = useCart();
 
   // Every format is shown; ones the book isn't sold in, or that are sold out, are locked
   const byFormat = Object.fromEntries(book.formats.map((f) => [f.format, f])) as Partial<Record<Format, CatalogBook["formats"][number]>>;
@@ -35,6 +32,8 @@ export function ProductView({ book }: { book: CatalogBook }) {
   const [busy, setBusy] = useState(false);
 
   const current = selected ? byFormat[selected] : undefined;
+  // Copies of the selected edition already in the cart, for the stepper below Add to Cart
+  const inCartNow = selected ? quantityOf(book.bookId, selected) : 0;
   const stock = current?.stock ?? 0;
   const salePercent = current?.salePriceCents != null
     ? Math.round((1 - current.salePriceCents / current.priceCents) * 100)
@@ -48,10 +47,8 @@ export function ProductView({ book }: { book: CatalogBook }) {
 
   async function handleAddToCart() {
     if (!selected || !current) return;
-    if (!user) {
-      router.push(`/user-login?callbackUrl=${encodeURIComponent(window.location.pathname)}`);
-      return;
-    }
+    // Guests add to the cart in this browser and can check out without an account (SCRUM-208);
+    // addToCart handles both cases.
     setBusy(true);
     const error = await addToCart(book.bookId, selected, quantity);
     setBusy(false);
@@ -140,9 +137,23 @@ export function ProductView({ book }: { book: CatalogBook }) {
           </div>
           <Button size="lg" disabled={!current || stock <= 0 || busy} onClick={handleAddToCart}>
             {status?.kind === "added" ? <Check /> : <ShoppingCart />}
-            {busy ? "Adding…" : "Add to Cart"}
+            {busy ? "Adding…" : inCartNow > 0 ? "Add more" : "Add to Cart"}
           </Button>
         </div>
+
+        {/* Already in the cart in this edition: change how many copies without going to the cart */}
+        {selected && inCartNow > 0 && (
+          <div className="w-full max-w-72">
+            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-stone-500">In your cart</p>
+            <CartStepper
+              bookId={book.bookId}
+              format={selected}
+              quantity={inCartNow}
+              max={stock}
+              title={`${book.title} (${LABELS[selected].toLowerCase()})`}
+            />
+          </div>
+        )}
         {status && (
           <p role="status" className={`text-sm ${status.kind === "error" ? "text-red-700" : "text-emerald-700"}`}>
             {status.text}

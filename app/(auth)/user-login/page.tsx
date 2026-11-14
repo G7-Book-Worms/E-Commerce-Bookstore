@@ -122,6 +122,13 @@ function LoginForm() {
         </p>
       </div>
 
+      {/* Sent here by a password change, which signs out every device including this one */}
+      {searchParams.get('passwordChanged') === '1' && !serverError && (
+        <div role="status" className="mb-5 rounded-lg border border-green-200 bg-green-50 p-3 text-xs text-green-900">
+          Your password was changed, so every device was signed out - this one included. Sign in with your new password.
+        </div>
+      )}
+
       {/* Server Error Alert Banner */}
       {serverError && (
         <div

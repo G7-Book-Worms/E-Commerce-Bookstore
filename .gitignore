@@ -42,3 +42,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# audit/debug screenshots (never commit: they can capture credentials)
+shots/
+
+# agent worktrees (local only)
+.claude/worktrees/
+
+# stray screenshot output from a tool with an unset path variable
+undefined/

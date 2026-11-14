@@ -12,7 +12,6 @@ import { users } from '../../../db/schema';
 import { logActivity } from '../activity/activity-log';
 import { sendEmail } from '../email/mailer';
 import { passwordChangedEmail } from '../email/templates';
-import { customerToken } from '../auth/auth-service';
 import { rateLimit } from '../../shared/security/rate-limit';
 import {
   BadRequestError,
@@ -67,7 +66,7 @@ export class UsersService {
   /**
    * SCRUM-96, SCRUM-97, SCRUM-98: Password change flow
    */
-  async changePassword(userId: number, input: ChangePasswordInput, remember = false) {
+  async changePassword(userId: number, input: ChangePasswordInput) {
     await rateLimit(`change-password:user:${userId}`, 10, 15 * 60);
     const user = await this.usersRepo.findById(userId);
     if (!user) {
@@ -84,18 +83,19 @@ export class UsersService {
       throw new BadRequestError('Choose a password different from your current one');
     }
 
-    // New hash + bump the token version: every other signed-in device is signed out.
-    // The controller gives this browser a fresh cookie so it stays signed in.
+    // New hash + bump the token version, which signs out every signed-in device - this browser
+    // included. A password is usually changed because the old one might be known to somebody else,
+    // and leaving the device that did it signed in would leave that exact hole open. The controller
+    // clears the cookie, and the account page sends them to the sign-in form.
     await db.update(users).set({
       passwordHash: await hashPassword(input.newPassword),
       tokenVersion: sql`${users.tokenVersion} + 1`,
       mustChangePassword: false,
     }).where(eq(users.userId, userId));
-    const updated = await this.usersRepo.findById(userId);
     await logActivity('customer', userId, 'auth.password_changed', {});
     await sendEmail(passwordChangedEmail(user.email, user.firstName));
 
-    return { success: true, message: 'Password updated successfully', token: customerToken(updated!, remember) };
+    return { success: true, message: 'Password updated successfully', signedOut: true };
   }
 
   /**
@@ -155,6 +155,7 @@ export class UsersService {
           address: o.address?.street ? o.address : null,
           payment: o.payment?.status ? o.payment : null,
           shippingAddressId: o.shippingAddressId,
+          carrier: o.carrier,
           trackingNumber: o.trackingNumber,
           created: o.created,
           totalItems: items.reduce((sum, i) => sum + i.quantity, 0),

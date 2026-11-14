@@ -6,6 +6,7 @@ import { EmptyState } from '@/components/empty-state';
 import Link from 'next/link';
 import { UserOrder } from '@/lib/api/user';
 import { formatPrice } from '@/lib/catalog';
+import { OrderTracker } from './OrderTracker';
 
 interface Props {
   orders: UserOrder[];
@@ -76,6 +77,12 @@ export const OrdersTab: React.FC<Props> = ({ orders, isLoading }) => {
               </div>
             </div>
 
+            {/* Where this order has got to, always visible: the tracker, the tracking number
+                and a link to the carrier's own page (session 4) */}
+            <div className="border-t border-stone-200 px-5 pb-5 pt-4 sm:px-6">
+              <OrderTracker status={order.status} carrier={order.carrier} trackingNumber={order.trackingNumber} orderId={order.orderId} />
+            </div>
+
             {isExpanded && (
               <div className="p-5 sm:p-6 bg-stone-50 border-t border-stone-200 grid gap-6 md:grid-cols-[1fr_260px] text-sm text-stone-700">
                 <div>
@@ -126,12 +133,6 @@ export const OrdersTab: React.FC<Props> = ({ orders, isLoading }) => {
                         <span className="capitalize">{order.payment.cardBrand}</span> ending {order.payment.cardLast4}
                         {order.payment.status === 'refunded' && <span className="ml-1 text-stone-500">(test charge refunded)</span>}
                       </p>
-                    </div>
-                  )}
-                  {order.trackingNumber && (
-                    <div>
-                      <p className="text-xs font-bold text-stone-900 uppercase tracking-wider">Tracking</p>
-                      <p className="mt-1 font-mono">{order.trackingNumber}</p>
                     </div>
                   )}
                   {order.note && (

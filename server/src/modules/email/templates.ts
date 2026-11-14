@@ -1,6 +1,7 @@
 // Email contents (SCRUM-212). Every email carries the class-project disclaimer.
 // Anything a user typed is HTML-escaped before it goes into the HTML version.
 import type { Email } from './mailer';
+import { shipmentView } from '../orders/carriers';
 
 const SITE = () => (process.env.SITE_URL || 'http://localhost:3000').replace(/\/$/, '');
 
@@ -96,16 +97,40 @@ const STATUS_TEXT: Record<string, string> = {
   cancelled: 'has been cancelled',
 };
 
-export function orderStatusEmail(to: string, firstName: string, orderId: number, status: string, trackingNumber?: string | null): Email {
+/**
+ * The "your order moved on" email. `carrier` and `trackingNumber` are the two order columns;
+ * when the carrier is known the email carries a link to that carrier's own tracking page.
+ */
+export function orderStatusEmail(
+  to: string,
+  firstName: string,
+  orderId: number,
+  status: string,
+  carrier?: string | null,
+  trackingNumber?: string | null
+): Email {
   const line = `Your order #${orderId} ${STATUS_TEXT[status] ?? `is now "${status}"`}.`;
-  const tracking = trackingNumber ? `Tracking number (not real): ${trackingNumber}` : '';
+  const shipment = shipmentView(carrier, trackingNumber);
+
+  // The tracking number is real and so is the carrier's page, even though nothing ships
+  // from this class project: the number is whatever a staff member typed in.
+  const trackingText = shipment
+    ? `${shipment.carrierLabel ? `${shipment.carrierLabel} tracking number` : 'Tracking number'}: ${shipment.trackingNumber}`
+    : '';
+  const trackingHtml = shipment
+    ? `<p style="margin:0 0 4px">${escapeHtml(trackingText)}</p>` +
+      (shipment.trackingUrl
+        ? `<p style="margin:0"><a href="${shipment.trackingUrl}" style="color:#14532d">Track it on ${escapeHtml(shipment.carrierLabel ?? 'the carrier')}'s website</a></p>`
+        : '')
+    : '';
+
   return {
     to,
     subject: `Order #${orderId} update`,
     ...layout(
       `Hi ${firstName}, there's an update`,
-      `<p>${escapeHtml(line)}</p>${tracking ? `<p>${escapeHtml(tracking)}</p>` : ''}${button(`${SITE()}/account?tab=orders`, 'View your orders')}`,
-      `${line}\n${tracking}\n${SITE()}/account?tab=orders`
+      `<p>${escapeHtml(line)}</p>${trackingHtml}${button(`${SITE()}/account?tab=orders`, 'View your orders and their status')}`,
+      `${line}\n${trackingText}${shipment?.trackingUrl ? `\nTrack it: ${shipment.trackingUrl}` : ''}\nView your orders and their status: ${SITE()}/account?tab=orders`
     ),
   };
 }
@@ -186,6 +211,92 @@ export function lowStockEmail(to: string, items: { title: string; format: string
       'Low stock alert',
       `<ul>${list}</ul>${button(`${SITE()}/admin/inventory?filter=low`, 'Open inventory')}`,
       `${items.map((i) => `- ${i.title} (${i.format}): ${i.stock} left`).join('\n')}\n${SITE()}/admin/inventory?filter=low`
+    ),
+  };
+}
+
+// --- Support tickets (Session 4) -------------------------------------------------------------
+// Everything below echoes customer-supplied text (a ticket subject, a reply, the quoted
+// history) into HTML, so every one of those values goes through escapeHtml() first. `layout()`
+// already escapes the title it is given.
+
+/** Acknowledgement sent when a ticket is opened, carrying the number the customer can quote. */
+export function ticketReceivedEmail(to: string, name: string, ticketNumber: number, subject: string): Email {
+  return {
+    to,
+    from: 'support',
+    subject: `[Ticket #${ticketNumber}] ${subject}`,
+    ...layout(
+      `Thanks, ${name}`,
+      `<p>We received your message and opened ticket <strong>#${ticketNumber}</strong>. A staff member will reply from support@bookwrms.store.</p>
+<p style="margin-top:20px;padding-left:12px;border-left:3px solid #d6d3d1;color:#57534e;font-size:13px">Subject: ${escapeHtml(subject)}</p>
+<p style="font-size:13px;color:#57534e">Replying to this email adds your reply to the same ticket.</p>`,
+      `We received your message and opened ticket #${ticketNumber}. A staff member will reply from support@bookwrms.store.\n\nSubject: ${subject}\n\nReplying to this email adds your reply to the same ticket.`
+    ),
+  };
+}
+
+/**
+ * A staff reply on a ticket. The subject is built by buildReplySubject() in the tickets module
+ * so that the `[Ticket #n]` token stays exactly in step with the matcher that reads it back.
+ */
+export function ticketReplyEmail(
+  to: string,
+  opts: { replySubject: string; ticketNumber: number; body: string; quoted?: string | null }
+): Email {
+  const quote = (s: string) => escapeHtml(s).replace(/\n/g, '<br>');
+  const history = opts.quoted
+    ? `<p style="margin-top:20px;padding-left:12px;border-left:3px solid #d6d3d1;color:#57534e;font-size:13px">Previously:<br>${quote(opts.quoted)}</p>`
+    : '';
+  return {
+    to,
+    from: 'support',
+    subject: opts.replySubject,
+    ...layout(
+      `Ticket #${opts.ticketNumber}`,
+      `<p>${quote(opts.body)}</p>${history}
+<p style="font-size:13px;color:#57534e">Reply to this email to continue on ticket #${opts.ticketNumber}.</p>`,
+      `${opts.body}\n${opts.quoted ? `\n> Previously:\n> ${opts.quoted.replace(/\n/g, '\n> ')}\n` : ''}\nReply to this email to continue on ticket #${opts.ticketNumber}.`
+    ),
+  };
+}
+
+// --- Guest checkout (SCRUM-208) -------------------------------------------------------------
+
+export interface GuestOrderEmailData extends Omit<OrderEmailData, 'firstName'> {
+  /** Signed, expiring token for this one order (see checkout/guest-order-token.ts). */
+  viewToken: string;
+}
+
+/**
+ * Order confirmation for someone who bought without an account. The only way back to the order
+ * is the signed link below, so the email says so and warns that forwarding it shares the order.
+ * The token is in the link and nowhere else: it is never logged.
+ */
+export function guestOrderConfirmationEmail(to: string, o: GuestOrderEmailData): Email {
+  const link = `${SITE()}/checkout/guest-order?token=${encodeURIComponent(o.viewToken)}`;
+  const rows = o.lines
+    .map(
+      (l) => `<tr><td style="padding:6px 0">${escapeHtml(l.title)} <span style="color:#78716c">(${escapeHtml(l.format)}) × ${l.quantity}</span></td><td align="right">${money(l.unitPriceCents * l.quantity)}</td></tr>`
+    )
+    .join('');
+  const totals = `<tr><td style="padding-top:10px;border-top:1px solid #e7e5e4">Subtotal</td><td align="right" style="padding-top:10px;border-top:1px solid #e7e5e4">${money(o.subtotalCents)}</td></tr>
+${o.discountCents ? `<tr><td>Discount</td><td align="right">−${money(o.discountCents)}</td></tr>` : ''}
+<tr><td>Tax (8.25%)</td><td align="right">${money(o.taxCents)}</td></tr>
+<tr><td><strong>Total</strong></td><td align="right"><strong>${money(o.totalCents)}</strong></td></tr>`;
+  const refundNote = o.refunded
+    ? '<p style="background:#ecfdf5;border:1px solid #a7f3d0;padding:10px;border-radius:6px">This was a Stripe <strong>test</strong> payment and it has already been refunded. Nothing will ship.</p>'
+    : '<p>This was a Stripe test payment. Nothing will ship.</p>';
+  return {
+    to,
+    subject: `Order #${o.orderId} received (class project: nothing will ship)`,
+    ...layout(
+      'Thanks for your order',
+      `<p>We received order <strong>#${o.orderId}</strong>. You checked out as a guest, so this link is how you look it up — it works for this one order only and expires in 30 days.</p>${refundNote}
+<table role="presentation" width="100%" style="font-size:14px">${rows}${totals}</table>
+${button(link, 'View your order')}
+<p style="font-size:13px;color:#57534e">Anyone with this link can see this order, so please don't forward it. Creating an account with this email address keeps your orders in one place instead.</p>`,
+      `Order #${o.orderId}\n${o.lines.map((l) => `- ${l.title} (${l.format}) x${l.quantity}: ${money(l.unitPriceCents * l.quantity)}`).join('\n')}\nSubtotal ${money(o.subtotalCents)}${o.discountCents ? `\nDiscount -${money(o.discountCents)}` : ''}\nTax ${money(o.taxCents)}\nTotal ${money(o.totalCents)}\n${o.refunded ? 'This test payment has been refunded. ' : ''}Nothing will ship.\n\nView this order (this one order only, expires in 30 days; don't forward it):\n${link}`
     ),
   };
 }

@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import { requireStaffPage } from '@/server/src/modules/staff/staff-page';
 import { getOrderDetail, NEXT_STATUSES, type OrderStatus } from '@/server/src/modules/orders/orders-admin';
+import { shipmentView } from '@/server/src/modules/orders/carriers';
 import { can } from '@/lib/staff-permissions';
 import { Badge, ORDER_STATUS_BADGE, PageHeader, Panel, dateTime, money } from '@/components/staff/ui';
 import { OrderStatusForm } from './status-form';
@@ -17,6 +18,7 @@ async function Content({ params }: { params: Promise<{ id: string }> }) {
   if (!detail) notFound();
   const { order, items, payment, address, customer, history } = detail;
   const status = order.status as OrderStatus;
+  const shipment = shipmentView(order.carrier, order.trackingNumber);
 
   return (
     <>
@@ -67,7 +69,7 @@ async function Content({ params }: { params: Promise<{ id: string }> }) {
         <div className="space-y-6">
           <Panel title="Update status">
             {can(staff.role, 'orders.update') ? (
-              <OrderStatusForm orderId={order.orderId} status={status} next={NEXT_STATUSES[status]} trackingNumber={order.trackingNumber} />
+              <OrderStatusForm orderId={order.orderId} status={status} next={NEXT_STATUSES[status]} carrier={order.carrier} trackingNumber={order.trackingNumber} />
             ) : <p className="text-sm text-stone-500">Your role can view orders but not change them.</p>}
           </Panel>
           <Panel title="Customer">
@@ -84,7 +86,19 @@ async function Content({ params }: { params: Promise<{ id: string }> }) {
             {address ? (
               <address className="text-sm not-italic text-stone-700">{address.street}<br />{address.city}, {address.state} {address.zip}<br />{address.country}</address>
             ) : <p className="text-sm text-stone-500">No address</p>}
-            {order.trackingNumber && <p className="mt-2 text-xs text-stone-500">Tracking: {order.trackingNumber}</p>}
+            {shipment && (
+              <p className="mt-2 text-xs text-stone-500">
+                {shipment.carrierLabel ?? 'Tracking'}: <span className="font-mono">{shipment.trackingNumber}</span>
+                {shipment.trackingUrl && (
+                  <>
+                    {' · '}
+                    <a href={shipment.trackingUrl} target="_blank" rel="noopener noreferrer" className="underline">
+                      Track on {shipment.carrierLabel}
+                    </a>
+                  </>
+                )}
+              </p>
+            )}
           </Panel>
           <Panel title="Payment">
             {payment ? (
