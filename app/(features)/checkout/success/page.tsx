@@ -22,7 +22,7 @@ import { registerUser } from "@/lib/api/auth";
 type Summary = {
   order: { orderId: number; subtotalCents: number; discountCents: number; taxCents: number; priceCents: number; created: string };
   email?: string;
-  address: { street: string; city: string; state: string; zip: string } | null;
+  address: { recipientName?: string | null; street: string; city: string; state: string; zip: string } | null;
   payment: { status: string; cardBrand: string | null; cardLast4: string | null } | null;
   items: { orderItemId: number; title: string; format: string; quantity: number; unitPrice: string }[];
 };
@@ -137,7 +137,7 @@ function Success() {
         </dl>
         <div className="mt-4 grid gap-4 border-t pt-4 sm:grid-cols-2">
           {summary.address && (
-            <div><p className="font-semibold">Shipping to</p><p>{summary.address.street}<br />{summary.address.city}, {summary.address.state} {summary.address.zip}</p></div>
+            <div><p className="font-semibold">Shipping to</p><p>{summary.address.recipientName && <>{summary.address.recipientName}<br /></>}{summary.address.street}<br />{summary.address.city}, {summary.address.state} {summary.address.zip}</p></div>
           )}
           {summary.payment?.cardLast4 && (
             <div>

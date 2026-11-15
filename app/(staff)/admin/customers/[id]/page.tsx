@@ -64,7 +64,7 @@ async function Content({ params }: { params: Promise<{ id: string }> }) {
             {addresses.length === 0 ? <p className="text-sm text-stone-500">None saved.</p> : (
               <ul className="space-y-2 text-sm">
                 {addresses.map((a) => (
-                  <li key={a.addressId}>{a.street}, {a.city}, {a.state} {a.zip} {a.isDefault && <Badge>Default</Badge>}</li>
+                  <li key={a.addressId}>{a.recipientName ? `${a.recipientName}, ` : ''}{a.street}, {a.city}, {a.state} {a.zip} {a.isDefault && <Badge>Default</Badge>}</li>
                 ))}
               </ul>
             )}

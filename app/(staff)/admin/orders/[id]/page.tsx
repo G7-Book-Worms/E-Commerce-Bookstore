@@ -85,7 +85,7 @@ async function Content({ params }: { params: Promise<{ id: string }> }) {
           </Panel>
           <Panel title="Ship to">
             {address ? (
-              <address className="text-sm not-italic text-stone-700">{address.street}<br />{address.city}, {address.state} {address.zip}<br />{address.country}</address>
+              <address className="text-sm not-italic text-stone-700">{address.recipientName && <><strong className="font-semibold text-stone-900">{address.recipientName}</strong><br /></>}{address.street}<br />{address.city}, {address.state} {address.zip}<br />{address.country}{address.phone && <><br />{address.phone}</>}</address>
             ) : <p className="text-sm text-stone-500">No address</p>}
             {shipment && (
               <p className="mt-2 text-xs text-stone-500">

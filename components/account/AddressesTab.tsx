@@ -9,6 +9,8 @@ import {
   updateUserAddress,
 } from '@/lib/api/user';
 import { DeleteAddressDialog } from '@/components/delete-address-dialog';
+import { useAuth } from '@/app/context/auth-context';
+import { recipientLine } from '@/lib/address-rules';
 
 interface Props {
   addresses: AddressItem[];
@@ -22,7 +24,10 @@ export const AddressesTab: React.FC<Props> = ({ addresses, onRefresh }) => {
   // The address waiting on the "Delete this address?" dialog (same dialog as checkout)
   const [deleting, setDeleting] = useState<AddressItem | null>(null);
 
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
+    recipientName: '',
+    phone: '',
     street: '',
     city: '',
     state: '',
@@ -34,6 +39,8 @@ export const AddressesTab: React.FC<Props> = ({ addresses, onRefresh }) => {
   const openCreateModal = () => {
     setEditingAddress(null);
     setFormData({
+      recipientName: user ? `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() : '',
+      phone: user?.phone ?? '',
       street: '',
       city: '',
       state: '',
@@ -47,6 +54,8 @@ export const AddressesTab: React.FC<Props> = ({ addresses, onRefresh }) => {
   const openEditModal = (addr: AddressItem) => {
     setEditingAddress(addr);
     setFormData({
+      recipientName: addr.recipientName ?? '',
+      phone: addr.phone ?? '',
       street: addr.street,
       city: addr.city,
       state: addr.state,
@@ -121,6 +130,7 @@ export const AddressesTab: React.FC<Props> = ({ addresses, onRefresh }) => {
                   </span>
                 )}
               </div>
+              {recipientLine(addr) && <p className="text-sm font-medium text-stone-700">{recipientLine(addr)}</p>}
               <p className="text-base font-semibold text-stone-900">{addr.street}</p>
               <p className="text-sm text-stone-600 mt-1">
                 {addr.city}, {addr.state} {addr.zip}
@@ -172,6 +182,32 @@ export const AddressesTab: React.FC<Props> = ({ addresses, onRefresh }) => {
             </div>
 
             <form onSubmit={handleSave} className="space-y-4 text-sm">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label htmlFor="addr-name" className="block text-xs font-semibold text-stone-700 uppercase">Full name</label>
+                  <input
+                    id="addr-name"
+                    required
+                    autoComplete="name"
+                    maxLength={100}
+                    value={formData.recipientName}
+                    onChange={(e) => setFormData({ ...formData, recipientName: e.target.value })}
+                    className="h-10 w-full rounded-md border border-stone-200 bg-white px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="addr-phone" className="block text-xs font-semibold text-stone-700 uppercase">Phone <span className="font-normal normal-case text-stone-500">(optional)</span></label>
+                  <input
+                    id="addr-phone"
+                    type="tel"
+                    autoComplete="tel"
+                    maxLength={20}
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="h-10 w-full rounded-md border border-stone-200 bg-white px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
+                  />
+                </div>
+              </div>
               <AddressAutocomplete
                 label="Street Address"
                 required

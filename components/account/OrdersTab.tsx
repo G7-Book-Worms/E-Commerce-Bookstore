@@ -125,7 +125,7 @@ export const OrdersTab: React.FC<Props> = ({ orders, isLoading }) => {
                   {order.address && (
                     <div>
                       <p className="text-xs font-bold text-stone-900 uppercase tracking-wider">Ship to</p>
-                      <p className="mt-1">{order.address.street}<br />{order.address.city}, {order.address.state} {order.address.zip}</p>
+                      <p className="mt-1">{order.address.recipientName && <>{order.address.recipientName}<br /></>}{order.address.street}<br />{order.address.city}, {order.address.state} {order.address.zip}</p>
                     </div>
                   )}
                   {order.payment?.cardLast4 && (

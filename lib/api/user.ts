@@ -14,6 +14,8 @@ export interface UserProfile {
 export interface AddressItem {
   addressId: number;
   userId: number;
+  recipientName: string | null;
+  phone: string | null;
   street: string;
   city: string;
   state: string;
@@ -43,7 +45,7 @@ export interface UserOrder {
   subtotalCents: number;
   discountCents: number;
   taxCents: number;
-  address: { street: string; city: string; state: string; zip: string } | null;
+  address: { recipientName: string | null; street: string; city: string; state: string; zip: string } | null;
   payment: { status: string; cardBrand: string | null; cardLast4: string | null } | null;
   shippingAddressId: number;
   carrier: 'ups' | 'fedex' | 'usps' | 'dhl' | null;

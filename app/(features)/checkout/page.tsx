@@ -11,6 +11,7 @@
 import Link from "next/link";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { AddressAutocomplete, fillAddress } from "@/components/address-autocomplete";
+import { recipientLine } from "@/lib/address-rules";
 import { useSearchParams } from "next/navigation";
 import { ChevronRight, Lock, LogIn, Minus, Plus, ShoppingBag, Trash2, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,9 @@ import { DeleteAddressDialog } from "@/components/delete-address-dialog";
 import { useAuth } from "@/app/context/auth-context";
 import { useCart, type GuestCartLine } from "@/app/context/CartContext";
 
-const EMPTY = { street: "", city: "", state: "", zip: "", country: "United States" };
+const EMPTY = { recipientName: "", phone: "", street: "", city: "", state: "", zip: "", country: "United States" };
+// Everything but the phone number has to be filled in
+const REQUIRED: (keyof typeof EMPTY)[] = ["recipientName", "street", "city", "state", "zip", "country"];
 
 // Both bring the shopper back to checkout afterwards; the guest cart is merged into the account.
 const SIGN_IN_HREF = "/user-login?callbackUrl=%2Fcheckout";
@@ -79,6 +82,11 @@ function Checkout() {
   const code = typeof window === "undefined" ? "" : loadDiscountCode();
 
   const isGuestCheckout = !authLoading && !user;
+  // A new address for a signed-in shopper starts with their own name and phone filled in
+  const prefilled = useCallback(
+    () => ({ ...EMPTY, recipientName: user ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() : "", phone: user?.phone ?? "" }),
+    [user]
+  );
   // Signed-out shoppers first choose: sign in, create an account, or continue as a guest.
   // (The server render never shows this part: it waits for the auth check, so reading
   // sessionStorage in the initializer can't cause a hydration mismatch.)
@@ -113,7 +121,8 @@ function Checkout() {
     const preferred = list.find((a) => a.isDefault) ?? list[0];
     setAddressId(preferred?.addressId ?? null);
     setAdding(list.length === 0);
-  }, [code]);
+    setForm(prefilled());
+  }, [code, prefilled]);
 
   // The guest cart holds only book ids, formats and quantities; the server prices it.
   // An empty cart needs no request: the render below shows the "cart is empty" message.
@@ -147,7 +156,7 @@ function Checkout() {
       setAddresses([...addresses, created]);
       setAddressId(created.addressId);
       setAdding(false);
-      setForm(EMPTY);
+      setForm(prefilled());
     } catch (err) {
       setError((err as Error).message);
     }
@@ -229,13 +238,14 @@ function Checkout() {
     );
   }
 
-  const field = (name: keyof typeof EMPTY, label: string, auto: string) => (
+  const field = (name: keyof typeof EMPTY, label: string, auto: string, optional = false) => (
     <label className="flex flex-col gap-1 text-sm">
-      <span className="font-medium">{label}</span>
+      <span className="font-medium">{label}{optional && <span className="font-normal text-muted-foreground"> (optional)</span>}</span>
       <input
-        required
+        required={!optional}
+        type={name === "phone" ? "tel" : "text"}
         autoComplete={auto}
-        maxLength={name === "zip" ? 20 : 100}
+        maxLength={name === "zip" || name === "phone" ? 20 : 100}
         value={form[name]}
         onChange={(e) => setForm({ ...form, [name]: e.target.value })}
         className="h-9 rounded-md border px-3"
@@ -258,7 +268,7 @@ function Checkout() {
   const guestReady =
     email.trim().length > 3 &&
     email.includes("@") &&
-    (Object.keys(EMPTY) as (keyof typeof EMPTY)[]).every((k) => form[k].trim() !== "");
+    REQUIRED.every((k) => form[k].trim() !== "");
   const canPay = choosingHow ? false : isGuestCheckout ? guestReady : !!addressId && !adding;
 
   return (
@@ -320,6 +330,8 @@ function Checkout() {
             </h2>
             {isGuestCheckout ? (
               <div className="grid gap-3 sm:grid-cols-2">
+                {field("recipientName", "Full name", "name")}
+                {field("phone", "Phone", "tel", true)}
                 <div className="sm:col-span-2">{streetField()}</div>
                 {field("city", "City", "address-level2")}
                 {field("state", "State", "address-level1")}
@@ -335,6 +347,7 @@ function Checkout() {
                         <label className="flex min-w-0 flex-1 cursor-pointer gap-3 p-3">
                           <input type="radio" name="address" value={a.addressId} checked={addressId === a.addressId} onChange={() => setAddressId(a.addressId)} />
                           <span>
+                            {recipientLine(a) && <span className="font-medium">{recipientLine(a)}<br /></span>}
                             {a.street}<br />{a.city}, {a.state} {a.zip}, {a.country}
                             {a.isDefault && <span className="ml-2 text-xs text-muted-foreground">(default)</span>}
                           </span>
@@ -356,6 +369,8 @@ function Checkout() {
                 )}
                 {adding ? (
                   <form id="checkout-address-form" onSubmit={saveAddress} className="mt-4 grid gap-3 sm:grid-cols-2">
+                    {field("recipientName", "Full name", "name")}
+                    {field("phone", "Phone", "tel", true)}
                     <div className="sm:col-span-2">{streetField()}</div>
                     {field("city", "City", "address-level2")}
                     {field("state", "State", "address-level1")}

@@ -165,6 +165,7 @@ export class UsersRepository {
         trackingNumber: orders.trackingNumber,
         created: orders.created,
         address: {
+          recipientName: addresses.recipientName,
           street: addresses.street,
           city: addresses.city,
           state: addresses.state,

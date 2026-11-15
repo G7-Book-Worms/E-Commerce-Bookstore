@@ -18,6 +18,7 @@ import { z } from 'zod';
 import type Stripe from 'stripe';
 import { db } from '../../../db';
 import { addresses, orderItems, orders, payments } from '../../../db/schema';
+import { phoneSchema, recipientNameSchema } from '../../../../lib/address-rules';
 import { guestCartSchema, priceGuestCart, assertGuestCartInStock } from '../cart/guest-cart';
 import { recordDiscountUse } from '../discounts/discounts-repository';
 import { syncBookTotals } from '../books/book-totals';
@@ -36,6 +37,8 @@ const FORMAT_LABEL = { hardcover: 'Hardcover', paperback: 'Paperback' } as const
 // Lengths match the addresses table (varchar(100) / varchar(20)) so an over-long value is a
 // clean 400 instead of a MySQL error.
 const guestAddressSchema = z.object({
+  recipientName: recipientNameSchema,
+  phone: phoneSchema.optional(),
   street: z.string().trim().min(1, 'Street is required').max(100, 'Street is too long'),
   city: z.string().trim().min(1, 'City is required').max(100, 'City is too long'),
   state: z.string().trim().min(1, 'State is required').max(100, 'State is too long'),
@@ -90,6 +93,8 @@ export async function startGuestCheckout(input: StartGuestCheckoutInput, origin:
   const orderId = await db.transaction(async (tx) => {
     const [addressRes] = (await tx.insert(addresses).values({
       userId: null, // not tied to an account
+      recipientName: input.address.recipientName,
+      phone: input.address.phone ?? null,
       street: input.address.street,
       city: input.address.city,
       state: input.address.state,

@@ -1,5 +1,6 @@
 import { newPasswordSchema } from '../../../../lib/password-policy';
 import { z } from 'zod';
+import { phoneSchema, recipientNameSchema } from '../../../../lib/address-rules';
 
 // SCRUM-94: Profile update validation
 export const updateProfileSchema = z.object({
@@ -27,6 +28,8 @@ export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 
 // SCRUM-101 & SCRUM-102: Address DTOs
 export const createAddressSchema = z.object({
+  recipientName: recipientNameSchema,
+  phone: phoneSchema.optional(),
   street: z.string().min(3).max(100),
   city: z.string().min(2).max(100),
   state: z.string().min(2).max(100),

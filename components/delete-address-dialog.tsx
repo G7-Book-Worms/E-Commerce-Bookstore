@@ -50,6 +50,7 @@ export function DeleteAddressDialog({ address, onCancel, onDeleted }: Props) {
     >
       {address && (
         <address className="rounded-lg border border-stone-200 bg-stone-50 p-3 not-italic leading-relaxed">
+          {address.recipientName && <><span className="font-medium">{address.recipientName}</span><br /></>}
           {address.street}
           <br />
           {address.city}, {address.state} {address.zip}
