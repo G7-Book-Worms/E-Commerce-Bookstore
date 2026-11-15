@@ -30,6 +30,7 @@ import { sendEmail } from '../email/mailer';
 import { signInCodeEmail } from '../email/templates';
 import { openSecret, sealSecret } from './secret-box';
 import { generateTotpSecret, totpUri, verifyTotp } from './totp';
+import { inBackground } from '../../shared/utils/in-background';
 import { alertLockout, alertMfaChanged, type AlertActor } from './security-alerts';
 import { checkSmsCode, maskPhone, sendSmsCode, smsAvailable, toE164 } from './twilio-verify';
 import { textingAvailable } from './twilio-messaging';
@@ -177,8 +178,12 @@ async function sendEmailCode(a: MfaAccount, ip: string | null) {
     expiresAt: new Date(Date.now() + CODE_MINUTES * 60_000),
   });
   const dest = codeDestination(a.email);
-  const emailed = await sendEmail(signInCodeEmail(dest.to, a.firstName, code, a.kind, dest.redirectedFor));
-  await logActivity(actorType(a.kind), a.id, 'security.mfa_code_sent', { method: 'email', emailed, demoInbox: !!dest.redirectedFor }, ip);
+  // Sent after the response: the mail server can take many seconds, and the person is already
+  // looking at the "enter your code" screen by the time it arrives
+  inBackground(async () => {
+    const emailed = await sendEmail(signInCodeEmail(dest.to, a.firstName, code, a.kind, dest.redirectedFor));
+    await logActivity(actorType(a.kind), a.id, 'security.mfa_code_sent', { method: 'email', emailed, demoInbox: !!dest.redirectedFor }, ip);
+  });
 }
 
 async function checkEmailCode(a: MfaAccount, code: string): Promise<boolean> {

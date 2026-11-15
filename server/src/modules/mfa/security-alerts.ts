@@ -10,6 +10,7 @@ import { activityLog, admin, users } from '../../../db/schema';
 import { sendText, textBody, textingAvailable } from './twilio-messaging';
 import { logActivity } from '../activity/activity-log';
 import { sendEmail } from '../email/mailer';
+import { inBackground } from '../../shared/utils/in-background';
 import { securityAlertEmail } from '../email/templates';
 
 export type AlertActor = { kind: 'customer' | 'staff'; id: number; email: string; firstName: string };
@@ -21,22 +22,26 @@ function when(d = new Date()) {
   return `${d.toLocaleString('en-US', { timeZone: 'America/Chicago', dateStyle: 'medium', timeStyle: 'short' })} (Central)`;
 }
 
-async function send(actor: AlertActor, action: string, alert: Parameters<typeof securityAlertEmail>[2], details: Record<string, unknown>, ip?: string | null) {
-  try {
-    const emailed = await sendEmail(securityAlertEmail(actor.email, actor.firstName, alert, actor.kind));
-    let texted: boolean | undefined;
-    if (textingAvailable()) {
-      const [row] = actor.kind === 'customer'
-        ? await db.select({ phone: users.mfaPhone }).from(users).where(eq(users.userId, actor.id))
-        : await db.select({ phone: admin.mfaPhone }).from(admin).where(eq(admin.adminId, actor.id));
-      if (row?.phone) {
-        texted = await sendText(row.phone, textBody(`security alert: ${alert.headline.toLowerCase()}. Details are in your email. Not you? Change your password now.`));
+function send(actor: AlertActor, action: string, alert: Parameters<typeof securityAlertEmail>[2], details: Record<string, unknown>, ip?: string | null) {
+  // After the response: a slow mail server must not hold up a sign-in
+  inBackground(async () => {
+    try {
+      const emailed = await sendEmail(securityAlertEmail(actor.email, actor.firstName, alert, actor.kind));
+      let texted: boolean | undefined;
+      if (textingAvailable()) {
+        const [row] = actor.kind === 'customer'
+          ? await db.select({ phone: users.mfaPhone }).from(users).where(eq(users.userId, actor.id))
+          : await db.select({ phone: admin.mfaPhone }).from(admin).where(eq(admin.adminId, actor.id));
+        if (row?.phone) {
+          texted = await sendText(row.phone, textBody(`security alert: ${alert.headline.toLowerCase()}. Details are in your email. Not you? Change your password now.`));
+        }
       }
+      await logActivity(actorType(actor.kind), actor.id, action, { ...details, emailed, ...(texted !== undefined ? { texted } : {}) }, ip ?? null);
+    } catch (err) {
+      console.error('[security-alert] failed', action, err);
     }
-    await logActivity(actorType(actor.kind), actor.id, action, { ...details, emailed, ...(texted !== undefined ? { texted } : {}) }, ip ?? null);
-  } catch (err) {
-    console.error('[security-alert] failed', action, err);
-  }
+  });
+  return Promise.resolve();
 }
 
 /**
