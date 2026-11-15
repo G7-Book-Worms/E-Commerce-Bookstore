@@ -244,6 +244,11 @@ async function sendOrderConfirmation(userId: number, orderId: number) {
     await sendEmail(orderConfirmationEmail(user.email, {
       orderId,
       firstName: user.firstName,
+      email: user.email,
+      shipTo: summary.address
+        ? { recipientName: summary.address.recipientName, phone: summary.address.phone, street: summary.address.street, city: summary.address.city, state: summary.address.state, zip: summary.address.zip, country: summary.address.country }
+        : null,
+      paidWith: summary.payment?.cardLast4 ? `${summary.payment.cardBrand ?? 'Card'} ending ${summary.payment.cardLast4}` : null,
       lines: summary.items.map((i) => ({
         title: i.title,
         format: FORMAT_LABEL[i.format],

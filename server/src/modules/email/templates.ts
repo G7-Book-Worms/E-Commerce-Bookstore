@@ -53,9 +53,39 @@ ${button(`${SITE()}/product-catalog`, 'Browse books')}
 }
 
 export interface OrderEmailLine { title: string; format: string; quantity: number; unitPriceCents: number }
+/** Where an order is going, as shown in its emails. */
+export interface ShipTo {
+  recipientName: string | null;
+  phone: string | null;
+  street: string;
+  city: string;
+  state: string;
+  zip: string;
+  country: string;
+}
+
+/** "Shipping to" and "Order details" blocks: so a wrong address is caught before it ships. */
+function orderFacts(o: { shipTo?: ShipTo | null; email?: string; paidWith?: string | null }) {
+  const ship = o.shipTo;
+  const shipLines = ship
+    ? [ship.recipientName, ship.street, `${ship.city}, ${ship.state} ${ship.zip}`, ship.country, ship.phone].filter((l): l is string => !!l)
+    : [];
+  const html = `<table role="presentation" width="100%" style="font-size:14px;margin:18px 0;border-top:1px solid #e7e5e4"><tr>
+${ship ? `<td valign="top" style="padding-top:12px;width:50%"><strong>Shipping to</strong><br>${shipLines.map(escapeHtml).join('<br>')}</td>` : ''}
+<td valign="top" style="padding-top:12px"><strong>Order details</strong><br>${o.email ? `Email: ${escapeHtml(o.email)}<br>` : ''}${o.paidWith ? `Paid with: ${escapeHtml(o.paidWith)}` : 'Paid by card (Stripe test mode)'}</td>
+</tr></table>
+<p style="font-size:13px;color:#57534e">Something wrong with the address? Reply to this email before it ships.</p>`;
+  const text = `${ship ? `\nShipping to:\n${shipLines.join('\n')}\n` : ''}${o.email ? `Email: ${o.email}\n` : ''}${o.paidWith ? `Paid with: ${o.paidWith}\n` : ''}`;
+  return { html, text };
+}
+
 export interface OrderEmailData {
   orderId: number;
   firstName: string;
+  shipTo?: ShipTo | null;
+  email?: string;
+  /** "Visa ending 4242"; never more of the card than Stripe gives us */
+  paidWith?: string | null;
   lines: OrderEmailLine[];
   subtotalCents: number;
   discountCents: number;
@@ -84,8 +114,9 @@ ${o.discountCents ? `<tr><td>Discount</td><td align="right">−${money(o.discoun
       `Thanks for your order, ${o.firstName}`,
       `<p>We received order <strong>#${o.orderId}</strong>.</p>${refundNote}
 <table role="presentation" width="100%" style="font-size:14px">${rows}${totals}</table>
+${orderFacts(o).html}
 ${button(`${SITE()}/account?tab=orders`, 'View your orders')}`,
-      `Order #${o.orderId}\n${o.lines.map((l) => `- ${l.title} (${l.format}) x${l.quantity}: ${money(l.unitPriceCents * l.quantity)}`).join('\n')}\nSubtotal ${money(o.subtotalCents)}${o.discountCents ? `\nDiscount -${money(o.discountCents)}` : ''}\nTax ${money(o.taxCents)}\nTotal ${money(o.totalCents)}\n${o.refunded ? 'This test payment has been refunded. ' : ''}Nothing will ship.\n${SITE()}/account?tab=orders`
+      `Order #${o.orderId}\n${o.lines.map((l) => `- ${l.title} (${l.format}) x${l.quantity}: ${money(l.unitPriceCents * l.quantity)}`).join('\n')}\nSubtotal ${money(o.subtotalCents)}${o.discountCents ? `\nDiscount -${money(o.discountCents)}` : ''}\nTax ${money(o.taxCents)}\nTotal ${money(o.totalCents)}\n${o.refunded ? 'This test payment has been refunded. ' : ''}Nothing will ship.\n${orderFacts(o).text}${SITE()}/account?tab=orders`
     ),
   };
 }
@@ -107,8 +138,11 @@ export function orderStatusEmail(
   orderId: number,
   status: string,
   carrier?: string | null,
-  trackingNumber?: string | null
+  trackingNumber?: string | null,
+  /** Guests have no account page: their signed order link instead */
+  viewUrl?: string
 ): Email {
+  const ordersUrl = viewUrl ?? `${SITE()}/account?tab=orders`;
   const line = `Your order #${orderId} ${STATUS_TEXT[status] ?? `is now "${status}"`}.`;
   const shipment = shipmentView(carrier, trackingNumber);
 
@@ -129,8 +163,8 @@ export function orderStatusEmail(
     subject: `Order #${orderId} update`,
     ...layout(
       `Hi ${firstName}, there's an update`,
-      `<p>${escapeHtml(line)}</p>${trackingHtml}${button(`${SITE()}/account?tab=orders`, 'View your orders and their status')}`,
-      `${line}\n${trackingText}${shipment?.trackingUrl ? `\nTrack it: ${shipment.trackingUrl}` : ''}\nView your orders and their status: ${SITE()}/account?tab=orders`
+      `<p>${escapeHtml(line)}</p>${trackingHtml}${button(ordersUrl, viewUrl ? 'View your order' : 'View your orders and their status')}`,
+      `${line}\n${trackingText}${shipment?.trackingUrl ? `\nTrack it: ${shipment.trackingUrl}` : ''}\n${viewUrl ? 'View your order' : 'View your orders and their status'}: ${ordersUrl}`
     ),
   };
 }
@@ -294,9 +328,10 @@ ${o.discountCents ? `<tr><td>Discount</td><td align="right">−${money(o.discoun
       'Thanks for your order',
       `<p>We received order <strong>#${o.orderId}</strong>. You checked out as a guest, so this link is how you look it up — it works for this one order only and expires in 30 days.</p>${refundNote}
 <table role="presentation" width="100%" style="font-size:14px">${rows}${totals}</table>
+${orderFacts(o).html}
 ${button(link, 'View your order')}
-<p style="font-size:13px;color:#57534e">Anyone with this link can see this order, so please don't forward it. Creating an account with this email address keeps your orders in one place instead.</p>`,
-      `Order #${o.orderId}\n${o.lines.map((l) => `- ${l.title} (${l.format}) x${l.quantity}: ${money(l.unitPriceCents * l.quantity)}`).join('\n')}\nSubtotal ${money(o.subtotalCents)}${o.discountCents ? `\nDiscount -${money(o.discountCents)}` : ''}\nTax ${money(o.taxCents)}\nTotal ${money(o.totalCents)}\n${o.refunded ? 'This test payment has been refunded. ' : ''}Nothing will ship.\n\nView this order (this one order only, expires in 30 days; don't forward it):\n${link}`
+<p style="font-size:13px;color:#57534e">The link asks for this email address before it shows the order. You can also look it up any time at ${SITE()}/checkout/guest-order with order number <strong>${o.orderId}</strong> and this email address. Creating an account with this email keeps your orders in one place instead.</p>`,
+      `Order #${o.orderId}\n${o.lines.map((l) => `- ${l.title} (${l.format}) x${l.quantity}: ${money(l.unitPriceCents * l.quantity)}`).join('\n')}\nSubtotal ${money(o.subtotalCents)}${o.discountCents ? `\nDiscount -${money(o.discountCents)}` : ''}\nTax ${money(o.taxCents)}\nTotal ${money(o.totalCents)}\n${o.refunded ? 'This test payment has been refunded. ' : ''}Nothing will ship.\n${orderFacts(o).text}\nView this order (this one order only, expires in 30 days; don't forward it):\n${link}`
     ),
   };
 }

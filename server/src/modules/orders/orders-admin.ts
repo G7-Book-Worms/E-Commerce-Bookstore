@@ -175,6 +175,12 @@ export async function updateOrderStatus(
   if (order.userId) {
     const [u] = await db.select({ email: users.email, firstName: users.firstName }).from(users).where(eq(users.userId, order.userId));
     if (u) emailed = await sendEmail(orderStatusEmail(u.email, u.firstName, orderId, input.status, carrier, tracking));
+  } else if (order.guestEmail) {
+    // Guest orders: no account to point at, so the email carries the signed order link
+    const [a] = await db.select({ name: addresses.recipientName }).from(addresses).where(eq(addresses.addressId, order.shippingAddressId));
+    const firstName = a?.name?.trim().split(/\s+/)[0] || 'there';
+    const { guestOrderLink } = await import('../checkout/guest-checkout-service');
+    emailed = await sendEmail(orderStatusEmail(order.guestEmail, firstName, orderId, input.status, carrier, tracking, guestOrderLink(orderId)));
   }
   return { from, to: input.status, emailed };
 }

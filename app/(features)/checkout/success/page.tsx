@@ -158,7 +158,7 @@ function Success() {
               <Link href={`/checkout/guest-order?token=${encodeURIComponent(viewToken)}`} className="font-medium underline">
                 open it here
               </Link>
-              . The link works for this one order and expires in 30 days — please don&apos;t forward it.
+              . It asks for your email address before showing anything, and you can also look the order up any time from <strong>Find your order</strong> at the bottom of every page with order number #{order.orderId}.
             </p>
           )}
           <CreateAccountOffer email={guestEmail} />

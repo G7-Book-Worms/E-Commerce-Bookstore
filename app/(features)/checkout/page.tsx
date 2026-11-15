@@ -467,10 +467,14 @@ function Checkout() {
             {isGuestCheckout && !choosingHow && !guestReady && (
               <p className="mt-2 text-xs text-muted-foreground">Add your email and shipping address to continue.</p>
             )}
-            <p className="mt-3 text-xs text-muted-foreground">
-              You&apos;ll pay on Stripe&apos;s secure page. This store runs in <b>test mode</b>: use card
-              4242 4242 4242 4242, any future date and any CVC. Test charges are refunded automatically.
-            </p>
+            <div role="note" className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-950">
+              <p className="font-semibold">Don&apos;t use a real card.</p>
+              <p className="mt-1">
+                Book Worms is a student project and Stripe runs in <b>test mode</b>: real cards are
+                declined and nothing is ever charged or shipped. Use card <b className="font-mono">4242 4242 4242 4242</b>,
+                any future date and any CVC. Test payments are refunded automatically.
+              </p>
+            </div>
           </OrderSummary>
         </div>
       </div>
