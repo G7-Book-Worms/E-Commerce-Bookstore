@@ -6,23 +6,38 @@ import { PasswordInput } from '@/components/ui/password-input';
 import { btnPrimary, inputCls } from '@/components/staff/ui';
 import { staffFetch } from '@/components/staff/staff-fetch';
 
+// Field order matters: the password comes last so that pressing Enter in it signs in.
+const FIELDS = [
+  { name: 'email', id: 'staff-email', label: 'Work email' },
+  { name: 'employeeId', id: 'staff-employee-id', label: 'Employee ID' },
+  { name: 'password', id: 'staff-password', label: 'Password' },
+] as const;
+type FieldName = (typeof FIELDS)[number]['name'];
+
 export function StaffLoginForm() {
   const params = useSearchParams();
-  const [form, setForm] = useState({ email: '', password: '', employeeId: '' });
+  const [form, setForm] = useState<Record<FieldName, string>>({ email: '', employeeId: '', password: '' });
+  const [missing, setMissing] = useState<FieldName | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const set = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
     setError(null);
+    if (e.target.name === missing) setMissing(null);
   };
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.email || !form.password || !form.employeeId) {
-      setError('Fill in all three fields');
+    // Point at the first empty field instead of a generic "fill everything in"
+    const empty = FIELDS.find((f) => !form[f.name].trim());
+    if (empty) {
+      setError(null);
+      setMissing(empty.name);
+      document.getElementById(empty.id)?.focus();
       return;
     }
+    setMissing(null);
     setBusy(true);
     const res = await staffFetch<{ mustChangePassword: boolean }>('/api/staff/login', 'POST', form);
     setBusy(false);
@@ -36,6 +51,17 @@ export function StaffLoginForm() {
       : next && next.startsWith('/admin') ? next : '/admin';
   }
 
+  // aria-invalid + a message tied to the field with aria-describedby, so screen readers announce it
+  const fieldProps = (name: FieldName, id: string) => ({
+    'aria-invalid': missing === name || undefined,
+    'aria-describedby': missing === name ? `${id}-missing` : undefined,
+  });
+  const missingNote = (name: FieldName, id: string, label: string) =>
+    missing === name ? (
+      <p id={`${id}-missing`} role="alert" className="text-xs font-medium text-red-700">{label} is missing. Fill it in to sign in.</p>
+    ) : null;
+  const invalidCls = (name: FieldName) => (missing === name ? ' border-red-400 ring-1 ring-red-300' : '');
+
   return (
     <form onSubmit={submit} noValidate className="space-y-4">
       {error && <div role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</div>}
@@ -46,15 +72,18 @@ export function StaffLoginForm() {
       )}
       <div className="space-y-1.5">
         <label htmlFor="staff-email" className="text-sm font-medium">Work email</label>
-        <input id="staff-email" name="email" type="email" autoComplete="username" value={form.email} onChange={set} className={inputCls} disabled={busy} />
-      </div>
-      <div className="space-y-1.5">
-        <label htmlFor="staff-password" className="text-sm font-medium">Password</label>
-        <PasswordInput id="staff-password" name="password" autoComplete="current-password" value={form.password} onChange={set} className={inputCls} disabled={busy} />
+        <input id="staff-email" name="email" type="email" autoComplete="username" value={form.email} onChange={set} className={inputCls + invalidCls('email')} disabled={busy} {...fieldProps('email', 'staff-email')} />
+        {missingNote('email', 'staff-email', 'Work email')}
       </div>
       <div className="space-y-1.5">
         <label htmlFor="staff-employee-id" className="text-sm font-medium">Employee ID</label>
-        <input id="staff-employee-id" name="employeeId" placeholder="BW-1001" autoComplete="off" value={form.employeeId} onChange={set} className={`${inputCls} uppercase`} disabled={busy} />
+        <input id="staff-employee-id" name="employeeId" placeholder="BW-1001" autoComplete="off" value={form.employeeId} onChange={set} className={`${inputCls} uppercase${invalidCls('employeeId')}`} disabled={busy} {...fieldProps('employeeId', 'staff-employee-id')} />
+        {missingNote('employeeId', 'staff-employee-id', 'Employee ID')}
+      </div>
+      <div className="space-y-1.5">
+        <label htmlFor="staff-password" className="text-sm font-medium">Password</label>
+        <PasswordInput id="staff-password" name="password" autoComplete="current-password" value={form.password} onChange={set} className={inputCls + invalidCls('password')} disabled={busy} {...fieldProps('password', 'staff-password')} />
+        {missingNote('password', 'staff-password', 'Password')}
       </div>
       <button type="submit" className={`${btnPrimary} w-full`} disabled={busy} aria-busy={busy}>
         {busy ? 'Signing in…' : 'Sign in'}

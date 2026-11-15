@@ -101,6 +101,10 @@ function RegisterForm() {
         password: flattened.password?.[0],
         confirmPassword: flattened.confirmPassword?.[0],
       });
+      // Move the cursor to the first field that needs fixing (form order)
+      const order: FieldName[] = ['firstName', 'lastName', 'email', 'password', 'confirmPassword'];
+      const first = order.find((f) => flattened[f]?.length);
+      if (first) document.getElementById(first)?.focus();
       return;
     }
 

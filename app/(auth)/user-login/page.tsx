@@ -52,6 +52,8 @@ function LoginForm() {
 
   // SCRUM-165: Extract callbackUrl query parameter
   const callbackUrl = searchParams.get('callbackUrl');
+  // Carried over to "Register here", so a shopper who signs up instead still lands back where they were
+  const safeCallback = callbackUrl && callbackUrl.startsWith('/') && !callbackUrl.startsWith('//') ? callbackUrl : null;
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -78,6 +80,8 @@ function LoginForm() {
         email: flattenedErrors.email?.[0],
         password: flattenedErrors.password?.[0],
       });
+      // Enter with a field still empty: put the cursor in the first one that needs fixing
+      document.getElementById(flattenedErrors.email ? 'email' : 'password')?.focus();
       return;
     }
 
@@ -114,7 +118,7 @@ function LoginForm() {
         <p className="text-sm text-neutral-500">
           Don&apos;t have an account?{' '}
           <Link
-            href="/user-register"
+            href={safeCallback ? `/user-register?callbackUrl=${encodeURIComponent(safeCallback)}` : '/user-register'}
             className="font-medium text-neutral-900 underline underline-offset-4 hover:text-neutral-600 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-900 rounded-xs"
           >
             Register here
@@ -161,6 +165,8 @@ function LoginForm() {
             disabled={isSubmitting}
             value={formData.email}
             onChange={handleInputChange}
+            aria-invalid={!!fieldErrors.email}
+            aria-describedby={fieldErrors.email ? 'email-error' : undefined}
             className={`h-10 w-full rounded-md border bg-white px-3 py-2 text-sm placeholder:text-neutral-400 focus-visible:outline-none focus-visible:ring-2 disabled:opacity-50 ${
               fieldErrors.email
                 ? 'border-red-300 focus-visible:ring-red-500'
@@ -168,7 +174,7 @@ function LoginForm() {
             }`}
             placeholder="reader@bookworms.com"
           />
-          {fieldErrors.email && <p className="mt-1 text-xs text-red-600">{fieldErrors.email}</p>}
+          {fieldErrors.email && <p id="email-error" className="mt-1 text-xs text-red-600">{fieldErrors.email}</p>}
         </div>
 
         {/* Password Field */}
@@ -179,17 +185,19 @@ function LoginForm() {
           <PasswordInput
             id="password"
             name="password"
-                        autoComplete="current-password"
+            autoComplete="current-password"
             disabled={isSubmitting}
             value={formData.password}
             onChange={handleInputChange}
+            aria-invalid={!!fieldErrors.password}
+            aria-describedby={fieldErrors.password ? 'password-error' : undefined}
             className={`h-10 w-full rounded-md border bg-white px-3 py-2 text-sm placeholder:text-neutral-400 focus-visible:outline-none focus-visible:ring-2 disabled:opacity-50 ${
               fieldErrors.password
                 ? 'border-red-300 focus-visible:ring-red-500'
                 : 'border-neutral-300 focus-visible:ring-neutral-900'
             }`}
           />
-          {fieldErrors.password && <p className="mt-1 text-xs text-red-600">{fieldErrors.password}</p>}
+          {fieldErrors.password && <p id="password-error" className="mt-1 text-xs text-red-600">{fieldErrors.password}</p>}
         </div>
 
         {/* Remember Me & Forgot Password */}
