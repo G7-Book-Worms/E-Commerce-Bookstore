@@ -10,7 +10,7 @@
 
 import Link from "next/link";
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { AddressAutocomplete } from "@/components/address-autocomplete";
+import { AddressAutocomplete, fillAddress } from "@/components/address-autocomplete";
 import { useSearchParams } from "next/navigation";
 import { Lock, Minus, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -180,14 +180,14 @@ function Checkout() {
     </label>
   );
 
-  // Street with address suggestions: picking one fills in every address field at once.
+  // Street with address suggestions: picking one fills in the address fields it knows.
   const streetField = () => (
     <AddressAutocomplete
       label="Street"
       required
       value={form.street}
       onChange={(street) => setForm((f) => ({ ...f, street }))}
-      onSelect={(a) => setForm({ street: a.street, city: a.city, state: a.state, zip: a.zip, country: a.country })}
+      onSelect={(a) => setForm((f) => fillAddress(f, a))}
     />
   );
 
