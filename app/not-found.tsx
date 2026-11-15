@@ -1,39 +1,177 @@
-// Shown for any URL that doesn't exist (and for unknown ISBNs).
-// The app has one root layout per route group, so this page brings its own <html> and styles.
+// Shown for any URL that doesn't exist (and when a page calls notFound(), e.g. an unknown ISBN).
+//
+// Why this file renders its own <html> and <body>: the app has no single root layout. Each route
+// group ((main), (features), (auth), (staff)) has its own root layout with its own <html>, so
+// there is no layout above app/not-found.tsx to wrap it, and for an unmatched URL Next.js renders
+// this file on its own. It therefore brings its own document, imports globals.css itself (no
+// layout has loaded the styles) and repeats the site's base body classes (stone-50 background,
+// stone-900 text) so it looks like the rest of the shop. It doesn't render the shop Header:
+// that needs the auth and cart providers, which live in the route-group layouts.
+//
+// The illustration is an original inline SVG (a bookworm in reading glasses peeking out of an
+// open book, with the bookmark fallen out), drawn in the site's stone and green palette so it
+// sits on the stone-50 background without a white box around it. No photos.
 import './globals.css';
 import Link from 'next/link';
+import { Search } from 'lucide-react';
 
 export const metadata = { title: 'Page not found | Book Worms' };
+
+const SHORTCUTS = [
+  { href: '/product-catalog/all?section=bestseller', label: 'Bestsellers' },
+  { href: '/product-catalog/all?section=new-release', label: 'New releases' },
+  { href: '/product-catalog/all?onSale=true', label: 'On sale' },
+];
 
 export default function NotFound() {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-stone-50 text-stone-900 antialiased">
-        <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-5 px-4 text-center">
-          <Link href="/" className="inline-flex items-center gap-2 font-serif text-2xl font-bold">
-            <span aria-hidden>📚</span> Book Worms
-          </Link>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/images/empty-states/french-bulldog-puppy-frowning.webp" alt="" loading="lazy" width={240} height={180} className="h-40 w-auto" />
-          <p className="font-serif text-sm font-bold uppercase tracking-widest text-stone-400">Error 404</p>
-          <h1 className="font-serif text-2xl font-bold">We couldn&apos;t find that page</h1>
-          <p className="text-sm text-stone-600">The link may be old, or the book may no longer be in our catalog.</p>
-          <form action="/product-catalog/all" className="flex w-full gap-2">
-            <input
-              name="q"
-              type="search"
-              aria-label="Search books"
-              placeholder="Search books"
-              className="h-10 min-w-0 flex-1 rounded-full border border-stone-300 bg-white px-4 text-sm"
-            />
-            <button className="h-10 rounded-full bg-stone-900 px-5 text-sm font-semibold text-white">Search</button>
-          </form>
-          <div className="flex gap-4 text-sm">
-            <Link href="/" className="underline">Home</Link>
-            <Link href="/product-catalog" className="underline">Browse books</Link>
+      <body className="flex min-h-screen flex-col bg-stone-50 text-stone-900 antialiased">
+        <header className="border-b border-stone-200 bg-white/95">
+          <div className="mx-auto flex max-w-7xl items-center px-4 py-3 sm:px-6 lg:px-8">
+            <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
+              <span className="text-2xl" aria-hidden>📚</span>
+              <span className="font-serif text-lg font-bold">Book Worms</span>
+            </Link>
+          </div>
+        </header>
+
+        <main className="flex flex-1 items-center justify-center px-4 py-12">
+          <div className="flex w-full max-w-xl flex-col items-center text-center">
+            <LostBookworm className="h-auto w-full max-w-[22rem]" />
+
+            <p className="mt-6 text-xs font-semibold uppercase tracking-[0.2em] text-green-800">Error 404 · Page not found</p>
+            <h1 className="mt-2 font-serif text-3xl font-bold leading-tight sm:text-4xl">
+              This page has wandered off the shelf
+            </h1>
+            <p className="mt-3 max-w-md text-sm text-stone-600 sm:text-base">
+              Our bookworm has looked between every page and can&apos;t find it. The link may be old, or the
+              book may no longer be in our catalog.
+            </p>
+
+            <form action="/product-catalog/all" role="search" className="relative mt-8 flex w-full items-center">
+              <Search className="pointer-events-none absolute left-4 size-4 text-stone-400" aria-hidden />
+              <input
+                name="q"
+                type="search"
+                aria-label="Search books"
+                placeholder="Title, author or ISBN"
+                className="h-12 w-full rounded-full border border-stone-300 bg-white pl-11 pr-28 text-sm shadow-xs placeholder:text-stone-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
+              />
+              <button
+                type="submit"
+                className="absolute right-1.5 h-9 rounded-full bg-stone-900 px-5 text-sm font-semibold text-white hover:bg-stone-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:ring-offset-2"
+              >
+                Search
+              </button>
+            </form>
+
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+              <Link
+                href="/"
+                className="inline-flex h-10 items-center rounded-md bg-stone-900 px-5 text-sm font-medium text-stone-50 hover:bg-stone-800"
+              >
+                Back to the home page
+              </Link>
+              <Link
+                href="/product-catalog"
+                className="inline-flex h-10 items-center rounded-md border border-stone-300 bg-white px-5 text-sm font-medium hover:bg-stone-100"
+              >
+                Browse all books
+              </Link>
+            </div>
+
+            <nav aria-label="Popular shelves" className="mt-8 text-sm text-stone-500">
+              <span>Or try a popular shelf: </span>
+              {SHORTCUTS.map((s, i) => (
+                <span key={s.href}>
+                  {i > 0 && <span aria-hidden> · </span>}
+                  <Link href={s.href} className="font-medium text-green-800 underline-offset-4 hover:underline">
+                    {s.label}
+                  </Link>
+                </span>
+              ))}
+            </nav>
           </div>
         </main>
+
+        <footer className="border-t border-stone-200 py-6 text-center text-xs text-stone-500">
+          Book Worms · A class project bookstore
+        </footer>
       </body>
     </html>
+  );
+}
+
+/** Original drawing: an open book, a bookworm in reading glasses peeking out of a hole in the
+ *  right-hand page, and the bookmark ribbon that has slipped out underneath. Decorative only. */
+function LostBookworm({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 320 210" className={className} aria-hidden focusable="false">
+      {/* soft shadow under the book */}
+      <ellipse cx="160" cy="178" rx="128" ry="9" fill="#e7e5e4" />
+
+      {/* the bookmark, slipped out of the spine and lying on the table */}
+      <path d="M161 160 C 158 172, 176 176, 196 178 L 232 180" fill="none" stroke="#b45309" strokeWidth="7" strokeLinecap="round" />
+      <path d="M229 176.5 L 246 175 L 240 180.5 L 247 186 L 230 184 Z" fill="#b45309" />
+
+      {/* cover */}
+      <path d="M26 66 L26 162 Q93 148 160 166 Q227 148 294 162 L294 66 Q227 54 160 70 Q93 54 26 66 Z" fill="#166534" />
+      {/* page edges */}
+      <path d="M34 64 L34 156 Q97 143 158 159 L158 66 Q97 52 34 64 Z" fill="#e7e5e4" />
+      <path d="M286 64 L286 156 Q223 143 162 159 L162 66 Q223 52 286 64 Z" fill="#e7e5e4" />
+      {/* pages */}
+      <path d="M38 60 L38 152 Q99 139 158 155 L158 62 Q99 48 38 60 Z" fill="#fafaf9" stroke="#d6d3d1" strokeWidth="1.5" />
+      <path d="M282 60 L282 152 Q221 139 162 155 L162 62 Q221 48 282 60 Z" fill="#fafaf9" stroke="#d6d3d1" strokeWidth="1.5" />
+      {/* spine shadow */}
+      <path d="M152 62 Q157 62 160 66 Q163 62 168 62 L168 154 Q163 154 160 158 Q157 154 152 154 Z" fill="#e7e5e4" opacity="0.7" />
+
+      {/* text on the left-hand page */}
+      <g stroke="#d6d3d1" strokeWidth="3" strokeLinecap="round">
+        <path d="M54 76 Q96 68 142 76" fill="none" />
+        <path d="M54 89 Q96 81 142 89" fill="none" />
+        <path d="M54 102 Q96 94 142 102" fill="none" />
+        <path d="M54 115 Q96 107 130 113" fill="none" />
+        <path d="M54 128 Q96 120 142 128" fill="none" />
+        <path d="M54 141 Q90 134 116 138" fill="none" />
+      </g>
+      {/* a couple of lines on the right-hand page, above the hole */}
+      <g stroke="#d6d3d1" strokeWidth="3" strokeLinecap="round">
+        <path d="M178 76 Q222 68 266 76" fill="none" />
+        <path d="M178 89 Q206 84 226 86" fill="none" />
+      </g>
+
+      {/* the hole the worm came through */}
+      <ellipse cx="214" cy="128" rx="17" ry="6.5" fill="#44403c" />
+
+      {/* the bookworm: segmented body rising out of the hole */}
+      <path d="M214 128 C 210 104, 226 92, 242 98" fill="none" stroke="#16a34a" strokeWidth="17" />
+      <path d="M214 128 C 210 104, 226 92, 242 98" fill="none" stroke="#15803d" strokeWidth="17" strokeDasharray="1.6 8" />
+      {/* the near rim of the hole, in front of the body */}
+      <path d="M197 128 A17 6.5 0 0 0 231 128 L231 133 L197 133 Z" fill="#fafaf9" />
+      <path d="M197 128 A17 6.5 0 0 0 231 128" fill="none" stroke="#a8a29e" strokeWidth="1.5" />
+
+      {/* head */}
+      <circle cx="248" cy="96" r="15" fill="#22c55e" />
+      <circle cx="248" cy="96" r="15" fill="none" stroke="#15803d" strokeWidth="1.5" />
+      {/* antennae */}
+      <path d="M243 82 Q 240 72, 235 70" fill="none" stroke="#15803d" strokeWidth="2" strokeLinecap="round" />
+      <circle cx="234.5" cy="69.5" r="2.5" fill="#15803d" />
+      <path d="M253 82 Q 257 72, 262 71" fill="none" stroke="#15803d" strokeWidth="2" strokeLinecap="round" />
+      <circle cx="262.5" cy="70.5" r="2.5" fill="#15803d" />
+      {/* reading glasses */}
+      <circle cx="242.5" cy="95" r="5.5" fill="#fafaf9" stroke="#292524" strokeWidth="1.8" />
+      <circle cx="255" cy="95" r="5.5" fill="#fafaf9" stroke="#292524" strokeWidth="1.8" />
+      <path d="M248 94.5 L249.5 94.5" stroke="#292524" strokeWidth="1.8" strokeLinecap="round" />
+      {/* eyes, looking down at the lost bookmark */}
+      <circle cx="243.5" cy="97" r="1.9" fill="#1c1917" />
+      <circle cx="256" cy="97" r="1.9" fill="#1c1917" />
+      {/* puzzled mouth and a little blush */}
+      <path d="M245 105 Q 249 103, 253 105.5" fill="none" stroke="#14532d" strokeWidth="1.6" strokeLinecap="round" />
+      <circle cx="238" cy="102" r="2.2" fill="#86efac" />
+
+      {/* a question mark floating above */}
+      <text x="272" y="64" fontFamily="Georgia, 'Times New Roman', serif" fontSize="26" fontWeight="700" fill="#a8a29e">?</text>
+    </svg>
   );
 }

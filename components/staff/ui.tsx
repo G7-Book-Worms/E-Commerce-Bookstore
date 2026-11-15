@@ -94,7 +94,7 @@ export function EmptyState({ title, text, image = '/images/empty-states/tabby-ki
   return (
     <div className="flex flex-col items-center rounded-lg border border-dashed border-stone-300 bg-white px-4 py-10 text-center">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={image} alt="" width={160} height={120} className="mb-3 h-28 w-auto" />
+      <img src={image} alt="" width={160} height={120} className="mb-3 h-28 w-auto mix-blend-multiply" />
       <p className="font-medium text-stone-800">{title}</p>
       {text && <p className="mt-1 text-sm text-stone-500">{text}</p>}
     </div>
