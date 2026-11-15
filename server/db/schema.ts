@@ -35,6 +35,12 @@ export const users = mysqlTable('users', {
     tokenVersion: int('token_version').default(0).notNull(),
     // Set when staff give the customer a temporary password; cleared when they choose a new one
     mustChangePassword: boolean('must_change_password').default(false).notNull(),
+    // Two-step sign-in, optional for customers: 'none', a code by email, or an authenticator app.
+    // The authenticator secret is stored encrypted (server/src/modules/mfa/secret-box.ts) and
+    // totp_last_step stops one code being used twice.
+    mfaMethod: mysqlEnum('mfa_method', ['none', 'email', 'totp']).default('none').notNull(),
+    totpSecret: varchar('totp_secret', { length: 255 }),
+    totpLastStep: int('totp_last_step'),
 });
 
 // Addresses Table
@@ -46,6 +52,10 @@ export const addresses = mysqlTable('addresses', {
     state: varchar('state', { length: 100 }).notNull(),
     zip: varchar('zip', { length: 20 }).notNull(),
     country: varchar('country', { length: 100 }).notNull(),
+    // Who the parcel is for and a number the carrier can call. Nullable because addresses saved
+    // before these columns existed have neither; every form asks for the name from now on.
+    recipientName: varchar('recipient_name', { length: 100 }),
+    phone: varchar('phone', { length: 20 }),
     isDefault: boolean('is_default').default(false).notNull(),
 });
 
@@ -231,6 +241,10 @@ export const admin = mysqlTable('admin', {
     isActive: boolean('is_active').default(true).notNull(),
     tokenVersion: int('token_version').default(0).notNull(),
     mustChangePassword: boolean('must_change_password').default(false).notNull(),
+    // Two-step sign-in is required for staff: a code by email (the default) or an authenticator app
+    mfaMethod: mysqlEnum('mfa_method', ['email', 'totp']).default('email').notNull(),
+    totpSecret: varchar('totp_secret', { length: 255 }),
+    totpLastStep: int('totp_last_step'),
     lastLogin: timestamp('last_login'),
     created: timestamp('created').defaultNow().notNull(),
     updated: timestamp('updated').defaultNow().onUpdateNow().notNull(),
@@ -351,6 +365,19 @@ export const passwordResetTokens = mysqlTable('password_reset_tokens', {
 
 // Rate Limits Table: counters for sign-in lockout and per-IP limits (kept in the DB so they work
 // across serverless instances). key examples: "login:email:ada@example.com", "contact:ip:1.2.3.4"
+// One-time sign-in codes sent by email (two-step sign-in). Only a hash of the code is stored;
+// a code expires after 10 minutes, works once, and is void after 5 wrong tries.
+export const mfaChallenges = mysqlTable('mfa_challenges', {
+    challengeId: int('challenge_id').autoincrement().primaryKey().notNull(),
+    actorType: mysqlEnum('actor_type', ['customer', 'admin']).notNull(),
+    actorId: int('actor_id').notNull(),
+    codeHash: varchar('code_hash', { length: 64 }).notNull(),
+    attempts: int('attempts').default(0).notNull(),
+    usedAt: timestamp('used_at'),
+    expiresAt: timestamp('expires_at').notNull(),
+    created: timestamp('created').defaultNow().notNull(),
+}, (t) => [index('mfa_challenges_actor_idx').on(t.actorType, t.actorId)]);
+
 export const rateLimits = mysqlTable('rate_limits', {
     rateKey: varchar('rate_key', { length: 191 }).primaryKey().notNull(),
     hits: int('hits').default(0).notNull(),

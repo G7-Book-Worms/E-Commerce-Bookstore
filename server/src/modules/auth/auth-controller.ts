@@ -6,6 +6,7 @@ import { HttpStatus } from '../../shared/http/status-codes';
 import { setAuthCookie, clearAuthCookie, AUTH_COOKIE_NAME } from '../../shared/utils/cookie-utils';
 import { clientIp } from '../../shared/security/client-ip';
 import { verifyToken } from '../../shared/utils/token-util';
+import { MFA_PENDING_COOKIE, pendingCookieOptions } from '../mfa/mfa-service';
 
 const authService = new AuthService();
 
@@ -24,6 +25,15 @@ export class AuthController {
   static async login(req: NextRequest) {
     const validatedInput = loginInputSchema.parse(await req.json());
     const result = await authService.login(validatedInput, clientIp(req));
+    if ('mfa' in result) {
+      // Password was right; the session cookie waits for the second step (/api/mfa/verify)
+      const response = HttpResponse.success(
+        { mfaRequired: true, method: result.mfa.method, sentTo: result.mfa.sentTo },
+        'Enter your sign-in code'
+      );
+      response.cookies.set(MFA_PENDING_COOKIE, result.mfa.pendingToken, pendingCookieOptions);
+      return response;
+    }
     const response = HttpResponse.success({ user: result.user }, 'Logged in successfully');
     setAuthCookie(response, result.token, validatedInput.rememberMe ?? false);
     return response;

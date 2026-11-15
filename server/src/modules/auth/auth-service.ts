@@ -12,6 +12,8 @@ import { BadRequestError, ConflictError, NotFoundError, UnauthorizedError } from
 import { assertNotLocked, clearFailures, rateLimit, recordFailure } from '../../shared/security/rate-limit';
 import { logActivity } from '../activity/activity-log';
 import { sendEmail } from '../email/mailer';
+import { beginSecondStep, needsSecondStep, type SecondStep } from '../mfa/mfa-service';
+import { alertIfNewSignIn, alertLockout } from '../mfa/security-alerts';
 import { passwordChangedEmail, passwordResetEmail, welcomeEmail } from '../email/templates';
 
 export type LoginInput = z.infer<typeof loginInputSchema>;
@@ -47,7 +49,7 @@ export class AuthService {
    * - deactivated accounts can't sign in
    * - old, cheaper bcrypt hashes are upgraded after a successful sign-in
    */
-  async login(input: LoginInput, ip: string): Promise<{ user: SanitizedUser; token: string }> {
+  async login(input: LoginInput, ip: string): Promise<{ user: SanitizedUser; token: string } | { mfa: SecondStep }> {
     const email = input.email.trim().toLowerCase();
     await rateLimit(`login:ip:${ip}`, 30, 15 * 60);
     const lockKey = `login:email:${email}`;
@@ -64,6 +66,7 @@ export class AuthService {
     if (!isMatch) {
       const locked = await recordFailure(lockKey);
       await logActivity('customer', user.userId, locked ? 'auth.locked_out' : 'auth.login_failed', { email }, ip);
+      if (locked) await alertLockout({ kind: 'customer', id: user.userId, email: user.email, firstName: user.firstName }, ip);
       throw new UnauthorizedError('Invalid email or password');
     }
     if (!user.isActive) {
@@ -74,9 +77,19 @@ export class AuthService {
     if (needsRehash(user.passwordHash)) {
       await this.usersRepo.updatePasswordHash(user.userId, await hashPassword(input.password));
     }
-    await logActivity('customer', user.userId, 'auth.login', { rememberMe: !!input.rememberMe }, ip);
 
-    return { user: this.sanitizeUser(user), token: customerToken(user, !!input.rememberMe) };
+    // Two-step sign-in turned on: no session yet, ask for the code first (see ../mfa/mfa-service.ts)
+    if (needsSecondStep({ kind: 'customer', mfaMethod: user.mfaMethod, totpSecret: user.totpSecret })) {
+      return { mfa: await beginSecondStep('customer', user.userId, !!input.rememberMe, ip) };
+    }
+    return this.completeSignIn(user, !!input.rememberMe, ip);
+  }
+
+  /** The last step of every customer sign-in: alert on a new network, log it, issue the session. */
+  async completeSignIn(user: User, remember: boolean, ip: string) {
+    await alertIfNewSignIn({ kind: 'customer', id: user.userId, email: user.email, firstName: user.firstName }, ip);
+    await logActivity('customer', user.userId, 'auth.login', { rememberMe: remember, twoStep: user.mfaMethod !== 'none' }, ip);
+    return { user: this.sanitizeUser(user), token: customerToken(user, remember) };
   }
 
   async register(input: RegisterInput, ip: string): Promise<{ user: SanitizedUser; token: string }> {

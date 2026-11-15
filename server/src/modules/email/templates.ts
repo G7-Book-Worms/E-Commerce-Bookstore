@@ -300,3 +300,53 @@ ${button(link, 'View your order')}
     ),
   };
 }
+
+// --- Two-step sign-in and security alerts ---------------------------------------------------
+
+/** The one-time sign-in code. `forAccount` is set when a demo account's code is redirected. */
+export function signInCodeEmail(to: string, firstName: string, code: string, portal: 'customer' | 'staff', forAccount?: string): Email {
+  const where = portal === 'staff' ? 'the Book Worms staff portal' : 'your Book Worms account';
+  const demo = forAccount
+    ? `<p style="font-size:13px;color:#57534e">Demo account <strong>${escapeHtml(forAccount)}</strong> has no real inbox, so its code comes to this shared support inbox.</p>`
+    : '';
+  return {
+    to,
+    subject: `${code} is your Book Worms sign-in code`,
+    ...layout(
+      `Your sign-in code, ${firstName}`,
+      `<p>Use this code to finish signing in to ${where}:</p>
+<p style="font-size:30px;letter-spacing:6px;font-weight:bold;font-family:'Courier New',monospace;margin:18px 0">${code}</p>
+<p>It works once and expires in 10 minutes. Book Worms staff will never ask you for it.</p>
+<p style="font-size:13px;color:#57534e">Didn't try to sign in? Someone has your password: change it now and nothing else is needed, since they can't get in without this code.</p>${demo}`,
+      `Your Book Worms sign-in code is ${code}. It works once and expires in 10 minutes. Staff will never ask you for it.\nDidn't try to sign in? Someone has your password: change it now.${forAccount ? `\n(Demo account ${forAccount}: its code comes to this shared support inbox.)` : ''}`
+    ),
+  };
+}
+
+/**
+ * A security alert: something happened to the account that its owner should know about.
+ * `facts` are short "label: value" lines (time, IP address, what changed).
+ */
+export function securityAlertEmail(
+  to: string,
+  firstName: string,
+  alert: { subject: string; headline: string; body: string; facts: [string, string][] },
+  portal: 'customer' | 'staff'
+): Email {
+  const fix = portal === 'staff'
+    ? 'If this wasn\'t you, change your password from the staff portal right away and tell an administrator.'
+    : `If this wasn't you, reset your password at ${SITE()}/forgot-password right away.`;
+  const rows = alert.facts
+    .map(([k, v]) => `<tr><td style="padding:3px 12px 3px 0;color:#57534e">${escapeHtml(k)}</td><td>${escapeHtml(v)}</td></tr>`)
+    .join('');
+  return {
+    to,
+    subject: `Security alert: ${alert.subject}`,
+    ...layout(
+      `${alert.headline}, ${firstName}`,
+      `<p>${escapeHtml(alert.body)}</p><table role="presentation" style="font-size:14px;margin:12px 0">${rows}</table>
+<p style="background:#fef2f2;border:1px solid #fecaca;padding:10px;border-radius:6px">${escapeHtml(fix)}</p>`,
+      `${alert.body}\n${alert.facts.map(([k, v]) => `${k}: ${v}`).join('\n')}\n\n${fix}`
+    ),
+  };
+}

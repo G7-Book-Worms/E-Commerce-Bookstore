@@ -39,7 +39,7 @@ async function Nav() {
         <p className="font-medium text-white">{staff.firstName} {staff.lastName}</p>
         <p className="text-xs text-green-200">{ROLE_LABELS[staff.role]} · {staff.email}</p>
         <div className="mt-3 flex flex-wrap gap-2">
-          <Link href="/admin/change-password" className="text-xs text-green-100 underline underline-offset-2 hover:text-white">Change password</Link>
+          <Link href="/admin/change-password" className="text-xs text-green-100 underline underline-offset-2 hover:text-white">Password &amp; sign-in</Link>
           <SignOutButton />
         </div>
       </div>

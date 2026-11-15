@@ -1,15 +1,17 @@
 import { NextRequest } from 'next/server';
 import { createApiHandler } from '@/server/src/server';
 import { HttpResponse } from '@/server/src/shared/http/api-response';
-import { setStaffCookie } from '@/server/src/shared/utils/cookie-utils';
 import { clientIp } from '@/server/src/shared/security/client-ip';
 import { staffLogin, staffLoginSchema } from '@/server/src/modules/staff/staff-auth';
+import { MFA_PENDING_COOKIE, pendingCookieOptions } from '@/server/src/modules/mfa/mfa-service';
 
 // POST /api/staff/login { email, password, employeeId }
+// A correct password never signs a staff member straight in: two-step sign-in is required, so
+// this answers "enter your code" and the session cookie comes from POST /api/mfa/verify.
 export const POST = createApiHandler(async (req: NextRequest) => {
   const input = staffLoginSchema.parse(await req.json());
-  const { token, mustChangePassword } = await staffLogin(input, clientIp(req));
-  const res = HttpResponse.success({ mustChangePassword }, 'Signed in');
-  setStaffCookie(res, token);
+  const { mfa } = await staffLogin(input, clientIp(req));
+  const res = HttpResponse.success({ mfaRequired: true, method: mfa.method, sentTo: mfa.sentTo }, 'Enter your sign-in code');
+  res.cookies.set(MFA_PENDING_COOKIE, mfa.pendingToken, pendingCookieOptions);
   return res;
 });

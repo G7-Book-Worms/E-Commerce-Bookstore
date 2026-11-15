@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { PasswordInput } from '@/components/ui/password-input';
 import { btnPrimary, inputCls } from '@/components/staff/ui';
 import { staffFetch } from '@/components/staff/staff-fetch';
+import { TwoStepPrompt } from '@/components/auth/two-step-prompt';
 
 // Field order matters: the password comes last so that pressing Enter in it signs in.
 const FIELDS = [
@@ -20,6 +21,8 @@ export function StaffLoginForm() {
   const [missing, setMissing] = useState<FieldName | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Every staff sign-in has a second step (a code by email or from an authenticator app)
+  const [twoStep, setTwoStep] = useState<{ method: 'email' | 'totp'; sentTo: string | null } | null>(null);
 
   const set = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
@@ -39,16 +42,32 @@ export function StaffLoginForm() {
     }
     setMissing(null);
     setBusy(true);
-    const res = await staffFetch<{ mustChangePassword: boolean }>('/api/staff/login', 'POST', form);
+    const res = await staffFetch<{ mfaRequired?: boolean; method?: 'email' | 'totp'; sentTo?: string | null }>('/api/staff/login', 'POST', form);
     setBusy(false);
     if (!res.ok) {
       setError(res.message);
       return;
     }
+    setTwoStep({ method: res.data?.method === 'totp' ? 'totp' : 'email', sentTo: res.data?.sentTo ?? null });
+  }
+
+  function signedIn(mustChangePassword: boolean) {
     const next = params.get('callbackUrl');
-    window.location.href = res.data?.mustChangePassword
+    window.location.href = mustChangePassword
       ? '/admin/change-password'
-      : next && next.startsWith('/admin') ? next : '/admin';
+      : next && next.startsWith('/admin') && !next.startsWith('//') ? next : '/admin';
+  }
+
+  if (twoStep) {
+    return (
+      <TwoStepPrompt
+        tone="staff"
+        method={twoStep.method}
+        sentTo={twoStep.sentTo}
+        onCancel={() => { setTwoStep(null); setForm((f) => ({ ...f, password: '' })); }}
+        onSuccess={(data) => signedIn(!!data.mustChangePassword)}
+      />
+    );
   }
 
   // aria-invalid + a message tied to the field with aria-describedby, so screen readers announce it

@@ -4,7 +4,8 @@ import React, { useState, Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { z } from 'zod';
-import { loginUser, AuthApiError } from '@/lib/api/auth';
+import { loginUser, AuthApiError, MfaRequiredError, sessionFromVerify } from '@/lib/api/auth';
+import { TwoStepPrompt } from '@/components/auth/two-step-prompt';
 import { useAuth } from '../../context/auth-context';
 import { PasswordInput } from '@/components/ui/password-input';
 
@@ -49,6 +50,8 @@ function LoginForm() {
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof LoginFormData, string>>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  // Set when the password was right but the account asks for a sign-in code next
+  const [twoStep, setTwoStep] = useState<{ method: 'email' | 'totp'; sentTo: string | null } | null>(null);
 
   // SCRUM-165: Extract callbackUrl query parameter
   const callbackUrl = searchParams.get('callbackUrl');
@@ -98,7 +101,9 @@ function LoginForm() {
           ? '/account?tab=security'
           : callbackUrl && callbackUrl.startsWith('/') && !callbackUrl.startsWith('//') ? callbackUrl : '/';
       } catch (err: any) {
-        if (err instanceof AuthApiError) {
+        if (err instanceof MfaRequiredError) {
+          setTwoStep({ method: err.method, sentTo: err.sentTo });
+        } else if (err instanceof AuthApiError) {
           setServerError(err.message);
         } else {
           setServerError('Invalid email or password. Please try again.');
@@ -107,6 +112,24 @@ function LoginForm() {
         setIsSubmitting(false);
       }
   };
+
+  const destination = (mustChange: boolean) =>
+    mustChange ? '/account?tab=security' : safeCallback ?? '/';
+
+  if (twoStep) {
+    return (
+      <TwoStepPrompt
+        method={twoStep.method}
+        sentTo={twoStep.sentTo}
+        onCancel={() => { setTwoStep(null); setFormData((f) => ({ ...f, password: '' })); }}
+        onSuccess={(data) => {
+          const session = sessionFromVerify(data.user);
+          if (session) setUserSession(session);
+          window.location.href = destination(!!session?.mustChangePassword);
+        }}
+      />
+    );
+  }
 
   return (
     <>
