@@ -15,9 +15,20 @@ import { passwordChangedEmail } from '../email/templates';
 import { rateLimit } from '../../shared/security/rate-limit';
 import {
   BadRequestError,
+  ConflictError,
   NotFoundError,
   UnauthorizedError,
 } from '../../shared/errors/app-error';
+
+/** MySQL refused a delete because another row still points at this one (errno 1451). */
+function isStillReferencedError(error: unknown): boolean {
+  let current = error as { code?: string; errno?: number; cause?: unknown } | undefined;
+  for (let depth = 0; current && depth < 5; depth++) {
+    if (current.code === 'ER_ROW_IS_REFERENCED_2' || current.code === 'ER_ROW_IS_REFERENCED' || current.errno === 1451) return true;
+    current = current.cause as typeof current;
+  }
+  return false;
+}
 
 export class UsersService {
   constructor(private usersRepo = new UsersRepository()) {}
@@ -122,7 +133,16 @@ export class UsersService {
     if (!existing) {
       throw new NotFoundError('Address not found or unauthorized');
     }
-    return this.usersRepo.deleteAddress(addressId, userId);
+    try {
+      return await this.usersRepo.deleteAddress(addressId, userId);
+    } catch (err) {
+      // Past orders keep a link to the address they shipped to, so the database won't drop it.
+      // Say so plainly instead of answering with a generic server error.
+      if (isStillReferencedError(err)) {
+        throw new ConflictError('This address is on one of your past orders, so it can\'t be deleted.');
+      }
+      throw err;
+    }
   }
 
   /**

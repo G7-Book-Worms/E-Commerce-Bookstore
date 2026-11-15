@@ -19,6 +19,7 @@ import { FormatBadge } from "@/components/format-badge";
 import { formatPrice } from "@/lib/catalog";
 import { loadDiscountCode, type CartData } from "@/lib/cart-types";
 import { fetchUserAddresses, createUserAddress, type AddressItem } from "@/lib/api/user";
+import { DeleteAddressDialog } from "@/components/delete-address-dialog";
 import { useAuth } from "@/app/context/auth-context";
 import { useCart, type GuestCartLine } from "@/app/context/CartContext";
 
@@ -46,6 +47,8 @@ function Checkout() {
   const [addresses, setAddresses] = useState<AddressItem[]>([]);
   const [addressId, setAddressId] = useState<number | null>(null);
   const [adding, setAdding] = useState(false);
+  // The saved address waiting on the "Delete this address?" dialog
+  const [deleting, setDeleting] = useState<AddressItem | null>(null);
   const [form, setForm] = useState(EMPTY);
   const [email, setEmail] = useState("");
   const [note, setNote] = useState("");
@@ -106,6 +109,24 @@ function Checkout() {
     } catch (err) {
       setError((err as Error).message);
     }
+  }
+
+  // After a saved address is deleted: drop it, and if it was the chosen one fall back to the
+  // default (or the first left). With none left, open the new-address form.
+  function addressDeleted(id: number) {
+    const rest = addresses.filter((a) => a.addressId !== id);
+    setAddresses(rest);
+    setDeleting(null);
+    const next = addressId === id ? (rest.find((a) => a.isDefault) ?? rest[0])?.addressId ?? null : addressId;
+    setAddressId(next);
+    if (rest.length === 0) setAdding(true);
+    // The delete button went with the address, so put focus on the chosen address (or the form).
+    requestAnimationFrame(() => {
+      const target = next != null
+        ? document.querySelector<HTMLInputElement>(`input[name="address"][value="${next}"]`)
+        : document.querySelector<HTMLInputElement>("#checkout-address-form input");
+      target?.focus();
+    });
   }
 
   async function pay() {
@@ -260,20 +281,33 @@ function Checkout() {
             ) : (
               <>
                 {addresses.length > 0 && (
-                  <div className="flex flex-col gap-2" role="radiogroup" aria-label="Shipping address">
+                  <div className="flex flex-col gap-2" role="group" aria-label="Saved shipping addresses">
                     {addresses.map((a) => (
-                      <label key={a.addressId} className={`flex cursor-pointer gap-3 rounded-lg border p-3 text-sm ${addressId === a.addressId ? "border-stone-900 bg-stone-50" : ""}`}>
-                        <input type="radio" name="address" checked={addressId === a.addressId} onChange={() => setAddressId(a.addressId)} />
-                        <span>
-                          {a.street}<br />{a.city}, {a.state} {a.zip}, {a.country}
-                          {a.isDefault && <span className="ml-2 text-xs text-muted-foreground">(default)</span>}
-                        </span>
-                      </label>
+                      <div key={a.addressId} className={`flex items-start gap-2 rounded-lg border text-sm ${addressId === a.addressId ? "border-stone-900 bg-stone-50" : ""}`}>
+                        <label className="flex min-w-0 flex-1 cursor-pointer gap-3 p-3">
+                          <input type="radio" name="address" value={a.addressId} checked={addressId === a.addressId} onChange={() => setAddressId(a.addressId)} />
+                          <span>
+                            {a.street}<br />{a.city}, {a.state} {a.zip}, {a.country}
+                            {a.isDefault && <span className="ml-2 text-xs text-muted-foreground">(default)</span>}
+                          </span>
+                        </label>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="m-1.5 shrink-0 text-stone-500 hover:bg-red-50 hover:text-red-700"
+                          aria-label={`Delete address ${a.street}, ${a.city}`}
+                          title="Delete this address"
+                          onClick={() => setDeleting(a)}
+                        >
+                          <Trash2 />
+                        </Button>
+                      </div>
                     ))}
                   </div>
                 )}
                 {adding ? (
-                  <form onSubmit={saveAddress} className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <form id="checkout-address-form" onSubmit={saveAddress} className="mt-4 grid gap-3 sm:grid-cols-2">
                     <div className="sm:col-span-2">{streetField()}</div>
                     {field("city", "City", "address-level2")}
                     {field("state", "State", "address-level1")}
@@ -287,6 +321,7 @@ function Checkout() {
                 ) : (
                   <Button variant="outline" size="sm" className="mt-3" onClick={() => setAdding(true)}>Add a new address</Button>
                 )}
+                <DeleteAddressDialog address={deleting} onCancel={() => setDeleting(null)} onDeleted={addressDeleted} />
               </>
             )}
           </section>

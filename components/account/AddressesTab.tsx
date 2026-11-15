@@ -1,14 +1,14 @@
 // components/account/AddressesTab.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { AddressAutocomplete, fillAddress } from '@/components/address-autocomplete';
 import {
   AddressItem,
   createUserAddress,
   updateUserAddress,
-  deleteUserAddress,
 } from '@/lib/api/user';
+import { DeleteAddressDialog } from '@/components/delete-address-dialog';
 
 interface Props {
   addresses: AddressItem[];
@@ -17,7 +17,10 @@ interface Props {
 
 export const AddressesTab: React.FC<Props> = ({ addresses, onRefresh }) => {
   const [modalOpen, setModalOpen] = useState(false);
+  const addButtonRef = useRef<HTMLButtonElement>(null);
   const [editingAddress, setEditingAddress] = useState<AddressItem | null>(null);
+  // The address waiting on the "Delete this address?" dialog (same dialog as checkout)
+  const [deleting, setDeleting] = useState<AddressItem | null>(null);
 
   const [formData, setFormData] = useState({
     street: '',
@@ -78,14 +81,11 @@ export const AddressesTab: React.FC<Props> = ({ addresses, onRefresh }) => {
     }
   };
 
-  const handleDelete = async (addrId: number) => {
-    if (!confirm('Are you sure you want to delete this address?')) return;
-    try {
-      await deleteUserAddress(addrId);
-      onRefresh();
-    } catch (err: any) {
-      alert(err.message || 'Failed to delete address');
-    }
+  const handleDeleted = () => {
+    setDeleting(null);
+    onRefresh();
+    // The card (and its Delete button) is gone, so move focus to the Add button above the list.
+    requestAnimationFrame(() => addButtonRef.current?.focus());
   };
 
   return (
@@ -96,6 +96,7 @@ export const AddressesTab: React.FC<Props> = ({ addresses, onRefresh }) => {
           <p className="text-sm text-stone-500 mt-0.5">Manage your shipping and billing destinations.</p>
         </div>
         <button
+          ref={addButtonRef}
           onClick={openCreateModal}
           className="h-10 px-4 rounded-md bg-stone-900 text-stone-50 text-xs font-semibold hover:bg-stone-800 transition-colors shadow-xs"
         >
@@ -136,7 +137,8 @@ export const AddressesTab: React.FC<Props> = ({ addresses, onRefresh }) => {
                   Edit
                 </button>
                 <button
-                  onClick={() => handleDelete(addr.addressId)}
+                  onClick={() => setDeleting(addr)}
+                  aria-label={`Delete address ${addr.street}, ${addr.city}`}
                   className="text-red-600 hover:text-red-800 font-medium"
                 >
                   Delete
@@ -155,6 +157,8 @@ export const AddressesTab: React.FC<Props> = ({ addresses, onRefresh }) => {
           </div>
         ))}
       </div>
+
+      <DeleteAddressDialog address={deleting} onCancel={() => setDeleting(null)} onDeleted={handleDeleted} />
 
       {/* Modal Dialog */}
       {modalOpen && (
