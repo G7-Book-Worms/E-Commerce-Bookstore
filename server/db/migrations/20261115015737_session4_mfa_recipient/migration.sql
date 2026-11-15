@@ -18,6 +18,7 @@ ALTER TABLE `admin` ADD `totp_last_step` int;--> statement-breakpoint
 ALTER TABLE `admin` ADD `work_mailbox` varchar(64);--> statement-breakpoint
 ALTER TABLE `users` ADD `mfa_method` enum('none','email','totp','sms') DEFAULT 'none' NOT NULL;--> statement-breakpoint
 ALTER TABLE `users` ADD `mfa_phone` varchar(20);--> statement-breakpoint
+ALTER TABLE `users` ADD `sms_order_updates` boolean DEFAULT false NOT NULL;--> statement-breakpoint
 ALTER TABLE `users` ADD `totp_secret` varchar(255);--> statement-breakpoint
 ALTER TABLE `users` ADD `totp_last_step` int;--> statement-breakpoint
 CREATE INDEX `mfa_challenges_actor_idx` ON `mfa_challenges` (`actor_type`,`actor_id`);

@@ -6,7 +6,7 @@ import { books } from '../books/books-schema';
 import { payments } from '../../../db/schema';
 import { isPlacedOrder } from '../orders/placed-orders';
 
-export type NewUser = Omit<User, 'userId' | 'created' | 'updated' | 'isActive' | 'tokenVersion' | 'mustChangePassword' | 'mfaMethod' | 'totpSecret' | 'totpLastStep' | 'mfaPhone'> & { isActive?: boolean };
+export type NewUser = Omit<User, 'userId' | 'created' | 'updated' | 'isActive' | 'tokenVersion' | 'mustChangePassword' | 'mfaMethod' | 'totpSecret' | 'totpLastStep' | 'mfaPhone' | 'smsOrderUpdates'> & { isActive?: boolean };
 
 export class UsersRepository {
   async findByEmail(email: string): Promise<User | null> {

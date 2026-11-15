@@ -102,6 +102,8 @@ export const ACTION_INFO: Readonly<Record<string, ActionInfo>> = {
 
   // --- Staff accounts (written as `staff.${action}` by /api/staff/accounts/[id]) -----------------
   'staff.created': { category: 'staff', label: 'Staff account created' },
+  'customer.order_texts_on': { category: 'customers', label: 'Customer turned on order-update texts' },
+  'customer.order_texts_off': { category: 'customers', label: 'Customer turned off order-update texts' },
   'staff.mailbox_created': { category: 'staff', label: 'Work mailbox created' },
   'staff.mailbox_deleted': { category: 'staff', label: 'Work mailbox removed' },
   'staff.mailbox_delete_failed': { category: 'staff', label: 'Work mailbox could not be removed', failure: true },

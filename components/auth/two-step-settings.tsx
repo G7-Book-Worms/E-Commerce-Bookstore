@@ -31,6 +31,8 @@ export function TwoStepSettings({ endpoint, staff = false }: { endpoint: string;
   const [email, setEmail] = useState('');
   const [savedPhone, setSavedPhone] = useState<string | null>(null);
   const [smsOn, setSmsOn] = useState(false);
+  const [textingOn, setTextingOn] = useState(false);
+  const [orderTexts, setOrderTexts] = useState(false);
   const [phone, setPhone] = useState('');
   const [textedTo, setTextedTo] = useState<string | null>(null);
   const [choice, setChoice] = useState<Method>('email');
@@ -48,6 +50,8 @@ export function TwoStepSettings({ endpoint, staff = false }: { endpoint: string;
       setEmail(d.email);
       setSavedPhone(d.phone ?? null);
       setSmsOn(!!d.smsAvailable);
+      setTextingOn(!!d.textingAvailable);
+      setOrderTexts(!!d.orderTexts);
     } catch (e) {
       setMsg({ ok: false, text: (e as Error).message });
     }
@@ -231,6 +235,35 @@ export function TwoStepSettings({ endpoint, staff = false }: { endpoint: string;
             {busy ? 'Saving…' : choice === 'none' ? 'Turn off two-step sign-in' : 'Save'}
           </button>
         </form>
+      )}
+
+      {!staff && method === 'sms' && textingOn && (
+        <label className="flex items-start gap-2 rounded-lg border border-stone-200 p-3 text-sm">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={orderTexts}
+            disabled={busy}
+            onChange={async (e) => {
+              const enabled = e.target.checked;
+              setBusy(true);
+              setMsg(null);
+              try {
+                await call(endpoint, { action: 'order_texts', enabled });
+                setOrderTexts(enabled);
+                setMsg({ ok: true, text: enabled ? 'We\'ll text you when your orders ship, arrive or are cancelled.' : 'Order texts are off.' });
+              } catch (err) {
+                setMsg({ ok: false, text: (err as Error).message });
+              } finally {
+                setBusy(false);
+              }
+            }}
+          />
+          <span>
+            Also text me about my orders (shipped, delivered, cancelled)
+            <span className="block text-xs text-stone-500">To {savedPhone}. Reply STOP to any text to opt out. Message and data rates may apply.</span>
+          </span>
+        </label>
       )}
 
       {msg && <p role={msg.ok ? 'status' : 'alert'} className={`text-sm ${msg.ok ? 'text-green-800' : 'text-red-700'}`}>{msg.text}</p>}

@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "mysql",
-  "id": "c69b4922-d863-4ece-b8b4-30c33923ab70",
+  "id": "69e1fb37-7ea0-430b-ba0c-936cd8891c7b",
   "prevIds": [
     "d88f23d0-bcef-4780-a84b-2739bac4a746"
   ],
@@ -2730,6 +2730,20 @@
       "collation": null,
       "generated": null,
       "name": "mfa_phone",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "type": "boolean",
+      "notNull": true,
+      "autoIncrement": false,
+      "default": "false",
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "sms_order_updates",
       "entityType": "columns",
       "table": "users"
     },

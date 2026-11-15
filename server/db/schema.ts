@@ -42,6 +42,9 @@ export const users = mysqlTable('users', {
     // Verified mobile number for text-message codes (+12105550100); separate from the optional
     // contact phone above, which is never used for sign-in
     mfaPhone: varchar('mfa_phone', { length: 20 }),
+    // Opted in to texts about their orders (shipped, delivered, cancelled), sent to mfa_phone.
+    // Off by default; texts carry "Reply STOP to opt out" and the carrier handles STOP.
+    smsOrderUpdates: boolean('sms_order_updates').default(false).notNull(),
     totpSecret: varchar('totp_secret', { length: 255 }),
     totpLastStep: int('totp_last_step'),
 });

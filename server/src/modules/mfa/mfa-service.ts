@@ -32,6 +32,12 @@ import { openSecret, sealSecret } from './secret-box';
 import { generateTotpSecret, totpUri, verifyTotp } from './totp';
 import { alertMfaChanged, type AlertActor } from './security-alerts';
 import { checkSmsCode, maskPhone, sendSmsCode, smsAvailable, toE164 } from './twilio-verify';
+import { textingAvailable } from './twilio-messaging';
+
+async function orderTextsOn(userId: number): Promise<boolean> {
+  const [u] = await db.select({ on: users.smsOrderUpdates }).from(users).where(eq(users.userId, userId));
+  return !!u?.on;
+}
 
 export type MfaKind = 'customer' | 'staff';
 export type MfaMethod = 'none' | 'email' | 'totp' | 'sms';
@@ -77,7 +83,8 @@ export async function loadMfaAccount(kind: MfaKind, id: number): Promise<MfaAcco
 
 async function saveMfa(kind: MfaKind, id: number, values: { mfaMethod?: MfaMethod; totpSecret?: string | null; totpLastStep?: number | null; mfaPhone?: string | null }) {
   if (kind === 'customer') {
-    await db.update(users).set(values).where(eq(users.userId, id));
+    // No verified phone any more means no order texts either
+    await db.update(users).set({ ...values, ...(values.mfaPhone === null ? { smsOrderUpdates: false } : {}) }).where(eq(users.userId, id));
   } else {
     // Staff can't turn it off: the column only allows email, totp or sms
     const { mfaMethod, ...rest } = values;
@@ -290,6 +297,7 @@ export const mfaSettingsSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('confirm_totp'), setupToken: z.string().min(20).max(2048), code: z.string().trim().min(6).max(12), password: z.string().min(1, 'Enter your password').max(200) }),
   z.object({ action: z.literal('begin_sms'), phone: z.string().trim().min(7, 'Enter your mobile number').max(25) }),
   z.object({ action: z.literal('confirm_sms'), phone: z.string().trim().min(7).max(25), code: z.string().trim().min(4).max(12), password: z.string().min(1, 'Enter your password').max(200) }),
+  z.object({ action: z.literal('order_texts'), enabled: z.boolean() }),
   z.object({ action: z.literal('use_email'), password: z.string().min(1, 'Enter your password').max(200) }),
   z.object({ action: z.literal('disable'), password: z.string().min(1, 'Enter your password').max(200) }),
 ]);
@@ -304,6 +312,8 @@ export async function mfaStatus(kind: MfaKind, id: number) {
     email: maskEmail(a.email),
     phone: a.mfaPhone ? maskPhone(a.mfaPhone) : null,
     smsAvailable: smsAvailable(),
+    textingAvailable: textingAvailable(),
+    orderTexts: kind === 'customer' ? await orderTextsOn(id) : false,
   };
 }
 
@@ -353,6 +363,15 @@ export async function changeMfaSettings(kind: MfaKind, id: number, input: z.infe
     }
     await logActivity(actorType(kind), id, 'security.mfa_code_sent', { method: 'sms', purpose: 'setup' }, ip);
     return { sentTo: maskPhone(phone) };
+  }
+
+  if (input.action === 'order_texts') {
+    // Consent to order texts: customers only, to the phone they already verified
+    if (kind !== 'customer') throw new BadRequestError('Order texts are for customer accounts');
+    if (input.enabled && !a.mfaPhone) throw new BadRequestError('Verify a mobile number with text-message sign-in first.');
+    await db.update(users).set({ smsOrderUpdates: input.enabled }).where(eq(users.userId, id));
+    await logActivity('customer', id, input.enabled ? 'customer.order_texts_on' : 'customer.order_texts_off', {}, ip);
+    return { method: before, orderTexts: input.enabled };
   }
 
   await confirmPassword(a, input.password, ip);

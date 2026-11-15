@@ -1,11 +1,13 @@
 // server/src/modules/mfa/security-alerts.ts
-// Emails an account's owner when something security-relevant happens to it, and records every
+// Emails an account's owner when something security-relevant happens to it (and texts their
+// verified phone too, once an approved texting number is set up: see twilio-messaging.ts), and records every
 // alert in the activity log (category Security) so staff can see what was sent and why.
 //
 // Alerts never throw: a mail server problem must not block a sign-in.
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '../../../db';
-import { activityLog } from '../../../db/schema';
+import { activityLog, admin, users } from '../../../db/schema';
+import { sendText, textBody, textingAvailable } from './twilio-messaging';
 import { logActivity } from '../activity/activity-log';
 import { sendEmail } from '../email/mailer';
 import { securityAlertEmail } from '../email/templates';
@@ -22,7 +24,16 @@ function when(d = new Date()) {
 async function send(actor: AlertActor, action: string, alert: Parameters<typeof securityAlertEmail>[2], details: Record<string, unknown>, ip?: string | null) {
   try {
     const emailed = await sendEmail(securityAlertEmail(actor.email, actor.firstName, alert, actor.kind));
-    await logActivity(actorType(actor.kind), actor.id, action, { ...details, emailed }, ip ?? null);
+    let texted: boolean | undefined;
+    if (textingAvailable()) {
+      const [row] = actor.kind === 'customer'
+        ? await db.select({ phone: users.mfaPhone }).from(users).where(eq(users.userId, actor.id))
+        : await db.select({ phone: admin.mfaPhone }).from(admin).where(eq(admin.adminId, actor.id));
+      if (row?.phone) {
+        texted = await sendText(row.phone, textBody(`security alert: ${alert.headline.toLowerCase()}. Details are in your email. Not you? Change your password now.`));
+      }
+    }
+    await logActivity(actorType(actor.kind), actor.id, action, { ...details, emailed, ...(texted !== undefined ? { texted } : {}) }, ip ?? null);
   } catch (err) {
     console.error('[security-alert] failed', action, err);
   }

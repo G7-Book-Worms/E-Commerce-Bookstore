@@ -9,6 +9,8 @@ import { changeStock } from '../inventory/inventory-service';
 import { syncBookTotals } from '../books/book-totals';
 import { sendEmail } from '../email/mailer';
 import { orderStatusEmail } from '../email/templates';
+import { sendText, textBody, textingAvailable } from '../mfa/twilio-messaging';
+import { shipmentView } from './carriers';
 import { isCarrier, normalizeTrackingNumber, validateTrackingNumber, type Carrier } from './carriers';
 
 export const ORDER_STATUSES = ['pending', 'transit', 'arrived', 'cancelled'] as const;
@@ -173,8 +175,13 @@ export async function updateOrderStatus(
 
   let emailed = false;
   if (order.userId) {
-    const [u] = await db.select({ email: users.email, firstName: users.firstName }).from(users).where(eq(users.userId, order.userId));
+    const [u] = await db.select({ email: users.email, firstName: users.firstName, phone: users.mfaPhone, texts: users.smsOrderUpdates }).from(users).where(eq(users.userId, order.userId));
     if (u) emailed = await sendEmail(orderStatusEmail(u.email, u.firstName, orderId, input.status, carrier, tracking));
+    // Only customers who asked for order texts, to the phone they verified, and only once an
+    // approved texting number is configured
+    if (u?.texts && u.phone && textingAvailable()) {
+      await sendText(u.phone, textBody(orderStatusText(orderId, input.status, carrier, tracking), true));
+    }
   } else if (order.guestEmail) {
     // Guest orders: no account to point at, so the email carries the signed order link
     const [a] = await db.select({ name: addresses.recipientName }).from(addresses).where(eq(addresses.addressId, order.shippingAddressId));
@@ -183,6 +190,21 @@ export async function updateOrderStatus(
     emailed = await sendEmail(orderStatusEmail(order.guestEmail, firstName, orderId, input.status, carrier, tracking, guestOrderLink(orderId)));
   }
   return { from, to: input.status, emailed };
+}
+
+/** The order-update text: short, with the carrier's tracking link when there is one. */
+export function orderStatusText(orderId: number, status: string, carrier?: string | null, tracking?: string | null): string {
+  const shipment = shipmentView(carrier, tracking);
+  switch (status) {
+    case 'transit':
+      return `order #${orderId} has shipped${shipment?.carrierLabel ? ` with ${shipment.carrierLabel}` : ''}.${shipment?.trackingUrl ? ` Track it: ${shipment.trackingUrl}` : ''}`;
+    case 'arrived':
+      return `order #${orderId} was marked delivered.`;
+    case 'cancelled':
+      return `order #${orderId} was cancelled. Details are in your email.`;
+    default:
+      return `order #${orderId} was updated.`;
+  }
 }
 
 /** The most orders one bulk action may touch. Also enforced by the API route's schema. */
