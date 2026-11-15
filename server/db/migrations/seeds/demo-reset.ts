@@ -32,6 +32,12 @@ async function main() {
       isActive: true,
       mustChangePassword: false,
       tokenVersion: sql`${users.tokenVersion} + 1`,
+      // Two-step sign-in back off, and no saved phone, so the demo starts from a clean account
+      mfaMethod: "none",
+      totpSecret: null,
+      totpLastStep: null,
+      mfaPhone: null,
+      smsOrderUpdates: false,
     }).where(eq(users.email, email));
   }
 
@@ -42,6 +48,11 @@ async function main() {
       isActive: true,
       mustChangePassword: false,
       tokenVersion: sql`${admin.tokenVersion} + 1`,
+      // Demo staff use emailed codes, which arrive in the support inbox (see mfa-service.ts)
+      mfaMethod: "email",
+      totpSecret: null,
+      totpLastStep: null,
+      mfaPhone: null,
     }).where(eq(admin.email, s.email));
   }
   await db.delete(rateLimits);
