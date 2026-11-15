@@ -31,9 +31,11 @@ import { signInCodeEmail } from '../email/templates';
 import { openSecret, sealSecret } from './secret-box';
 import { generateTotpSecret, totpUri, verifyTotp } from './totp';
 import { alertMfaChanged, type AlertActor } from './security-alerts';
+import { checkSmsCode, maskPhone, sendSmsCode, smsAvailable, toE164 } from './twilio-verify';
 
 export type MfaKind = 'customer' | 'staff';
-export type MfaMethod = 'none' | 'email' | 'totp';
+export type MfaMethod = 'none' | 'email' | 'totp' | 'sms';
+type CodeMethod = 'email' | 'totp' | 'sms';
 
 export const MFA_PENDING_COOKIE = 'mfa_pending';
 const PENDING_AUDIENCE = 'mfa-pending';
@@ -61,22 +63,23 @@ export interface MfaAccount {
   mfaMethod: MfaMethod;
   totpSecret: string | null;
   totpLastStep: number | null;
+  mfaPhone: string | null;
 }
 
 export async function loadMfaAccount(kind: MfaKind, id: number): Promise<MfaAccount | null> {
   if (kind === 'customer') {
     const [u] = await db.select().from(users).where(eq(users.userId, id)).limit(1);
-    return u ? { kind, id: u.userId, email: u.email, firstName: u.firstName, isActive: u.isActive, tokenVersion: u.tokenVersion, passwordHash: u.passwordHash, mfaMethod: u.mfaMethod, totpSecret: u.totpSecret, totpLastStep: u.totpLastStep } : null;
+    return u ? { kind, id: u.userId, email: u.email, firstName: u.firstName, isActive: u.isActive, tokenVersion: u.tokenVersion, passwordHash: u.passwordHash, mfaMethod: u.mfaMethod, totpSecret: u.totpSecret, totpLastStep: u.totpLastStep, mfaPhone: u.mfaPhone } : null;
   }
   const [a] = await db.select().from(admin).where(eq(admin.adminId, id)).limit(1);
-  return a ? { kind, id: a.adminId, email: a.email, firstName: a.firstName, isActive: a.isActive, tokenVersion: a.tokenVersion, passwordHash: a.passwordHash, mfaMethod: a.mfaMethod, totpSecret: a.totpSecret, totpLastStep: a.totpLastStep } : null;
+  return a ? { kind, id: a.adminId, email: a.email, firstName: a.firstName, isActive: a.isActive, tokenVersion: a.tokenVersion, passwordHash: a.passwordHash, mfaMethod: a.mfaMethod, totpSecret: a.totpSecret, totpLastStep: a.totpLastStep, mfaPhone: a.mfaPhone } : null;
 }
 
-async function saveMfa(kind: MfaKind, id: number, values: { mfaMethod?: MfaMethod; totpSecret?: string | null; totpLastStep?: number | null }) {
+async function saveMfa(kind: MfaKind, id: number, values: { mfaMethod?: MfaMethod; totpSecret?: string | null; totpLastStep?: number | null; mfaPhone?: string | null }) {
   if (kind === 'customer') {
     await db.update(users).set(values).where(eq(users.userId, id));
   } else {
-    // Staff can't turn it off: the column only allows email or totp
+    // Staff can't turn it off: the column only allows email, totp or sms
     const { mfaMethod, ...rest } = values;
     if (mfaMethod === 'none') throw new BadRequestError('Two-step sign-in is required for staff accounts');
     await db.update(admin).set({ ...rest, ...(mfaMethod ? { mfaMethod } : {}) }).where(eq(admin.adminId, id));
@@ -88,12 +91,17 @@ const alertActor = (a: MfaAccount): AlertActor => ({ kind: a.kind, id: a.id, ema
 /** Does this account have to pass a second step before it gets a session? */
 export function needsSecondStep(a: Pick<MfaAccount, 'kind' | 'mfaMethod' | 'totpSecret'>): boolean {
   if (a.kind === 'staff') return true;
-  return a.mfaMethod === 'email' || (a.mfaMethod === 'totp' && !!a.totpSecret);
+  return a.mfaMethod !== 'none';
 }
 
-/** The method actually used at sign-in (an authenticator with no secret falls back to email). */
-function effectiveMethod(a: Pick<MfaAccount, 'mfaMethod' | 'totpSecret'>): 'email' | 'totp' {
-  return a.mfaMethod === 'totp' && a.totpSecret ? 'totp' : 'email';
+/**
+ * The method actually used at sign-in. Anything that can't work right now falls back to email:
+ * an authenticator with no secret, or texts with no verified phone or with Twilio not set up.
+ */
+function effectiveMethod(a: Pick<MfaAccount, 'mfaMethod' | 'totpSecret' | 'mfaPhone'>): CodeMethod {
+  if (a.mfaMethod === 'totp' && a.totpSecret) return 'totp';
+  if (a.mfaMethod === 'sms' && a.mfaPhone && smsAvailable()) return 'sms';
+  return 'email';
 }
 
 /** "a•••@example.com", enough to recognise the inbox without spelling it out. */
@@ -105,7 +113,7 @@ export function maskEmail(email: string): string {
 
 // --- the pending token ------------------------------------------------------------------------
 
-interface PendingPayload { kind: MfaKind; id: number; tv: number; rem: boolean; via: 'email' | 'totp' }
+interface PendingPayload { kind: MfaKind; id: number; tv: number; rem: boolean; via: CodeMethod }
 
 function secret(): string {
   const s = process.env.JWT_SECRET;
@@ -126,7 +134,7 @@ function readPending(token: string | undefined): PendingPayload {
     const kind = p.k === 'staff' ? 'staff' : p.k === 'customer' ? 'customer' : null;
     const id = Number(p.sub);
     if (!kind || !Number.isInteger(id) || id <= 0) throw new Error('bad payload');
-    return { kind, id, tv: Number(p.tv), rem: !!p.rem, via: p.via === 'totp' ? 'totp' : 'email' };
+    return { kind, id, tv: Number(p.tv), rem: !!p.rem, via: p.via === 'totp' || p.via === 'sms' ? p.via : 'email' };
   } catch {
     throw new UnauthorizedError('Your sign-in timed out. Enter your password again.');
   }
@@ -186,27 +194,45 @@ async function checkEmailCode(a: MfaAccount, code: string): Promise<boolean> {
 
 // --- sign-in ----------------------------------------------------------------------------------
 
-export interface SecondStep { pendingToken: string; method: 'email' | 'totp'; sentTo: string | null }
+export interface SecondStep { pendingToken: string; method: CodeMethod; sentTo: string | null }
+
+/** Texts a code to the account's verified phone; false if Twilio couldn't send it. */
+async function sendTextCode(a: MfaAccount, ip: string | null): Promise<boolean> {
+  await rateLimit(`mfa:send:${actorType(a.kind)}:${a.id}`, 6, 15 * 60);
+  const sent = !!a.mfaPhone && (await sendSmsCode(a.mfaPhone));
+  await logActivity(actorType(a.kind), a.id, 'security.mfa_code_sent', { method: 'sms', sent }, ip);
+  return sent;
+}
 
 /** After a correct password: send a code if needed and hand back the pending token. */
 export async function beginSecondStep(kind: MfaKind, id: number, remember: boolean, ip: string | null): Promise<SecondStep> {
   const a = await loadMfaAccount(kind, id);
   if (!a) throw new UnauthorizedError('Please sign in again');
-  const method = effectiveMethod(a);
+  let method = effectiveMethod(a);
+  // If Twilio can't send right now, don't strand them: email a code instead
+  if (method === 'sms' && !(await sendTextCode(a, ip))) method = 'email';
   if (method === 'email') await sendEmailCode(a, ip);
   const dest = codeDestination(a.email);
   return {
     pendingToken: signPending({ kind, id, tv: a.tokenVersion, rem: remember, via: method }),
     method,
-    sentTo: method === 'email' ? (dest.redirectedFor ? 'the shared support inbox (demo account)' : maskEmail(a.email)) : null,
+    sentTo: method === 'email'
+      ? (dest.redirectedFor ? 'the shared support inbox (demo account)' : maskEmail(a.email))
+      : method === 'sms' ? maskPhone(a.mfaPhone!) : null,
   };
 }
 
-/** "Send me an email code instead" / "Resend the code". Returns a new pending token. */
-export async function resendEmailCode(pendingToken: string | undefined, ip: string | null): Promise<SecondStep> {
+/**
+ * "Resend the code" (same channel for a text, otherwise email) or "Email me a code instead".
+ * Returns a new pending token.
+ */
+export async function resendEmailCode(pendingToken: string | undefined, ip: string | null, channel: 'email' | 'same' = 'email'): Promise<SecondStep> {
   const p = readPending(pendingToken);
   const a = await loadMfaAccount(p.kind, p.id);
   if (!a || !a.isActive || a.tokenVersion !== p.tv) throw new UnauthorizedError('Please sign in again');
+  if (channel === 'same' && p.via === 'sms' && a.mfaPhone && (await sendTextCode(a, ip))) {
+    return { pendingToken: signPending(p), method: 'sms', sentTo: maskPhone(a.mfaPhone) };
+  }
   await sendEmailCode(a, ip);
   const dest = codeDestination(a.email);
   return {
@@ -238,6 +264,9 @@ export async function verifySecondStep(pendingToken: string | undefined, code: s
         .where(and(eq(idCol, a.id), sql`(${table.totpLastStep} IS NULL OR ${table.totpLastStep} < ${step})`)) as unknown as [{ affectedRows: number }];
       ok = res.affectedRows > 0;
     }
+  } else if (p.via === 'sms' && a.mfaPhone) {
+    // Twilio checks the code (and its expiry and attempt limits) on its side
+    ok = await checkSmsCode(a.mfaPhone, code);
   } else {
     ok = await checkEmailCode(a, code);
   }
@@ -259,6 +288,8 @@ export async function verifySecondStep(pendingToken: string | undefined, code: s
 export const mfaSettingsSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('begin_totp') }),
   z.object({ action: z.literal('confirm_totp'), setupToken: z.string().min(20).max(2048), code: z.string().trim().min(6).max(12), password: z.string().min(1, 'Enter your password').max(200) }),
+  z.object({ action: z.literal('begin_sms'), phone: z.string().trim().min(7, 'Enter your mobile number').max(25) }),
+  z.object({ action: z.literal('confirm_sms'), phone: z.string().trim().min(7).max(25), code: z.string().trim().min(4).max(12), password: z.string().min(1, 'Enter your password').max(200) }),
   z.object({ action: z.literal('use_email'), password: z.string().min(1, 'Enter your password').max(200) }),
   z.object({ action: z.literal('disable'), password: z.string().min(1, 'Enter your password').max(200) }),
 ]);
@@ -267,7 +298,13 @@ export async function mfaStatus(kind: MfaKind, id: number) {
   const a = await loadMfaAccount(kind, id);
   if (!a) throw new UnauthorizedError('Please sign in again');
   const method: MfaMethod = a.kind === 'customer' && a.mfaMethod === 'none' ? 'none' : effectiveMethod(a);
-  return { method, required: kind === 'staff', email: maskEmail(a.email) };
+  return {
+    method,
+    required: kind === 'staff',
+    email: maskEmail(a.email),
+    phone: a.mfaPhone ? maskPhone(a.mfaPhone) : null,
+    smsAvailable: smsAvailable(),
+  };
 }
 
 async function confirmPassword(a: MfaAccount, password: string, ip: string | null) {
@@ -281,6 +318,8 @@ async function confirmPassword(a: MfaAccount, password: string, ip: string | nul
 /**
  * begin_totp:   makes a new secret and returns the QR code plus a setup token (nothing saved)
  * confirm_totp: the first code from the app proves it was scanned; then it becomes the method
+ * begin_sms:    texts a code to a new mobile number (nothing saved)
+ * confirm_sms:  that code proves the number is theirs; then texts become the method
  * use_email:    switch to emailed codes
  * disable:      customers only: password-only sign-in again
  * Every change but begin_totp needs the current password and sends a security alert.
@@ -304,7 +343,29 @@ export async function changeMfaSettings(kind: MfaKind, id: number, input: z.infe
     return { secret: plain, uri, qrSvg, setupToken };
   }
 
+  if (input.action === 'begin_sms') {
+    if (!smsAvailable()) throw new BadRequestError('Text-message codes aren\'t available on this site right now.');
+    const phone = toE164(input.phone);
+    if (!phone) throw new BadRequestError('Enter a mobile number like (210) 555-0142, or start with + and the country code.');
+    await rateLimit(`mfa:begin-sms:${actorType(kind)}:${id}`, 5, 60 * 60);
+    if (!(await sendSmsCode(phone))) {
+      throw new BadRequestError('We couldn\'t text that number. Check it can receive texts (on the Twilio trial, it must be one of the verified numbers).');
+    }
+    await logActivity(actorType(kind), id, 'security.mfa_code_sent', { method: 'sms', purpose: 'setup' }, ip);
+    return { sentTo: maskPhone(phone) };
+  }
+
   await confirmPassword(a, input.password, ip);
+
+  if (input.action === 'confirm_sms') {
+    const phone = toE164(input.phone);
+    if (!phone || !(await checkSmsCode(phone, input.code))) {
+      throw new BadRequestError('That code doesn\'t match the one we texted. Check it, or send a new one.');
+    }
+    await saveMfa(kind, id, { mfaMethod: 'sms', mfaPhone: phone, totpSecret: null, totpLastStep: null });
+    if (before !== 'sms') await alertMfaChanged(alertActor(a), before, 'sms', ip);
+    return { method: 'sms' as MfaMethod };
+  }
 
   if (input.action === 'confirm_totp') {
     let sealed: string;
@@ -317,18 +378,18 @@ export async function changeMfaSettings(kind: MfaKind, id: number, input: z.infe
     }
     const step = verifyTotp(openSecret(sealed), input.code, null);
     if (step === null) throw new BadRequestError('That code doesn\'t match. Make sure your phone sets its time automatically, then try the newest code.');
-    await saveMfa(kind, id, { mfaMethod: 'totp', totpSecret: sealed, totpLastStep: step });
+    await saveMfa(kind, id, { mfaMethod: 'totp', totpSecret: sealed, totpLastStep: step, mfaPhone: null });
     await alertMfaChanged(alertActor(a), before, 'totp', ip);
     return { method: 'totp' as MfaMethod };
   }
   if (input.action === 'use_email') {
-    await saveMfa(kind, id, { mfaMethod: 'email', totpSecret: null, totpLastStep: null });
+    await saveMfa(kind, id, { mfaMethod: 'email', totpSecret: null, totpLastStep: null, mfaPhone: null });
     if (before !== 'email') await alertMfaChanged(alertActor(a), before, 'email', ip);
     return { method: 'email' as MfaMethod };
   }
   // disable
   if (kind === 'staff') throw new BadRequestError('Two-step sign-in is required for staff accounts');
-  await saveMfa(kind, id, { mfaMethod: 'none', totpSecret: null, totpLastStep: null });
+  await saveMfa(kind, id, { mfaMethod: 'none', totpSecret: null, totpLastStep: null, mfaPhone: null });
   if (before !== 'none') await alertMfaChanged(alertActor(a), before, 'none', ip);
   return { method: 'none' as MfaMethod };
 }

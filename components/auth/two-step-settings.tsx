@@ -7,10 +7,10 @@
 import { useCallback, useEffect, useId, useState } from 'react';
 import { PasswordInput } from '@/components/ui/password-input';
 
-type Method = 'none' | 'email' | 'totp';
+type Method = 'none' | 'email' | 'totp' | 'sms';
 type Setup = { secret: string; qrSvg: string; setupToken: string };
 
-const LABEL: Record<Method, string> = { none: 'Off', email: 'Code by email', totp: 'Authenticator app' };
+const LABEL: Record<Method, string> = { none: 'Off', email: 'Code by email', totp: 'Authenticator app', sms: 'Text message' };
 
 async function call(endpoint: string, body?: unknown) {
   const res = await fetch(endpoint, {
@@ -29,6 +29,10 @@ export function TwoStepSettings({ endpoint, staff = false }: { endpoint: string;
   const id = useId();
   const [method, setMethod] = useState<Method | null>(null);
   const [email, setEmail] = useState('');
+  const [savedPhone, setSavedPhone] = useState<string | null>(null);
+  const [smsOn, setSmsOn] = useState(false);
+  const [phone, setPhone] = useState('');
+  const [textedTo, setTextedTo] = useState<string | null>(null);
   const [choice, setChoice] = useState<Method>('email');
   const [setup, setSetup] = useState<Setup | null>(null);
   const [code, setCode] = useState('');
@@ -42,6 +46,8 @@ export function TwoStepSettings({ endpoint, staff = false }: { endpoint: string;
       setMethod(d.method);
       setChoice(d.method);
       setEmail(d.email);
+      setSavedPhone(d.phone ?? null);
+      setSmsOn(!!d.smsAvailable);
     } catch (e) {
       setMsg({ ok: false, text: (e as Error).message });
     }
@@ -53,7 +59,21 @@ export function TwoStepSettings({ endpoint, staff = false }: { endpoint: string;
     void load();
   }, [load]);
 
-  const options: Method[] = staff ? ['email', 'totp'] : ['none', 'email', 'totp'];
+  const options: Method[] = [...(staff ? [] : ['none' as Method]), 'email', 'totp', ...(smsOn || method === 'sms' ? ['sms' as Method] : [])];
+
+  async function textMeACode() {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const d = await call(endpoint, { action: 'begin_sms', phone });
+      setTextedTo(d.sentTo);
+      setCode('');
+    } catch (e) {
+      setMsg({ ok: false, text: (e as Error).message });
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function beginTotp() {
     setBusy(true);
@@ -76,13 +96,18 @@ export function TwoStepSettings({ endpoint, staff = false }: { endpoint: string;
     try {
       const body = choice === 'totp'
         ? { action: 'confirm_totp', setupToken: setup?.setupToken, code: code.replace(/\D/g, ''), password }
-        : choice === 'email' ? { action: 'use_email', password } : { action: 'disable', password };
+        : choice === 'sms'
+          ? { action: 'confirm_sms', phone, code: code.replace(/\D/g, ''), password }
+          : choice === 'email' ? { action: 'use_email', password } : { action: 'disable', password };
       const d = await call(endpoint, body);
       setMethod(d.method);
       setSetup(null);
+      setTextedTo(null);
+      if (d.method === 'sms') setSavedPhone(`•••-•••-${phone.replace(/\D/g, '').slice(-4)}`);
       setPassword('');
       setCode('');
-      setMsg({ ok: true, text: d.method === 'none' ? 'Two-step sign-in is off.' : `Saved. Signing in now needs ${d.method === 'totp' ? 'a code from your authenticator app' : 'a code we email you'}. We've emailed you a security alert about this change.` });
+      const how = d.method === 'totp' ? 'a code from your authenticator app' : d.method === 'sms' ? 'a code we text you' : 'a code we email you';
+      setMsg({ ok: true, text: d.method === 'none' ? 'Two-step sign-in is off.' : `Saved. Signing in now needs ${how}. We've emailed you a security alert about this change.` });
     } catch (err) {
       setMsg({ ok: false, text: (err as Error).message });
     } finally {
@@ -92,8 +117,8 @@ export function TwoStepSettings({ endpoint, staff = false }: { endpoint: string;
 
   if (method === null) return <p className="text-sm text-stone-500">{msg?.text ?? 'Loading…'}</p>;
 
-  const changing = choice !== method || (choice === 'totp' && !!setup);
-  const needsSetup = choice === 'totp' && !setup;
+  const changing = choice !== method || (choice === 'totp' && !!setup) || (choice === 'sms' && !!textedTo);
+  const needsSetup = (choice === 'totp' && !setup) || (choice === 'sms' && !textedTo);
 
   return (
     <div className="space-y-4">
@@ -108,25 +133,63 @@ export function TwoStepSettings({ endpoint, staff = false }: { endpoint: string;
         <legend className="sr-only">How to get your sign-in code</legend>
         {options.map((m) => (
           <label key={m} className={`flex cursor-pointer gap-3 rounded-lg border p-3 text-sm ${choice === m ? 'border-stone-900 bg-stone-50' : 'border-stone-200'}`}>
-            <input type="radio" name={`${id}-method`} checked={choice === m} onChange={() => { setChoice(m); setSetup(null); setMsg(null); }} className="mt-0.5" />
+            <input type="radio" name={`${id}-method`} checked={choice === m} onChange={() => { setChoice(m); setSetup(null); setTextedTo(null); setMsg(null); }} className="mt-0.5" />
             <span>
               <span className="font-medium">{LABEL[m]}</span>
               <span className="block text-xs text-stone-500">
                 {m === 'none' && 'Just your password.'}
                 {m === 'email' && `A 6-digit code is emailed to ${email} each time you sign in.`}
                 {m === 'totp' && 'Google Authenticator, Microsoft Authenticator, 1Password, Authy… Works without signal, and is the most secure option.'}
+                {m === 'sms' && (savedPhone ? `A 6-digit code is texted to your phone (${savedPhone}).` : 'A 6-digit code is texted to your mobile each time you sign in.')}
               </span>
             </span>
           </label>
         ))}
       </fieldset>
 
-      {needsSetup && choice !== method && (
+      {choice === 'sms' && needsSetup && (
+        <div className="space-y-2 rounded-lg border border-stone-200 p-4">
+          <label htmlFor={`${id}-phone`} className="block text-sm font-medium">{method === 'sms' ? 'New mobile number' : 'Mobile number'}</label>
+          <div className="flex flex-wrap gap-2">
+            <input
+              id={`${id}-phone`}
+              type="tel"
+              autoComplete="tel"
+              maxLength={25}
+              placeholder="(210) 555-0142"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="h-10 min-w-0 flex-1 rounded-md border border-stone-300 px-3 text-sm"
+            />
+            <button type="button" onClick={textMeACode} disabled={busy || phone.replace(/\D/g, '').length < 7} className="h-10 rounded-md bg-stone-900 px-4 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-50">
+              {busy ? 'Sending…' : 'Text me a code'}
+            </button>
+          </div>
+          <p className="text-xs text-stone-500">We text a code to check the number reaches you. Standard message rates may apply.</p>
+        </div>
+      )}
+
+      {textedTo && choice === 'sms' && (
+        <div className="space-y-2 rounded-lg border border-stone-200 p-4">
+          <label htmlFor={`${id}-smscode`} className="block text-sm font-medium">Enter the code we texted to {textedTo}</label>
+          <input
+            id={`${id}-smscode`}
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={8}
+            value={code}
+            onChange={(e) => setCode(e.target.value.replace(/[^\d ]/g, ''))}
+            className="h-10 w-40 rounded-md border border-stone-300 px-3 text-center font-mono tracking-widest"
+          />
+        </div>
+      )}
+
+      {choice === 'totp' && needsSetup && choice !== method && (
         <button type="button" onClick={beginTotp} disabled={busy} className="h-10 rounded-md bg-stone-900 px-5 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-50">
           {busy ? 'Preparing…' : 'Set up an authenticator app'}
         </button>
       )}
-      {needsSetup && choice === method && (
+      {choice === 'totp' && needsSetup && choice === method && (
         <button type="button" onClick={beginTotp} disabled={busy} className="text-sm text-stone-700 underline underline-offset-4 disabled:opacity-50">
           Move to a new phone or app
         </button>

@@ -38,7 +38,10 @@ export const users = mysqlTable('users', {
     // Two-step sign-in, optional for customers: 'none', a code by email, or an authenticator app.
     // The authenticator secret is stored encrypted (server/src/modules/mfa/secret-box.ts) and
     // totp_last_step stops one code being used twice.
-    mfaMethod: mysqlEnum('mfa_method', ['none', 'email', 'totp']).default('none').notNull(),
+    mfaMethod: mysqlEnum('mfa_method', ['none', 'email', 'totp', 'sms']).default('none').notNull(),
+    // Verified mobile number for text-message codes (+12105550100); separate from the optional
+    // contact phone above, which is never used for sign-in
+    mfaPhone: varchar('mfa_phone', { length: 20 }),
     totpSecret: varchar('totp_secret', { length: 255 }),
     totpLastStep: int('totp_last_step'),
 });
@@ -241,8 +244,12 @@ export const admin = mysqlTable('admin', {
     isActive: boolean('is_active').default(true).notNull(),
     tokenVersion: int('token_version').default(0).notNull(),
     mustChangePassword: boolean('must_change_password').default(false).notNull(),
-    // Two-step sign-in is required for staff: a code by email (the default) or an authenticator app
-    mfaMethod: mysqlEnum('mfa_method', ['email', 'totp']).default('email').notNull(),
+    // Two-step sign-in is required for staff: a code by email (the default), an authenticator app,
+    // or a text message (Twilio Verify, when it is configured)
+    mfaMethod: mysqlEnum('mfa_method', ['email', 'totp', 'sms']).default('email').notNull(),
+    // Mobile number for text-message codes, in international form (+12105550100). Set only after
+    // a code sent to it was entered, so it is known to reach this person.
+    mfaPhone: varchar('mfa_phone', { length: 20 }),
     totpSecret: varchar('totp_secret', { length: 255 }),
     totpLastStep: int('totp_last_step'),
     lastLogin: timestamp('last_login'),

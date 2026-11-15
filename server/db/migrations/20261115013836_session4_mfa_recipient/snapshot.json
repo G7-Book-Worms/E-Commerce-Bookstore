@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "mysql",
-  "id": "2dd171e5-6afd-4177-b50e-d8c12f762f1e",
+  "id": "019dc291-5979-4789-b6d8-cd99e023a321",
   "prevIds": [
     "d88f23d0-bcef-4780-a84b-2739bac4a746"
   ],
@@ -477,7 +477,7 @@
       "table": "admin"
     },
     {
-      "type": "enum('email','totp')",
+      "type": "enum('email','totp','sms')",
       "notNull": true,
       "autoIncrement": false,
       "default": "'email'",
@@ -487,6 +487,20 @@
       "collation": null,
       "generated": null,
       "name": "mfa_method",
+      "entityType": "columns",
+      "table": "admin"
+    },
+    {
+      "type": "varchar(20)",
+      "notNull": false,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "mfa_phone",
       "entityType": "columns",
       "table": "admin"
     },
@@ -2678,7 +2692,7 @@
       "table": "users"
     },
     {
-      "type": "enum('none','email','totp')",
+      "type": "enum('none','email','totp','sms')",
       "notNull": true,
       "autoIncrement": false,
       "default": "'none'",
@@ -2688,6 +2702,20 @@
       "collation": null,
       "generated": null,
       "name": "mfa_method",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "type": "varchar(20)",
+      "notNull": false,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "mfa_phone",
       "entityType": "columns",
       "table": "users"
     },

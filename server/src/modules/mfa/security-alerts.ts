@@ -65,7 +65,7 @@ export function alertLockout(actor: AlertActor, ip: string | null) {
   }, {}, ip);
 }
 
-const METHOD_LABEL = { none: 'off', email: 'a code by email', totp: 'an authenticator app' } as const;
+const METHOD_LABEL = { none: 'off', email: 'a code by email', totp: 'an authenticator app', sms: 'a code by text message' } as const;
 
 /** Two-step sign-in was turned on, off, or switched to another method. */
 export function alertMfaChanged(actor: AlertActor, from: keyof typeof METHOD_LABEL, to: keyof typeof METHOD_LABEL, ip: string | null) {

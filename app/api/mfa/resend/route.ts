@@ -7,7 +7,10 @@ import { clientIp } from '@/server/src/shared/security/client-ip';
 import { MFA_PENDING_COOKIE, pendingCookieOptions, resendEmailCode } from '@/server/src/modules/mfa/mfa-service';
 
 export const POST = createApiHandler(async (req: NextRequest) => {
-  const step = await resendEmailCode(req.cookies.get(MFA_PENDING_COOKIE)?.value, clientIp(req));
+  // { channel: 'same' } re-sends a text to a text-message user; anything else emails a code
+  const body = await req.json().catch(() => ({}));
+  const channel = body?.channel === 'same' ? 'same' : 'email';
+  const step = await resendEmailCode(req.cookies.get(MFA_PENDING_COOKIE)?.value, clientIp(req), channel);
   const res = HttpResponse.success({ method: step.method, sentTo: step.sentTo }, 'A new code is on its way');
   res.cookies.set(MFA_PENDING_COOKIE, step.pendingToken, pendingCookieOptions);
   return res;

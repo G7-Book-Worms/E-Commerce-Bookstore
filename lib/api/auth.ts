@@ -52,7 +52,7 @@ export class AuthApiError extends Error {
 
 /** Thrown by loginUser when the password was right but the account needs a sign-in code. */
 export class MfaRequiredError extends Error {
-  constructor(public method: 'email' | 'totp', public sentTo: string | null) {
+  constructor(public method: 'email' | 'totp' | 'sms', public sentTo: string | null) {
     super('Enter your sign-in code');
     this.name = 'MfaRequiredError';
   }
@@ -125,9 +125,9 @@ async function postAuth(
   }
 
   // Two-step sign-in: the password was right and a code is needed next (no session yet)
-  const data = payload.data as { mfaRequired?: boolean; method?: 'email' | 'totp'; sentTo?: string | null } | undefined;
+  const data = payload.data as { mfaRequired?: boolean; method?: 'email' | 'totp' | 'sms'; sentTo?: string | null } | undefined;
   if (data?.mfaRequired) {
-    throw new MfaRequiredError(data.method === 'totp' ? 'totp' : 'email', data.sentTo ?? null);
+    throw new MfaRequiredError(data.method === 'totp' || data.method === 'sms' ? data.method : 'email', data.sentTo ?? null);
   }
 
   const user = toUserSession(payload.data?.user);

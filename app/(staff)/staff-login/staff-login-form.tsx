@@ -22,7 +22,7 @@ export function StaffLoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   // Every staff sign-in has a second step (a code by email or from an authenticator app)
-  const [twoStep, setTwoStep] = useState<{ method: 'email' | 'totp'; sentTo: string | null } | null>(null);
+  const [twoStep, setTwoStep] = useState<{ method: 'email' | 'totp' | 'sms'; sentTo: string | null } | null>(null);
 
   const set = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
@@ -42,13 +42,14 @@ export function StaffLoginForm() {
     }
     setMissing(null);
     setBusy(true);
-    const res = await staffFetch<{ mfaRequired?: boolean; method?: 'email' | 'totp'; sentTo?: string | null }>('/api/staff/login', 'POST', form);
+    const res = await staffFetch<{ mfaRequired?: boolean; method?: 'email' | 'totp' | 'sms'; sentTo?: string | null }>('/api/staff/login', 'POST', form);
     setBusy(false);
     if (!res.ok) {
       setError(res.message);
       return;
     }
-    setTwoStep({ method: res.data?.method === 'totp' ? 'totp' : 'email', sentTo: res.data?.sentTo ?? null });
+    const m = res.data?.method;
+    setTwoStep({ method: m === 'totp' || m === 'sms' ? m : 'email', sentTo: res.data?.sentTo ?? null });
   }
 
   function signedIn(mustChangePassword: boolean) {

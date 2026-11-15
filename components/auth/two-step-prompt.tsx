@@ -7,7 +7,7 @@
 // step set, so nothing here can be pointed at another account.
 import { useEffect, useRef, useState } from 'react';
 
-type Method = 'email' | 'totp';
+type Method = 'email' | 'totp' | 'sms';
 
 export interface TwoStepPromptProps {
   method: Method;
@@ -67,13 +67,13 @@ export function TwoStepPrompt({ method: initialMethod, sentTo: initialSentTo, on
     onSuccess(res.data);
   }
 
-  async function sendEmailCode() {
+  async function sendEmailCode(channel: 'email' | 'same' = 'email') {
     setBusy(true);
     setError(null);
-    const res = await post('/api/mfa/resend');
+    const res = await post('/api/mfa/resend', { channel });
     setBusy(false);
     if (!res.ok) return setError(res.message);
-    setMethod('email');
+    setMethod(res.data.method === 'sms' ? 'sms' : 'email');
     setSentTo(res.data.sentTo ?? null);
     setCode('');
     setNotice(`A new code is on its way${res.data.sentTo ? ` to ${res.data.sentTo}` : ''}.`);
@@ -86,7 +86,9 @@ export function TwoStepPrompt({ method: initialMethod, sentTo: initialSentTo, on
         <p className="text-sm text-neutral-600">
           {method === 'totp'
             ? 'Open your authenticator app and enter the 6-digit code for Book Worms.'
-            : `We emailed a 6-digit code${sentTo ? ` to ${sentTo}` : ''}. It expires in 10 minutes.`}
+            : method === 'sms'
+              ? `We texted a 6-digit code${sentTo ? ` to your phone ending ${sentTo.slice(-4)}` : ''}. It expires in 10 minutes.`
+              : `We emailed a 6-digit code${sentTo ? ` to ${sentTo}` : ''}. It expires in 10 minutes.`}
         </p>
       </div>
 
@@ -117,9 +119,16 @@ export function TwoStepPrompt({ method: initialMethod, sentTo: initialSentTo, on
       </button>
 
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-        <button type="button" onClick={sendEmailCode} disabled={busy} className="text-neutral-600 underline underline-offset-4 hover:text-neutral-900 disabled:opacity-50">
-          {method === 'totp' ? 'Email me a code instead' : 'Send a new code'}
-        </button>
+        <span className="flex flex-wrap gap-3">
+          {method === 'sms' && (
+            <button type="button" onClick={() => sendEmailCode('same')} disabled={busy} className="text-neutral-600 underline underline-offset-4 hover:text-neutral-900 disabled:opacity-50">
+              Text me a new code
+            </button>
+          )}
+          <button type="button" onClick={() => sendEmailCode('email')} disabled={busy} className="text-neutral-600 underline underline-offset-4 hover:text-neutral-900 disabled:opacity-50">
+            {method === 'email' ? 'Send a new code' : 'Email me a code instead'}
+          </button>
+        </span>
         <button type="button" onClick={onCancel} disabled={busy} className="text-neutral-600 underline underline-offset-4 hover:text-neutral-900 disabled:opacity-50">
           Start over
         </button>

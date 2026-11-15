@@ -51,7 +51,7 @@ function LoginForm() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   // Set when the password was right but the account asks for a sign-in code next
-  const [twoStep, setTwoStep] = useState<{ method: 'email' | 'totp'; sentTo: string | null } | null>(null);
+  const [twoStep, setTwoStep] = useState<{ method: 'email' | 'totp' | 'sms'; sentTo: string | null } | null>(null);
 
   // SCRUM-165: Extract callbackUrl query parameter
   const callbackUrl = searchParams.get('callbackUrl');
