@@ -64,7 +64,13 @@ The app is a single Next.js project: pages live in `app/`, and the backend is a 
 | ◆ | Orders: sort by date/customer/total/status, ship, deliver, cancel (restocks) | `/admin/orders` | ● Done |
 | ◆ | Inventory: restock, correct counts, prices, sale prices, low-stock alerts, movement history | `/admin/inventory` | ● Done |
 | ◆ | Discount codes, customers (deactivate, temporary password, sign out everywhere), staff accounts | `/admin/...` | ● Done |
-| ◆ | Activity log of every customer, staff and system action | `/admin/activity` | ● Done |
+| ◆ | Activity log of every customer, staff and system action, by category (Security, Orders, Inventory…) | `/admin/activity` | ● Done |
+| ◆ | Guest checkout: sign in / create an account / continue as guest, recipient name and phone, address suggestions | `/checkout` | ● Done |
+| ◆ | Find a guest order with the order number and email (or the emailed link) | `/checkout/guest-order` | ● Done |
+| ◆ | Two-step sign-in: email code, authenticator app, or text (Twilio Verify). Optional for customers, required for staff | `/account?tab=security`, `/admin/change-password` | ● Done |
+| ◆ | Security alert emails: new-network sign-in, lockouts, two-step changes, email changes | — | ● Done |
+| ◆ | Staff `@bookwrms.store` mailboxes created and removed with staff accounts (Migadu) | `/admin/staff` | ● Done, needs Migadu keys |
+| ◆ | Order-update and security-alert texts (opt-in) | — | ◐ Waiting on an approved Twilio number |
 
 <sub>● Done &nbsp; ◐ In progress &nbsp; ○ Planned</sub>
 
@@ -170,7 +176,13 @@ Fill in `.env` in the project root (next to `package.json`):
 | `SITE_URL` | Public URL used in emails and Stripe return links (`https://bookwrms.store` on Vercel). |
 | `SMTP_HOST`, `SMTP_PORT` | `mail.privateemail.com`, `465`. Leave out locally: emails are printed to the server console instead. |
 | `NOREPLY_EMAIL`, `NOREPLY_EMAIL_PASSWORD` | Mailbox that sends account and order emails. |
-| `SUPPORT_EMAIL`, `SUPPORT_EMAIL_PASSWORD` | Reply-to address; staff replies and low-stock alerts use it. |
+| `SUPPORT_EMAIL`, `SUPPORT_EMAIL_PASSWORD` | Reply-to address; staff replies and low-stock alerts use it. Demo staff sign-in codes arrive here too. |
+| `IMAP_HOST`, `IMAP_PORT` | Optional. Where the support inbox is read from (default `mail.privateemail.com`, `993`). |
+| `GEOAPIFY_API_KEY` | Optional. Address suggestions at checkout; without it the street field is a plain input. |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID` | Optional. Sign-in codes by text (Twilio Verify). All three, or the option is hidden. |
+| `TWILIO_MESSAGING_FROM` | Optional. Carrier-approved number (or Messaging Service `MG…`) for alert and order texts. |
+| `MIGADU_API_USER`, `MIGADU_API_KEY`, `MAIL_DOMAIN` | Optional. Staff work mailboxes; see [`docs/email-migration.md`](docs/email-migration.md). |
+| `MFA_ENCRYPTION_KEY` | Optional. Key for authenticator secrets; defaults to one derived from `JWT_SECRET`. |
 
 Security measures are listed in [`docs/security.md`](docs/security.md).
 
@@ -195,7 +207,8 @@ Staff portal (`/staff-login`), one demo account per role:
 
 | Role | Email | Employee ID | Can use |
 |:--|:--|:--|:--|
-| Administrator | `grace@example.com` | `BW-1001` | everything, including staff accounts |
+| Owner | `grace@example.com` | `BW-1001` | everything; can't be changed or removed by anyone |
+| Administrator | `ken@example.com` | `BW-1004` | everything below the owner, including staff accounts |
 | Manager | `edsger@example.com` | `BW-1002` | + prices, sales, add/edit books, discounts, customers, activity log |
 | Employee | `barbara@example.com` | `BW-1003` | dashboard, orders, stock counts, messages |
 
@@ -211,8 +224,13 @@ Staff portal (`/staff-login`), one demo account per role:
 > It runs the catalog seed (stock, prices, sale prices and discount codes go back to the test data, undoing
 > rehearsal purchases), resets the demo accounts `ada.lovelace@example.com` and `alan.turing@example.com` to
 > the demo password, and **empties the demo account's cart** so the demo starts from an empty cart.
-> It also resets the three demo staff accounts and clears every sign-in lockout.
+> It also resets the four demo staff accounts and clears every sign-in lockout, and puts two-step sign-in
+> back to its starting state (demo customers off, demo staff on emailed codes).
 > Then sign in once and check the cart is empty.
+>
+> Staff always need a sign-in code. For the `@example.com` demo staff it is emailed to the support inbox
+> (support@bookwrms.store); have that inbox open on a phone during the demo. The code is never shown in
+> the staff portal's own Mailbox.
 
 To pay during the demo, use Stripe's test card `4242 4242 4242 4242`, any future date and any CVC.
 
