@@ -9,10 +9,10 @@
 // cart uses. They type an email and an address here and never create an account.
 
 import Link from "next/link";
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { AddressAutocomplete, fillAddress } from "@/components/address-autocomplete";
 import { useSearchParams } from "next/navigation";
-import { Lock, Minus, Plus, Trash2 } from "lucide-react";
+import { ChevronRight, Lock, LogIn, Minus, Plus, ShoppingBag, Trash2, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { OrderSummary } from "@/components/cart/order-summary";
 import { FormatBadge } from "@/components/format-badge";
@@ -24,6 +24,27 @@ import { useAuth } from "@/app/context/auth-context";
 import { useCart, type GuestCartLine } from "@/app/context/CartContext";
 
 const EMPTY = { street: "", city: "", state: "", zip: "", country: "United States" };
+
+// Both bring the shopper back to checkout afterwards; the guest cart is merged into the account.
+const SIGN_IN_HREF = "/user-login?callbackUrl=%2Fcheckout";
+const REGISTER_HREF = "/user-register?callbackUrl=%2Fcheckout";
+
+// "Continue as guest" is remembered for this browser tab's session, so a reload doesn't ask again.
+const GUEST_CHOICE_KEY = "bw:checkout:guest";
+function loadGuestChoice(): boolean {
+  try {
+    return sessionStorage.getItem(GUEST_CHOICE_KEY) === "1";
+  } catch {
+    return false; // storage blocked (private mode): just ask again
+  }
+}
+function saveGuestChoice() {
+  try {
+    sessionStorage.setItem(GUEST_CHOICE_KEY, "1");
+  } catch {
+    // Storage blocked: the choice lasts until the page is reloaded
+  }
+}
 const SKELETON = (
   <div className="mx-auto max-w-6xl p-8">
     <div className="h-96 animate-pulse rounded-xl bg-stone-200" />
@@ -58,6 +79,27 @@ function Checkout() {
   const code = typeof window === "undefined" ? "" : loadDiscountCode();
 
   const isGuestCheckout = !authLoading && !user;
+  // Signed-out shoppers first choose: sign in, create an account, or continue as a guest.
+  // (The server render never shows this part: it waits for the auth check, so reading
+  // sessionStorage in the initializer can't cause a hydration mismatch.)
+  const [guestChosen, setGuestChosen] = useState(() => typeof window !== "undefined" && loadGuestChoice());
+  const emailRef = useRef<HTMLInputElement>(null);
+  const focusEmail = useRef(false);
+  const choosingHow = isGuestCheckout && !guestChosen;
+
+  // After "Continue as guest", move focus to the first field of the form that just appeared.
+  useEffect(() => {
+    if (guestChosen && focusEmail.current) {
+      focusEmail.current = false;
+      emailRef.current?.focus();
+    }
+  }, [guestChosen]);
+
+  function continueAsGuest() {
+    saveGuestChoice();
+    focusEmail.current = true;
+    setGuestChosen(true);
+  }
 
   // --- load the cart (and, for a signed-in shopper, their saved addresses) ---
   const loadSignedIn = useCallback(async () => {
@@ -217,7 +259,7 @@ function Checkout() {
     email.trim().length > 3 &&
     email.includes("@") &&
     (Object.keys(EMPTY) as (keyof typeof EMPTY)[]).every((k) => form[k].trim() !== "");
-  const canPay = isGuestCheckout ? guestReady : !!addressId && !adding;
+  const canPay = choosingHow ? false : isGuestCheckout ? guestReady : !!addressId && !adding;
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-8 md:px-8">
@@ -231,16 +273,21 @@ function Checkout() {
       )}
       {error && <p role="alert" className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
 
-      {isGuestCheckout && (
-        <p className="mb-6 rounded-md border bg-stone-50 p-3 text-sm">
+      {isGuestCheckout && !choosingHow && (
+        <p className="mb-6 rounded-md border bg-white p-3 text-sm">
           You&apos;re checking out as a guest — no account needed. Already have one?{" "}
-          <Link href="/user-login?callbackUrl=%2Fcheckout" className="font-medium underline">Sign in</Link>{" "}
+          <Link href={SIGN_IN_HREF} className="font-medium underline">Sign in</Link>{" "}
+          or <Link href={REGISTER_HREF} className="font-medium underline">create one</Link>{" "}
           and the books in your cart come with you.
         </p>
       )}
 
       <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
         <div className="flex flex-col gap-6">
+          {choosingHow ? (
+            <CheckoutChoice onGuest={continueAsGuest} />
+          ) : (
+          <>
           {/* Guests: email first, since it's the only way they get their confirmation */}
           {isGuestCheckout && (
             <section className="rounded-xl border bg-white p-5">
@@ -248,6 +295,7 @@ function Checkout() {
               <label className="flex flex-col gap-1 text-sm">
                 <span className="font-medium">Email address</span>
                 <input
+                  ref={emailRef}
                   required
                   type="email"
                   autoComplete="email"
@@ -325,11 +373,13 @@ function Checkout() {
               </>
             )}
           </section>
+          </>
+          )}
 
           {/* Review items */}
           <section className="rounded-xl border bg-white p-5">
             <div className="mb-4 flex items-baseline justify-between">
-              <h2 className="font-serif text-xl font-bold">{isGuestCheckout ? "3." : "2."} Review items</h2>
+              <h2 className="font-serif text-xl font-bold">{choosingHow ? "Your items" : `${isGuestCheckout ? "3." : "2."} Review items`}</h2>
               {!isGuestCheckout && <Link href="/cart" className="text-sm underline">Edit cart</Link>}
             </div>
             <ul className="divide-y text-sm">
@@ -396,7 +446,10 @@ function Checkout() {
             <Button className="mt-5 w-full" size="lg" onClick={pay} disabled={paying || !canPay}>
               <Lock /> {paying ? "Opening secure payment…" : `Pay ${formatPrice(cart.totals.totalCents)}`}
             </Button>
-            {isGuestCheckout && !guestReady && (
+            {choosingHow && (
+              <p className="mt-2 text-xs text-muted-foreground">Choose how you&apos;d like to check out to continue.</p>
+            )}
+            {isGuestCheckout && !choosingHow && !guestReady && (
               <p className="mt-2 text-xs text-muted-foreground">Add your email and shipping address to continue.</p>
             )}
             <p className="mt-3 text-xs text-muted-foreground">
@@ -407,5 +460,52 @@ function Checkout() {
         </div>
       </div>
     </div>
+  );
+}
+
+// First step for a shopper who isn't signed in. Real links for the account routes and a real
+// button for the guest option, which reveals the guest form in place.
+function CheckoutChoice({ onGuest }: { onGuest: () => void }) {
+  const option =
+    "group flex w-full items-center gap-4 rounded-lg border border-stone-200 bg-white p-4 text-left transition hover:border-stone-900 hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:ring-offset-2";
+  const icon =
+    "flex size-10 shrink-0 items-center justify-center rounded-full bg-stone-100 text-stone-700 group-hover:bg-stone-900 group-hover:text-white";
+  return (
+    <section aria-labelledby="checkout-choice-title" className="rounded-xl border bg-white p-5">
+      <h2 id="checkout-choice-title" className="font-serif text-xl font-bold">How would you like to check out?</h2>
+      <p className="mt-1 text-sm text-muted-foreground">The books in your cart come with you whichever you pick.</p>
+      <ul className="mt-4 flex flex-col gap-3">
+        <li>
+          <Link href={SIGN_IN_HREF} className={option}>
+            <span className={icon}><LogIn className="size-5" aria-hidden /></span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-semibold">Sign in</span>
+              <span className="block text-sm text-muted-foreground">Use your saved addresses and keep the order in your history.</span>
+            </span>
+            <ChevronRight className="size-4 shrink-0 text-stone-400" aria-hidden />
+          </Link>
+        </li>
+        <li>
+          <Link href={REGISTER_HREF} className={option}>
+            <span className={icon}><UserPlus className="size-5" aria-hidden /></span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-semibold">Create an account</span>
+              <span className="block text-sm text-muted-foreground">Takes a minute. Track your orders and check out faster next time.</span>
+            </span>
+            <ChevronRight className="size-4 shrink-0 text-stone-400" aria-hidden />
+          </Link>
+        </li>
+        <li>
+          <button type="button" onClick={onGuest} className={option}>
+            <span className={icon}><ShoppingBag className="size-5" aria-hidden /></span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-semibold">Continue as guest</span>
+              <span className="block text-sm text-muted-foreground">No account needed. We email your confirmation and a link to the order.</span>
+            </span>
+            <ChevronRight className="size-4 shrink-0 text-stone-400" aria-hidden />
+          </button>
+        </li>
+      </ul>
+    </section>
   );
 }

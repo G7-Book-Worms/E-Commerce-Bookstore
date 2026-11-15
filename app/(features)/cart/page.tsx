@@ -158,7 +158,7 @@ export default function CartPage() {
           <p>Your cart is saved to your account, so it follows you to any device.</p>
           <div className="mt-5 flex flex-wrap justify-center gap-3">
             <Link href={`/user-login?callbackUrl=${encodeURIComponent("/cart")}`} className={buttonVariants()}>Sign in</Link>
-            <Link href="/user-register" className={buttonVariants({ variant: "outline" })}>Create an account</Link>
+            <Link href={`/user-register?callbackUrl=${encodeURIComponent("/cart")}`} className={buttonVariants({ variant: "outline" })}>Create an account</Link>
           </div>
         </EmptyState>
       ) : lines.length === 0 ? (
@@ -253,6 +253,12 @@ export default function CartPage() {
                   <Link href="/checkout" className={buttonVariants({ size: "lg", className: "mt-5 w-full" })}>
                     Checkout
                   </Link>
+                )}
+                {/* Signed out: checkout opens with a choice of signing in, creating an account or continuing as a guest */}
+                {isGuest && !blocked && (
+                  <p className="mt-2 text-center text-xs text-muted-foreground">
+                    Next, sign in, create an account or check out as a guest.
+                  </p>
                 )}
                 <Link href="/product-catalog" className="mt-3 block text-center text-sm underline">Continue shopping</Link>
               </OrderSummary>
