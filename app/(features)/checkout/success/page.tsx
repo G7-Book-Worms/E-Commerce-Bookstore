@@ -12,6 +12,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { CheckCircle2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { FormatBadge } from "@/components/format-badge";
 import { useCart } from "@/app/context/CartContext";
 import { useAuth } from "@/app/context/auth-context";
 import { formatPrice } from "@/lib/catalog";
@@ -119,7 +120,11 @@ function Success() {
         <ul className="divide-y">
           {summary.items.map((i) => (
             <li key={i.orderItemId} className="flex justify-between gap-4 py-2">
-              <span>{i.title} <span className="text-muted-foreground">({i.format}) × {i.quantity}</span></span>
+              <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span>{i.title}</span>
+                <FormatBadge format={i.format} />
+                <span className="text-muted-foreground">× {i.quantity}</span>
+              </span>
               <span>{formatPrice(Math.round(Number(i.unitPrice) * 100) * i.quantity)}</span>
             </li>
           ))}

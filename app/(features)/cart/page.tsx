@@ -11,12 +11,11 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { BookCover } from "@/components/book-cover";
 import { OrderSummary } from "@/components/cart/order-summary";
 import { EmptyState } from "@/components/empty-state";
+import { FormatBadge } from "@/components/format-badge";
 import { useCart } from "@/app/context/CartContext";
 import { useAuth } from "@/app/context/auth-context";
 import { formatPrice, stockLabel } from "@/lib/catalog";
 import { loadDiscountCode, saveDiscountCode, type CartData, type CartLine } from "@/lib/cart-types";
-
-const LABEL = { hardcover: "Hardcover", paperback: "Paperback" } as const;
 
 export default function CartPage() {
   // SCRUM-208: a guest's cart lives in this browser, so it is priced by the guest quote endpoint
@@ -181,7 +180,8 @@ export default function CartPage() {
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="min-w-0">
                         <Link href={`/product/${encodeURIComponent(line.isbn)}`} className="font-medium leading-tight hover:underline">{line.title}</Link>
-                        <p className="text-sm text-muted-foreground">{line.author} · {LABEL[line.format]}</p>
+                        <p className="text-sm text-muted-foreground">{line.author}</p>
+                        <FormatBadge format={line.format} className="mt-1.5" />
                       </div>
                       <p className="font-semibold">{formatPrice(line.lineTotalCents)}</p>
                     </div>

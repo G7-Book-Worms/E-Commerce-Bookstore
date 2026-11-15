@@ -15,6 +15,7 @@ import { useSearchParams } from "next/navigation";
 import { Lock, Minus, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { OrderSummary } from "@/components/cart/order-summary";
+import { FormatBadge } from "@/components/format-badge";
 import { formatPrice } from "@/lib/catalog";
 import { loadDiscountCode, type CartData } from "@/lib/cart-types";
 import { fetchUserAddresses, createUserAddress, type AddressItem } from "@/lib/api/user";
@@ -301,9 +302,10 @@ function Checkout() {
                 <li key={l.cartItemId} className="flex justify-between gap-4 py-2">
                   <span>
                     <span className="font-medium">{l.title}</span>
-                    <span className="block text-xs text-muted-foreground">
-                      {l.format === "hardcover" ? "Hardcover" : "Paperback"} · Qty {l.quantity}
-                      {l.onSale && <span className="ml-1 font-semibold text-red-700">· Sale price</span>}
+                    <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                      <FormatBadge format={l.format} />
+                      <span>Qty {l.quantity}</span>
+                      {l.onSale && <span className="font-semibold text-red-700">Sale price</span>}
                     </span>
                   </span>
                   <span className="flex items-center gap-3">
