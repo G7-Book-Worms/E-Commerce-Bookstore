@@ -137,6 +137,15 @@ export class UsersRepository {
     return res.affectedRows > 0;
   }
 
+  /** Removes an address from the account without deleting the row (it is still on past orders). */
+  async detachAddress(addressId: number, userId: number): Promise<boolean> {
+    const [res]: any = await db
+      .update(addresses)
+      .set({ userId: null, isDefault: false })
+      .where(and(eq(addresses.addressId, addressId), eq(addresses.userId, userId)));
+    return res.affectedRows > 0;
+  }
+
   // ==========================================
   // SCRUM-103: Order History Query
   // ==========================================

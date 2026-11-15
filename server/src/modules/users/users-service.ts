@@ -15,7 +15,6 @@ import { passwordChangedEmail } from '../email/templates';
 import { rateLimit } from '../../shared/security/rate-limit';
 import {
   BadRequestError,
-  ConflictError,
   NotFoundError,
   UnauthorizedError,
 } from '../../shared/errors/app-error';
@@ -136,12 +135,11 @@ export class UsersService {
     try {
       return await this.usersRepo.deleteAddress(addressId, userId);
     } catch (err) {
-      // Past orders keep a link to the address they shipped to, so the database won't drop it.
-      // Say so plainly instead of answering with a generic server error.
-      if (isStillReferencedError(err)) {
-        throw new ConflictError('This address is on one of your past orders, so it can\'t be deleted.');
-      }
-      throw err;
+      if (!isStillReferencedError(err)) throw err;
+      // Past orders keep a link to the address they shipped to, so the row can't be dropped.
+      // Detach it from the account instead: it disappears from the customer's saved addresses
+      // and from checkout, and their order history still shows where each order went.
+      return await this.usersRepo.detachAddress(addressId, userId);
     }
   }
 
