@@ -5,6 +5,7 @@ import { requireStaffPage } from '@/server/src/modules/staff/staff-page';
 import { getOrderDetail, NEXT_STATUSES, type OrderStatus } from '@/server/src/modules/orders/orders-admin';
 import { shipmentView } from '@/server/src/modules/orders/carriers';
 import { can } from '@/lib/staff-permissions';
+import { describeAction } from '@/lib/activity-categories';
 import { Badge, ORDER_STATUS_BADGE, PageHeader, Panel, dateTime, money } from '@/components/staff/ui';
 import { OrderStatusForm } from './status-form';
 
@@ -58,7 +59,7 @@ async function Content({ params }: { params: Promise<{ id: string }> }) {
                 {history.map((h) => (
                   <li key={h.activityId} className="flex flex-wrap gap-x-3">
                     <span className="w-44 shrink-0 text-stone-500">{dateTime(h.created)}</span>
-                    <span className="font-mono text-xs leading-5">{h.action}</span>
+                    <span className="leading-5">{describeAction(h.action).label} <code className="font-mono text-[11px] text-stone-400">{h.action}</code></span>
                     <span className="text-xs leading-5 text-stone-500">{h.actorType}</span>
                   </li>
                 ))}

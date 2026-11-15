@@ -10,13 +10,17 @@ import { inventoryCounts, listInventory } from '@/server/src/modules/inventory/i
 import { messageCounts } from '@/server/src/modules/contact/contact-service';
 import { Badge, ORDER_STATUS_BADGE, PageHeader, Panel, StatCard, dateTime, money } from '@/components/staff/ui';
 import { SalesChart } from '@/components/staff/sales-chart';
+import { ActionText, FailureBadge } from '@/components/staff/activity-ui';
+import { recentSecurityEvents } from '@/server/src/modules/activity/activity-query';
+import { describeAction } from '@/lib/activity-categories';
 
 export const metadata = { title: 'Dashboard' };
 
 async function Content({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const staff = await requireStaffPage('dashboard.view');
   const sp = await searchParams;
-  const [stats, sales, stock, lowRows, msgs, recent, sellers, [{ customers }]] = await Promise.all([
+  const canSeeActivity = can(staff.role, 'activity.view');
+  const [stats, sales, stock, lowRows, msgs, recent, sellers, [{ customers }], security] = await Promise.all([
     orderStats(),
     dailySales(14),
     inventoryCounts(),
@@ -25,6 +29,7 @@ async function Content({ searchParams }: { searchParams: Promise<Record<string, 
     listOrders({ sort: 'date', dir: 'desc' }),
     topSellers(5),
     db.select({ customers: sql<number>`COUNT(*)` }).from(users),
+    canSeeActivity ? recentSecurityEvents(6) : Promise.resolve(null),
   ]);
 
   return (
@@ -94,6 +99,31 @@ async function Content({ searchParams }: { searchParams: Promise<Record<string, 
           )}
         </Panel>
       </div>
+
+      {security && (
+        <Panel
+          title="Recent security events"
+          className="mt-6"
+          actions={<Link href="/admin/activity?category=security" className="text-xs underline">All security events</Link>}
+        >
+          {security.length === 0 ? <p className="text-sm text-stone-500">No sign-ins or security changes recorded yet.</p> : (
+            <ul className="divide-y divide-stone-100 text-sm">
+              {security.map((e) => {
+                const d = describeAction(e.action);
+                return (
+                  <li key={e.activityId} className={`flex flex-wrap items-start justify-between gap-2 py-2 ${d.failure ? '-mx-2 rounded bg-red-50 px-2' : ''}`}>
+                    <div className="min-w-0 flex-1">
+                      <ActionText d={d} action={e.action} />
+                    </div>
+                    {d.failure && <FailureBadge />}
+                    <span className="shrink-0 text-xs text-stone-500">{dateTime(e.created)}{e.ip ? ` · ${e.ip}` : ''}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Panel>
+      )}
     </>
   );
 }
