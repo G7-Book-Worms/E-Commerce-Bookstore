@@ -317,7 +317,14 @@ export async function lookUpGuestOrder(input: z.infer<typeof guestOrderLookupSch
   const [payment] = order ? await db.select().from(payments).where(eq(payments.orderId, order.orderId)).limit(1) : [];
   const matches = !!order && !!order.guestEmail && order.guestEmail.toLowerCase() === input.email && !!payment && payment.status !== 'pending';
   if (!matches) throw new NotFoundError(NOT_FOUND);
-  return guestOrderView(order.orderId);
+  const view = await guestOrderView(order.orderId);
+  // Typed in by hand (order number + email): someone who merely knows a person's email could
+  // guess sequential order numbers, so the street and phone are only shown through the signed
+  // link from the confirmation email.
+  if (!input.token && view.shipTo) {
+    view.shipTo = { ...view.shipTo, street: '', phone: null, recipientName: view.shipTo.recipientName?.split(/\s+/)[0] ?? null };
+  }
+  return { ...view, fullAddress: !!input.token };
 }
 
 /** Everything about one guest order that its owner may see (after the checks above). */

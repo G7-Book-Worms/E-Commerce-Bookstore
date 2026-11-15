@@ -37,6 +37,7 @@ type ActionInfo = { category: ActivityCategory; label: string; failure?: boolean
 export const ACTION_INFO: Readonly<Record<string, ActionInfo>> = {
   // --- Security: customer sign-in and passwords -------------------------------------------------
   'auth.login': { category: 'security', label: 'Customer signed in' },
+  'security.email_changed': { category: 'security', label: 'Account email address changed (old address alerted)' },
   'security.settings_wrong_password': { category: 'security', label: 'Wrong password when changing sign-in settings', failure: true },
   'auth.login_failed': { category: 'security', label: 'Failed customer sign-in (wrong email or password)', failure: true },
   'auth.locked_out': { category: 'security', label: 'Customer account locked after too many failed sign-ins', failure: true },

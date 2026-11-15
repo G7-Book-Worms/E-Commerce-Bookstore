@@ -24,6 +24,10 @@ export function mailDomain(): string {
 export const RESERVED_LOCAL_PARTS = new Set([
   'support', 'no-reply', 'noreply', 'admin', 'administrator', 'postmaster', 'abuse', 'hostmaster',
   'webmaster', 'root', 'security', 'billing', 'info', 'sales', 'help', 'mailer-daemon', 'dmarc',
+  // Look-official names nobody should hold personally
+  'hr', 'legal', 'privacy', 'orders', 'order', 'accounts', 'payments', 'refunds', 'returns',
+  'ceo', 'owner', 'staff', 'team', 'contact', 'hello', 'press', 'careers', 'jobs', 'it',
+  'helpdesk', 'service', 'customerservice', 'customer-service', 'store', 'shop', 'bookworms',
 ]);
 
 /** "Zoë O'Brien-Smith" -> "zoe.obrien-smith". Letters, digits, dots and hyphens only. */

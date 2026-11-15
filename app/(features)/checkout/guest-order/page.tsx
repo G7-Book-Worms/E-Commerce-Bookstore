@@ -34,6 +34,8 @@ type GuestOrder = {
   email: string | null;
   payment: { status: string; cardBrand: string | null; cardLast4: string | null } | null;
   shipTo: { recipientName: string | null; phone: string | null; street: string; city: string; state: string; zip: string; country: string } | null;
+  /** False when looked up by order number: street and phone are only shown via the emailed link */
+  fullAddress: boolean;
   items: { orderItemId: number; title: string; author: string; format: string; quantity: number; unitPrice: string }[];
 };
 
@@ -178,9 +180,12 @@ function OrderView({ data }: { data: GuestOrder }) {
               <p className="font-semibold">Shipping to</p>
               <address className="not-italic">
                 {shipTo.recipientName && <>{shipTo.recipientName}<br /></>}
-                {shipTo.street}<br />{shipTo.city}, {shipTo.state} {shipTo.zip}<br />{shipTo.country}
+                {shipTo.street && <>{shipTo.street}<br /></>}{shipTo.city}, {shipTo.state} {shipTo.zip}<br />{shipTo.country}
                 {shipTo.phone && <><br />{shipTo.phone}</>}
               </address>
+              {!data.fullAddress && (
+                <p className="mt-1 text-xs text-muted-foreground">The full address is in your confirmation email and behind its link.</p>
+              )}
             </div>
           )}
           <div className="space-y-3">

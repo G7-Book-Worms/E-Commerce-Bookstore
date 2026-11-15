@@ -64,15 +64,20 @@ function Success() {
           setGuestEmail(json.data.email ?? null);
           setViewToken(json.data.viewToken ?? null);
 
-          // The guest order view only returns what's safe to show behind a forwardable link,
-          // so the shipping street and email are not part of it.
-          const order = await fetch("/api/checkout/guest/order", {
+          // The order lookup needs the signed link and the email it was placed with, both of
+          // which the completion just handed back. If it fails, the order is still placed and
+          // the confirmation email has everything, so show what we can instead of crashing.
+          const orderRes = await fetch("/api/checkout/guest/order", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ token: json.data.viewToken }),
-          }).then((r) => r.json());
+            body: JSON.stringify({ token: json.data.viewToken, email: json.data.email }),
+          });
+          const order = await orderRes.json().catch(() => null);
+          if (!orderRes.ok || !order?.data) {
+            throw new Error(`Your order #${json.data.orderId} is placed and paid. We couldn't load its details here, but they're in your confirmation email.`);
+          }
           const d = order.data;
-          setSummary({ ...d, address: null, email: json.data.email ?? undefined });
+          setSummary({ ...d, address: d.shipTo ?? null, email: json.data.email ?? undefined });
           return;
         }
 

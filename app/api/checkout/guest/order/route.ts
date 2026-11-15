@@ -19,5 +19,7 @@ export const POST = createApiHandler(async (req: NextRequest) => {
   await rateLimit(`checkout:guest:order:ip:${clientIp(req)}`, 20, 15 * 60);
   const input = await validateBody(req, guestOrderLookupSchema);
   if (input.orderId) await rateLimit(`checkout:guest:order:id:${input.orderId}`, 10, 60 * 60);
+  // Per email too, so knowing someone's address doesn't allow walking through order numbers
+  await rateLimit(`checkout:guest:order:email:${input.email}`, 10, 60 * 60);
   return HttpResponse.success(await lookUpGuestOrder(input), 'Order retrieved');
 });

@@ -1,3 +1,4 @@
+import { alertEmailChanged } from '../mfa/security-alerts';
 import { UsersRepository } from './users-repository';
 import {
   UpdateProfileInput,
@@ -56,20 +57,32 @@ export class UsersService {
   /**
    * SCRUM-94 & SCRUM-95: Update profile with email uniqueness check
    */
-  async updateProfile(userId: number, input: UpdateProfileInput) {
+  async updateProfile(userId: number, input: UpdateProfileInput, ip?: string | null) {
     const user = await this.usersRepo.findById(userId);
     if (!user) {
       throw new NotFoundError('User not found');
     }
 
-    if (input.email && input.email !== user.email) {
-      const emailInUse = await this.usersRepo.isEmailTakenByOtherUser(input.email, userId);
+    const { currentPassword, ...changes } = input;
+    const emailChanging = !!changes.email && changes.email !== user.email;
+    if (emailChanging) {
+      // The email is where sign-in codes and password resets go, so changing it takes the
+      // current password (a stolen session alone can't redirect the account), and the old
+      // address is told.
+      await rateLimit(`change-email:user:${userId}`, 10, 15 * 60);
+      if (!currentPassword || !(await comparePassword(currentPassword, user.passwordHash))) {
+        throw new UnauthorizedError('Enter your current password to change your email address');
+      }
+      const emailInUse = await this.usersRepo.isEmailTakenByOtherUser(changes.email!, userId);
       if (emailInUse) {
         throw new BadRequestError('Email address is already associated with another account');
       }
     }
 
-    const updated = await this.usersRepo.updateProfile(userId, input);
+    await this.usersRepo.updateProfile(userId, changes);
+    if (emailChanging) {
+      await alertEmailChanged({ kind: 'customer', id: userId, email: user.email, firstName: user.firstName }, changes.email!, false, ip ?? null);
+    }
     return this.getProfile(userId);
   }
 

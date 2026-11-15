@@ -1,4 +1,5 @@
 'use client';
+import { safeInternalPath } from '@/lib/safe-redirect';
 
 import React, { useState, Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -35,7 +36,7 @@ function LoginForm() {
   useEffect(() => {
     if (!isLoading && user) {
       const next = searchParams.get('callbackUrl');
-      router.replace(user.mustChangePassword ? '/account?tab=security' : next && next.startsWith('/') && !next.startsWith('//') ? next : '/');
+      router.replace(user.mustChangePassword ? '/account?tab=security' : safeInternalPath(next));
     }
   }, [user, isLoading, router, searchParams]);
 
@@ -56,7 +57,7 @@ function LoginForm() {
   // SCRUM-165: Extract callbackUrl query parameter
   const callbackUrl = searchParams.get('callbackUrl');
   // Carried over to "Register here", so a shopper who signs up instead still lands back where they were
-  const safeCallback = callbackUrl && callbackUrl.startsWith('/') && !callbackUrl.startsWith('//') ? callbackUrl : null;
+  const safeCallback = callbackUrl && safeInternalPath(callbackUrl, '') ? callbackUrl : null;
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -99,7 +100,7 @@ function LoginForm() {
         // Only same-site paths: '//evil.com' would leave the site
         window.location.href = sessionData.user.mustChangePassword
           ? '/account?tab=security'
-          : callbackUrl && callbackUrl.startsWith('/') && !callbackUrl.startsWith('//') ? callbackUrl : '/';
+          : safeInternalPath(callbackUrl);
       } catch (err: any) {
         if (err instanceof MfaRequiredError) {
           setTwoStep({ method: err.method, sentTo: err.sentTo });

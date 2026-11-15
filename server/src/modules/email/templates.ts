@@ -346,7 +346,9 @@ export function signInCodeEmail(to: string, firstName: string, code: string, por
     : '';
   return {
     to,
-    subject: `${code} is your Book Worms sign-in code`,
+    // The code stays out of the subject: subjects show up in notifications, logs and inbox lists
+    subject: 'Your Book Worms sign-in code',
+    secret: true,
     ...layout(
       `Your sign-in code, ${firstName}`,
       `<p>Use this code to finish signing in to ${where}:</p>

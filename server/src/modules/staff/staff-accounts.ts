@@ -167,6 +167,11 @@ async function anonymiseStaff(targetId: number, previousEmail: string, workMailb
     isActive: false,
     mustChangePassword: false,
     tokenVersion: sql`${admin.tokenVersion} + 1`,
+    // Their phone and authenticator secret are personal data too
+    mfaMethod: 'email',
+    mfaPhone: null,
+    totpSecret: null,
+    totpLastStep: null,
   }).where(eq(admin.adminId, targetId));
   await clearFailures(`staff-login:email:${previousEmail}`);
   return { mailbox: workMailbox ? `${workMailbox}@${mailDomain()}` : null, mailboxRemoved };

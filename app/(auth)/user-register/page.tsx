@@ -1,4 +1,5 @@
 'use client';
+import { safeInternalPath } from '@/lib/safe-redirect';
 
 import React, { useState, Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -57,7 +58,7 @@ function RegisterForm() {
 
   // Only allow same-site relative redirects
   const callbackUrl = searchParams.get('callbackUrl');
-  const redirectTo = callbackUrl && callbackUrl.startsWith('/') && !callbackUrl.startsWith('//') ? callbackUrl : '/';
+  const redirectTo = safeInternalPath(callbackUrl);
 
   // Already signed in (or just signed up): go where the user was headed, same as the submit handler
   useEffect(() => {

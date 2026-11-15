@@ -1,6 +1,7 @@
 // Staff management of customer accounts (SCRUM-200): search, view, deactivate/reactivate,
 // set a temporary password, sign the customer out of every device, and - new in v2 - multi-select
 // bulk actions and "delete", which scrubs the account instead of removing the row.
+import { alertEmailChanged } from '../mfa/security-alerts';
 import { randomBytes } from 'node:crypto';
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '../../../db';
@@ -140,6 +141,10 @@ export async function updateCustomerDetails(
     throw err;
   }
   const changed = (['firstName', 'lastName', 'email', 'phone'] as const).filter((k) => (before[k] ?? null) !== (input[k] || null));
+  if (changed.includes('email')) {
+    // The old address hears about it: sign-in codes and resets now go to the new one
+    await alertEmailChanged({ kind: 'customer', id: userId, email: before.email, firstName: before.firstName }, input.email, true, null);
+  }
   return { changed, email: input.email };
 }
 
@@ -207,15 +212,30 @@ export async function anonymiseCustomer(userId: number, deadHash: string) {
     isActive: false,
     mustChangePassword: false,
     tokenVersion: sql`${users.tokenVersion} + 1`,
+    // Two-step sign-in and texting go too: no verified phone, no secret, no more texts
+    mfaMethod: 'none',
+    mfaPhone: null,
+    totpSecret: null,
+    totpLastStep: null,
+    smsOrderUpdates: false,
   }).where(eq(users.userId, userId));
-  // Addresses stay as rows because placed orders point at them; only their contents go.
-  await db.update(addresses).set({
+  // Addresses stay as rows because placed orders point at them; only their contents go. That
+  // includes addresses the customer removed from their account earlier (detached, user_id NULL)
+  // that their orders still point at.
+  const scrubbed = {
+    recipientName: ANONYMISED.address,
+    phone: null,
     street: ANONYMISED.address,
     city: ANONYMISED.address,
     state: ANONYMISED.address,
     zip: ANONYMISED.address,
     country: ANONYMISED.address,
-  }).where(eq(addresses.userId, userId));
+  };
+  await db.update(addresses).set(scrubbed).where(eq(addresses.userId, userId));
+  const shippedTo = await db.select({ id: orders.shippingAddressId }).from(orders).where(eq(orders.userId, userId));
+  if (shippedTo.length) {
+    await db.update(addresses).set(scrubbed).where(inArray(addresses.addressId, [...new Set(shippedTo.map((o) => o.id))]));
+  }
   await clearFailures(`login:email:${u.email}`);
   // The old address is returned for the activity log entry, so the action can be audited.
   return { email: u.email };

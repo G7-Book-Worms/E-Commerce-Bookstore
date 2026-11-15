@@ -30,7 +30,7 @@ import { sendEmail } from '../email/mailer';
 import { signInCodeEmail } from '../email/templates';
 import { openSecret, sealSecret } from './secret-box';
 import { generateTotpSecret, totpUri, verifyTotp } from './totp';
-import { alertMfaChanged, type AlertActor } from './security-alerts';
+import { alertLockout, alertMfaChanged, type AlertActor } from './security-alerts';
 import { checkSmsCode, maskPhone, sendSmsCode, smsAvailable, toE164 } from './twilio-verify';
 import { textingAvailable } from './twilio-messaging';
 
@@ -188,15 +188,20 @@ async function checkEmailCode(a: MfaAccount, code: string): Promise<boolean> {
       isNull(mfaChallenges.usedAt), gt(mfaChallenges.expiresAt, new Date()),
     ))
     .orderBy(desc(mfaChallenges.challengeId)).limit(1);
-  if (!c || c.attempts >= MAX_CODE_ATTEMPTS) return false;
+  if (!c) return false;
+  // Count the attempt before comparing, in one conditional UPDATE, so parallel guesses can't all
+  // slip in under the limit: only requests that actually claimed one of the 5 tries get a compare.
+  const [claimed] = await db.update(mfaChallenges)
+    .set({ attempts: sql`${mfaChallenges.attempts} + 1` })
+    .where(and(eq(mfaChallenges.challengeId, c.challengeId), isNull(mfaChallenges.usedAt), sql`${mfaChallenges.attempts} < ${MAX_CODE_ATTEMPTS}`)) as unknown as [{ affectedRows: number }];
+  if (claimed.affectedRows !== 1) return false;
   const digits = code.replace(/\s+/g, '');
   const ok = /^\d{6}$/.test(digits) && timingSafeEqual(Buffer.from(hashCode(a.kind, a.id, digits)), Buffer.from(c.codeHash));
-  if (ok) {
-    await db.update(mfaChallenges).set({ usedAt: new Date() }).where(eq(mfaChallenges.challengeId, c.challengeId));
-  } else {
-    await db.update(mfaChallenges).set({ attempts: sql`${mfaChallenges.attempts} + 1` }).where(eq(mfaChallenges.challengeId, c.challengeId));
-  }
-  return ok;
+  if (!ok) return false;
+  // Single use, also under a race: only one request can mark it used
+  const [used] = await db.update(mfaChallenges).set({ usedAt: new Date() })
+    .where(and(eq(mfaChallenges.challengeId, c.challengeId), isNull(mfaChallenges.usedAt))) as unknown as [{ affectedRows: number }];
+  return used.affectedRows === 1;
 }
 
 // --- sign-in ----------------------------------------------------------------------------------
@@ -281,6 +286,8 @@ export async function verifySecondStep(pendingToken: string | undefined, code: s
   if (!ok) {
     const locked = await recordFailure(lockKey);
     await logActivity(actorType(a.kind), a.id, 'security.mfa_failed', { method: p.via, locked }, ip);
+    // Wrong codes after a right password: someone may have the password. Tell the owner.
+    if (locked) await alertLockout(alertActor(a), ip);
     throw new UnauthorizedError(locked
       ? 'Too many wrong codes. Sign-in is paused for 15 minutes.'
       : 'That code isn\'t right or has expired. Check it and try again, or send a new one.');
@@ -356,8 +363,11 @@ export async function changeMfaSettings(kind: MfaKind, id: number, input: z.infe
   if (input.action === 'begin_sms') {
     if (!smsAvailable()) throw new BadRequestError('Text-message codes aren\'t available on this site right now.');
     const phone = toE164(input.phone);
-    if (!phone) throw new BadRequestError('Enter a mobile number like (210) 555-0142, or start with + and the country code.');
+    // US and Canadian numbers only: the store ships to the US, and it keeps texting costs and
+    // international SMS-pumping abuse in check
+    if (!phone || !phone.startsWith('+1')) throw new BadRequestError('Enter a US mobile number, like (210) 555-0142.');
     await rateLimit(`mfa:begin-sms:${actorType(kind)}:${id}`, 5, 60 * 60);
+    if (ip) await rateLimit(`mfa:begin-sms:ip:${ip}`, 10, 60 * 60);
     if (!(await sendSmsCode(phone))) {
       throw new BadRequestError('We couldn\'t text that number. Check it can receive texts (on the Twilio trial, it must be one of the verified numbers).');
     }

@@ -1,4 +1,5 @@
 'use client';
+import { safeInternalPath } from '@/lib/safe-redirect';
 
 import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -56,7 +57,7 @@ export function StaffLoginForm() {
     const next = params.get('callbackUrl');
     window.location.href = mustChangePassword
       ? '/admin/change-password'
-      : next && next.startsWith('/admin') && !next.startsWith('//') ? next : '/admin';
+      : safeInternalPath(next, '/admin', '/admin');
   }
 
   if (twoStep) {

@@ -91,3 +91,19 @@ export function alertMfaChanged(actor: AlertActor, from: keyof typeof METHOD_LAB
     facts: [['When', when()], ['Before', METHOD_LABEL[from]], ['Now', METHOD_LABEL[to]], ['IP address', ip ?? 'unknown']],
   }, { from, to }, ip);
 }
+
+/**
+ * The account's email address changed. Sent to the OLD address (the new one may be an
+ * attacker's): an emailed sign-in code or a password reset now goes to the new address.
+ */
+export function alertEmailChanged(actor: AlertActor, newEmail: string, byStaff: boolean, ip: string | null) {
+  const masked = newEmail.replace(/^(.).*(@.*)$/, '$1•••$2');
+  return send(actor, 'security.email_changed', {
+    subject: 'your email address was changed',
+    headline: 'Your account email changed',
+    body: byStaff
+      ? 'A Book Worms staff member changed the email address on your account. Sign-in emails and password resets now go to the new address.'
+      : 'The email address on your account was changed. Sign-in emails and password resets now go to the new address.',
+    facts: [['When', when()], ['New address', masked], ['IP address', ip ?? 'unknown']],
+  }, { byStaff }, ip);
+}

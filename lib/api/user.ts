@@ -75,6 +75,7 @@ export async function updateUserProfile(payload: {
   lastName?: string;
   phone?: string;
   email?: string;
+  currentPassword?: string;
 }): Promise<UserProfile> {
   const res = await fetch('/api/users/profile', {
     method: 'PATCH',
