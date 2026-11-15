@@ -252,6 +252,9 @@ export const admin = mysqlTable('admin', {
     mfaPhone: varchar('mfa_phone', { length: 20 }),
     totpSecret: varchar('totp_secret', { length: 255 }),
     totpLastStep: int('totp_last_step'),
+    // The @bookwrms.store mailbox made for this person (its local part), if any; removed with the
+    // staff account. See server/src/modules/staff/staff-mailbox.ts
+    workMailbox: varchar('work_mailbox', { length: 64 }),
     lastLogin: timestamp('last_login'),
     created: timestamp('created').defaultNow().notNull(),
     updated: timestamp('updated').defaultNow().onUpdateNow().notNull(),

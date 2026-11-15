@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "mysql",
-  "id": "019dc291-5979-4789-b6d8-cd99e023a321",
+  "id": "c69b4922-d863-4ece-b8b4-30c33923ab70",
   "prevIds": [
     "d88f23d0-bcef-4780-a84b-2739bac4a746"
   ],
@@ -529,6 +529,20 @@
       "collation": null,
       "generated": null,
       "name": "totp_last_step",
+      "entityType": "columns",
+      "table": "admin"
+    },
+    {
+      "type": "varchar(64)",
+      "notNull": false,
+      "autoIncrement": false,
+      "default": null,
+      "onUpdateNow": false,
+      "onUpdateNowFsp": null,
+      "charSet": null,
+      "collation": null,
+      "generated": null,
+      "name": "work_mailbox",
       "entityType": "columns",
       "table": "admin"
     },

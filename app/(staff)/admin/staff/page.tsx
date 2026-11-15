@@ -4,6 +4,7 @@ import { actionableStaffIds, listStaff, nextEmployeeId } from '@/server/src/modu
 import { assignableRoles } from '@/lib/staff-permissions';
 import { PageHeader, Panel } from '@/components/staff/ui';
 import { StaffManager } from './staff-manager';
+import { mailDomain, mailboxesEnabled } from '@/server/src/modules/staff/staff-mailbox';
 
 export const metadata = { title: 'Staff' };
 
@@ -28,6 +29,7 @@ async function Content() {
           actionableIds={actionable}
           assignable={assignableRoles(me.role)}
           nextEmployeeId={nextId}
+          mailboxDomain={mailboxesEnabled() ? mailDomain() : null}
         />
       </Panel>
     </>
