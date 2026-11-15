@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { AddressAutocomplete } from '@/components/address-autocomplete';
 import {
   AddressItem,
   createUserAddress,
@@ -167,16 +168,17 @@ export const AddressesTab: React.FC<Props> = ({ addresses, onRefresh }) => {
             </div>
 
             <form onSubmit={handleSave} className="space-y-4 text-sm">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-stone-700 uppercase">Street Address</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.street}
-                  onChange={(e) => setFormData({ ...formData, street: e.target.value })}
-                  className="h-10 w-full rounded-md border border-stone-200 bg-white px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
-                />
-              </div>
+              <AddressAutocomplete
+                label="Street Address"
+                required
+                value={formData.street}
+                onChange={(street) => setFormData((f) => ({ ...f, street }))}
+                // Keeps any other form state (such as the default-address flag) as it was.
+                onSelect={(a) => setFormData((f) => ({ ...f, street: a.street, city: a.city, state: a.state, zip: a.zip, country: a.country }))}
+                className="space-y-1.5"
+                labelClassName="block text-xs font-semibold text-stone-700 uppercase"
+                inputClassName="h-10 w-full rounded-md border border-stone-200 bg-white px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
+              />
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
