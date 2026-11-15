@@ -320,7 +320,7 @@ export async function mfaStatus(kind: MfaKind, id: number) {
 async function confirmPassword(a: MfaAccount, password: string, ip: string | null) {
   await rateLimit(`mfa:settings:${actorType(a.kind)}:${a.id}`, 10, 15 * 60);
   if (!(await comparePassword(password, a.passwordHash))) {
-    await logActivity(actorType(a.kind), a.id, a.kind === 'staff' ? 'staff.step_up_failed' : 'security.mfa_failed', { reason: 'wrong password on two-step settings' }, ip);
+    await logActivity(actorType(a.kind), a.id, 'security.settings_wrong_password', { setting: 'two-step sign-in' }, ip);
     throw new UnauthorizedError('That password isn\'t right. Nothing was changed.');
   }
 }
