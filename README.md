@@ -70,7 +70,8 @@ The app is a single Next.js project: pages live in `app/`, and the backend is a 
 | ◆ | Two-step sign-in: email code, authenticator app, or text (Twilio Verify). Optional for customers, required for staff | `/account?tab=security`, `/admin/change-password` | ● Done |
 | ◆ | Passkeys: sign in with Face ID / Touch ID / Windows Hello, for customers and staff | `/user-login`, `/staff-login`, security settings | ● Done |
 | ◆ | Cloudflare Turnstile bot check on sign-up, sign-in, staff sign-in, forgot password, contact and guest checkout | — | ● Done |
-| ◆ | CI: GitHub Actions runs typecheck, lint, tests and build on every PR | `.github/workflows/ci.yml` | ● Done |
+| ◆ | CI: GitHub Actions runs typecheck, lint, unit tests, build and browser end-to-end tests on every PR | `.github/workflows/ci.yml`, `e2e/` | ● Done |
+| ◆ | Your data: download a copy of everything stored about you, or delete your account | `/account?tab=security` | ● Done |
 | ◆ | Security alert emails: new-network sign-in, lockouts, two-step changes, email changes | — | ● Done |
 | ◆ | Staff `@bookwrms.store` mailboxes created and removed with staff accounts (Migadu) | `/admin/staff` | ● Done, needs Migadu keys |
 | ◆ | Order-update and security-alert texts (opt-in) | — | ◐ Waiting on an approved Twilio number |
@@ -253,12 +254,14 @@ Then open **[http://localhost:3000](http://localhost:3000)** in your browser.
 | `pnpm dev` | Start the development server with hot reload |
 | `pnpm build` | Create an optimized production build (run before every PR) |
 | `pnpm start` | Serve the production build |
-| `pnpm lint` | Run ESLint across the project (there are existing warnings; don't add new ones) |
+| `pnpm lint` | Run ESLint across the project (no errors allowed: CI fails on them; there are a few existing warnings) |
 | `pnpm db:generate` | Create a new migration after changing `server/db/schema.ts` |
 | `pnpm db:migrate` | Apply pending migrations to the database in `DATABASE_URL` |
 | `pnpm db:seed` | Load test data from `server/db/test-data/`; the catalog part (stock, prices, codes) is re-applied every run |
 | `pnpm demo:reset` | Before the presentation: re-seed the catalog, reset demo customer and staff passwords, empty the demo carts, clear lockouts |
-| `pnpm test` | Run the unit tests (`server/**/*.test.ts`) |
+| `pnpm test` | Run the unit tests (`server/**/*.test.ts`, `lib/**/*.test.ts`) |
+| `pnpm e2e` | End-to-end tests in a real browser (Playwright). Needs a local database prepared with `pnpm e2e:setup`; see `playwright.config.ts`. CI runs them on every PR |
+| `pnpm e2e:setup` | Prepare a **local, throwaway** database for `pnpm e2e` (sets test passwords from `E2E_PASSWORD` and an authenticator secret from `E2E_TOTP_SECRET`); refuses to run against anything but localhost |
 | `pnpm db:studio` | Browse the database in Drizzle Studio |
 
 ---
@@ -289,7 +292,9 @@ E-Commerce-Bookstore/
 │   ├── error.tsx, global-error.tsx, not-found.tsx  ─ error pages
 │   └── globals.css
 ├── components/                      ─ UI: header, footer, home, account tabs, staff portal, shadcn/ui
+├── .github/workflows/ci.yml         ─ CI: typecheck, lint, tests, build, end-to-end tests
 ├── docs/                            ─ compliance checklist, security overview
+├── e2e/                             ─ Playwright end-to-end tests + fake Stripe for CI
 ├── lib/
 │   ├── api/                         ─ browser-side API clients (auth.ts, user.ts)
 │   ├── catalog.ts, cart-types.ts    ─ shared catalog and cart types
