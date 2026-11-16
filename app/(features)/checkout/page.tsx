@@ -400,7 +400,7 @@ function Checkout() {
           <section className="rounded-xl border bg-white p-5">
             <div className="mb-4 flex items-baseline justify-between">
               <h2 className="font-serif text-xl font-bold">{choosingHow ? "Your items" : `${isGuestCheckout ? "3." : "2."} Review items`}</h2>
-              {!isGuestCheckout && <Link href="/cart" className="text-sm underline">Edit cart</Link>}
+              {!isGuestCheckout && <Link href="/cart" className="-my-3 inline-block py-3 text-sm underline">Edit cart</Link>}
             </div>
             <ul className="divide-y text-sm">
               {cart.items.map((l) => (

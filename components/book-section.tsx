@@ -16,7 +16,7 @@ export function BookSection({ title, books, href, total, eager = false, captions
     <section aria-labelledby={`row-${href}`} className="min-w-0">
         <div className="mb-4 flex items-end justify-between gap-4 border-b pb-2">
             <h2 id={`row-${href}`} className="font-serif text-2xl font-bold">{title}</h2>
-            <Link href={href} className="inline-flex shrink-0 items-center gap-1 text-sm font-medium hover:underline">
+            <Link href={href} className="-my-3 inline-flex shrink-0 items-center gap-1 py-3 text-sm font-medium hover:underline">
                 See All{total ? ` (${total})` : ""} <ChevronRight size={16} />
             </Link>
         </div>

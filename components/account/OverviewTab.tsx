@@ -37,7 +37,7 @@ export const OverviewTab: React.FC<Props> = ({ profile, orders, onSelectTab }) =
           </div>
           <button
             onClick={() => onSelectTab('orders')}
-            className="text-sm font-medium text-stone-900 hover:text-stone-600 mt-5 inline-flex items-center gap-1 transition-colors"
+            className="text-sm font-medium text-stone-900 hover:text-stone-600 mt-3 min-h-10 inline-flex items-center gap-1 transition-colors"
           >
             Track shipments &rarr;
           </button>
@@ -50,7 +50,7 @@ export const OverviewTab: React.FC<Props> = ({ profile, orders, onSelectTab }) =
           </div>
           <button
             onClick={() => onSelectTab('profile')}
-            className="text-sm font-medium text-stone-900 hover:text-stone-600 mt-5 inline-flex items-center gap-1 transition-colors"
+            className="text-sm font-medium text-stone-900 hover:text-stone-600 mt-3 min-h-10 inline-flex items-center gap-1 transition-colors"
           >
             Edit profile &rarr;
           </button>
@@ -63,7 +63,7 @@ export const OverviewTab: React.FC<Props> = ({ profile, orders, onSelectTab }) =
           </div>
           <button
             onClick={() => onSelectTab('addresses')}
-            className="text-sm font-medium text-stone-900 hover:text-stone-600 mt-5 inline-flex items-center gap-1 transition-colors"
+            className="text-sm font-medium text-stone-900 hover:text-stone-600 mt-3 min-h-10 inline-flex items-center gap-1 transition-colors"
           >
             Manage addresses &rarr;
           </button>

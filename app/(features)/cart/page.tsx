@@ -260,7 +260,7 @@ export default function CartPage() {
                     Next, sign in, create an account or check out as a guest.
                   </p>
                 )}
-                <Link href="/product-catalog" className="mt-3 block text-center text-sm underline">Continue shopping</Link>
+                <Link href="/product-catalog" className="mt-1 block py-3 text-center text-sm underline">Continue shopping</Link>
               </OrderSummary>
             )}
           </div>
