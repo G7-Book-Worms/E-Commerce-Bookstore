@@ -49,3 +49,25 @@ export async function addFirstBookToCart(page: Page) {
   await page.getByRole('button', { name: /add to cart/i }).first().click();
   await expect(page.getByText(/added/i).first()).toBeVisible();
 }
+
+/**
+ * Signs in the e2e staff account (Edsger, manager) with the authenticator code. A code works once
+ * per 30-second window, so if another test just used this window's code, wait for the next one.
+ */
+export async function staffSignIn(page: Page) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    await page.goto('/staff-login');
+    await page.getByLabel('Work email').fill('edsger@example.com');
+    await page.getByLabel('Employee ID').fill('BW-1002');
+    await page.locator('#staff-password').fill(PASSWORD);
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    const code = page.getByRole('textbox').first();
+    await expect(code).toBeVisible();
+    await code.fill(totp(TOTP_SECRET));
+    await page.keyboard.press('Enter');
+    const ok = await page.waitForURL(/\/admin/, { timeout: 8_000, waitUntil: 'commit' }).then(() => true, () => false);
+    if (ok) return;
+    await page.waitForTimeout(31_000 - (Date.now() % 30_000));
+  }
+  throw new Error('staff sign-in failed');
+}

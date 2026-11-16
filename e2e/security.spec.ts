@@ -1,6 +1,6 @@
 // Sign-in security: passkeys (with Chrome's virtual authenticator), the staff portal with an
 // authenticator-app code, and staff-only pages refusing customers.
-import { test, expect, totp, PASSWORD, TOTP_SECRET } from './helpers';
+import { test, expect, staffSignIn, PASSWORD, TOTP_SECRET } from './helpers';
 
 test('a customer adds a passkey and signs in with it', async ({ page, context }) => {
   const cdp = await context.newCDPSession(page);
@@ -40,19 +40,8 @@ test('a customer adds a passkey and signs in with it', async ({ page, context })
 
 test('staff sign in with an authenticator code and see the dashboard', async ({ page }) => {
   test.skip(!PASSWORD || !TOTP_SECRET, 'needs E2E_PASSWORD and E2E_TOTP_SECRET');
-  await page.goto('/staff-login');
-  await page.getByLabel('Work email').fill('edsger@example.com');
-  await page.getByLabel('Employee ID').fill('BW-1002');
-  await page.locator('#staff-password').fill(PASSWORD);
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-
-  const code = page.getByRole('textbox').first();
-  await expect(code).toBeVisible();
-  await code.fill(totp(TOTP_SECRET));
-  await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(/\/admin/, { timeout: 20_000 });
+  await staffSignIn(page);
   await expect(page.getByRole('heading').first()).toBeVisible();
-
   await page.goto('/admin/orders');
   await expect(page.getByRole('table').first()).toBeVisible();
   await page.goto('/admin/activity');
