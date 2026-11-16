@@ -7,12 +7,14 @@ import { setAuthCookie, clearAuthCookie, AUTH_COOKIE_NAME } from '../../shared/u
 import { clientIp } from '../../shared/security/client-ip';
 import { verifyToken } from '../../shared/utils/token-util';
 import { MFA_PENDING_COOKIE, pendingCookieOptions } from '../mfa/mfa-service';
+import { requireHuman } from '../../shared/security/turnstile';
 
 const authService = new AuthService();
 
 export class AuthController {
   /** POST /api/auth/register (201 Created) */
   static async register(req: NextRequest) {
+    await requireHuman(req, clientIp(req), 'register');
     const validatedInput = registerInputSchema.parse(await req.json());
     const result = await authService.register(validatedInput, clientIp(req));
     // The token only goes in the httpOnly cookie, never in the JSON body
@@ -23,6 +25,7 @@ export class AuthController {
 
   /** POST /api/auth/login */
   static async login(req: NextRequest) {
+    await requireHuman(req, clientIp(req), 'login');
     const validatedInput = loginInputSchema.parse(await req.json());
     const result = await authService.login(validatedInput, clientIp(req));
     if ('mfa' in result) {
@@ -71,6 +74,7 @@ export class AuthController {
 
   /** POST /api/auth/forgot-password: same answer whether or not the email has an account */
   static async forgotPassword(req: NextRequest) {
+    await requireHuman(req, clientIp(req), 'forgot_password');
     const { email } = forgotPasswordSchema.parse(await req.json());
     await authService.requestPasswordReset(email, clientIp(req));
     return HttpResponse.success(

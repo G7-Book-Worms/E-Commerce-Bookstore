@@ -5,6 +5,7 @@ import React, { useState, Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { z } from 'zod';
+import { useTurnstile } from '@/components/turnstile';
 import { registerUser, AuthApiError } from '@/lib/api/auth';
 import { useAuth } from '../../context/auth-context';
 import { PasswordInput } from '@/components/ui/password-input';
@@ -76,6 +77,7 @@ function RegisterForm() {
   });
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<FieldName, string>>>({});
   const [serverError, setServerError] = useState<string | null>(null);
+  const human = useTurnstile('register');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -110,11 +112,15 @@ function RegisterForm() {
     }
 
     setFieldErrors({});
+    if (!human.ready) {
+      setServerError('One moment: the security check is still running. Try again in a second.');
+      return;
+    }
     setIsSubmitting(true);
 
     try {
       const { firstName, lastName, email, password } = validationResult.data;
-      const sessionData = await registerUser({ firstName, lastName, email, password });
+      const sessionData = await registerUser({ firstName, lastName, email, password }, human.headers());
       setUserSession(sessionData.user);
 
       // Full navigation so the new auth cookie is picked up by the proxy and (main) layout
@@ -126,6 +132,7 @@ function RegisterForm() {
         setServerError('Registration failed. Please try again.');
       }
       setIsSubmitting(false);
+      human.reset(); // a token works once
     }
   };
 
@@ -225,6 +232,8 @@ function RegisterForm() {
           <PasswordStrength password={formData.password} email={formData.email} />
         </div>
         {renderField('confirmPassword', 'Confirm password', 'password', 'new-password')}
+
+        {human.widget}
 
         <div className="pt-2">
           <button

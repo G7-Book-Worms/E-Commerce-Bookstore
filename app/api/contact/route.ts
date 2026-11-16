@@ -4,6 +4,7 @@ import { createApiHandler } from '@/server/src/server';
 import { HttpResponse } from '@/server/src/shared/http/api-response';
 import { clientIp } from '@/server/src/shared/security/client-ip';
 import { rateLimit } from '@/server/src/shared/security/rate-limit';
+import { requireHuman } from '@/server/src/shared/security/turnstile';
 import { authenticateRequest } from '@/server/src/shared/middleware/auth-middleware';
 import { contactSchema, createContactMessage } from '@/server/src/modules/contact/contact-service';
 import { createTicketFromContactForm } from '@/server/src/modules/tickets/ticket-service';
@@ -23,6 +24,7 @@ function subjectFromMessage(message: string): string {
 export const POST = createApiHandler(async (req: NextRequest) => {
   const ip = clientIp(req);
   await rateLimit(`contact:ip:${ip}`, 5, 60 * 60);
+  await requireHuman(req, ip, 'contact');
   const input = contactSchema.parse(await req.json());
   const userId = await authenticateRequest(req).then((r) => Number(r.user.id)).catch(() => null);
   const messageId = await createContactMessage(input, userId);

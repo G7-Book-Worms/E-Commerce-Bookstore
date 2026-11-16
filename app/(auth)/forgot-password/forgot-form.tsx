@@ -2,19 +2,22 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { useTurnstile } from '@/components/turnstile';
 
 export function ForgotPasswordForm() {
   const [email, setEmail] = useState('');
   const [state, setState] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const human = useTurnstile('forgot_password');
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (!human.ready) return setState({ ok: false, text: 'One moment: the security check is still running. Try again in a second.' });
     setBusy(true);
     try {
       const res = await fetch('/api/auth/forgot-password', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...human.headers() },
         body: JSON.stringify({ email }),
       });
       const json = await res.json().catch(() => null);
@@ -23,6 +26,7 @@ export function ForgotPasswordForm() {
       setState({ ok: false, text: 'Network error. Try again.' });
     } finally {
       setBusy(false);
+      human.reset();
     }
   }
 
@@ -43,6 +47,7 @@ export function ForgotPasswordForm() {
               <input id="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)}
                 className="h-10 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900" />
             </div>
+            {human.widget}
             <button type="submit" disabled={busy || !email} className="h-10 w-full rounded-md bg-neutral-900 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-60">
               {busy ? 'Sending…' : 'Email me a reset link'}
             </button>

@@ -13,6 +13,7 @@ import { validateBody } from '@/server/src/shared/middleware/validate-middleware
 import { HttpResponse } from '@/server/src/shared/http/api-response';
 import { rateLimit } from '@/server/src/shared/security/rate-limit';
 import { clientIp } from '@/server/src/shared/security/client-ip';
+import { requireHuman } from '@/server/src/shared/security/turnstile';
 import {
   startGuestCheckout,
   startGuestCheckoutSchema,
@@ -25,6 +26,7 @@ export const POST = createApiHandler(async (req: NextRequest) => {
   await rateLimit(`checkout:guest:start:burst:ip:${ip}`, 3, 60);
   await rateLimit(`checkout:guest:start:ip:${ip}`, 10, 3600);
 
+  await requireHuman(req, ip, 'guest_checkout');
   const input = await validateBody(req, startGuestCheckoutSchema);
   // Where Stripe sends the shopper back to (set SITE_URL when deployed behind a proxy)
   const origin = process.env.SITE_URL ?? req.nextUrl.origin;

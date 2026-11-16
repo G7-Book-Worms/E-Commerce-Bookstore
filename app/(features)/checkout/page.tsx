@@ -8,6 +8,7 @@
 // POST /api/checkout/guest/quote, which answers with the same priced cart shape the signed-in
 // cart uses. They type an email and an address here and never create an account.
 
+import { useTurnstile } from "@/components/turnstile";
 import Link from "next/link";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { AddressAutocomplete, fillAddress } from "@/components/address-autocomplete";
@@ -82,6 +83,8 @@ function Checkout() {
   const code = typeof window === "undefined" ? "" : loadDiscountCode();
 
   const isGuestCheckout = !authLoading && !user;
+  // Bot check for guests only (signed-in customers already passed one at sign-in)
+  const human = useTurnstile('guest_checkout', isGuestCheckout);
   // A new address for a signed-in shopper starts with their own name and phone filled in
   const prefilled = useCallback(
     () => ({ ...EMPTY, recipientName: user ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() : "", phone: user?.phone ?? "" }),
@@ -183,12 +186,13 @@ function Checkout() {
   async function pay() {
     setError(null);
     if (!isGuestCheckout && !addressId) return setError("Choose a shipping address");
+    if (isGuestCheckout && !human.ready) return setError("One moment: the security check is still running. Try again in a second.");
     setPaying(true);
     try {
       const res = isGuestCheckout
         ? await fetch("/api/checkout/guest", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", ...human.headers() },
             body: JSON.stringify({
               email: email.trim(),
               address: form,
@@ -214,6 +218,7 @@ function Checkout() {
     } catch (err) {
       setError((err as Error).message);
       setPaying(false);
+      human.reset();
     }
   }
 
@@ -458,6 +463,7 @@ function Checkout() {
         {/* Pay */}
         <div className="lg:sticky lg:top-24 lg:self-start">
           <OrderSummary cart={cart}>
+            {isGuestCheckout && <div className="mt-4">{human.widget}</div>}
             <Button className="mt-5 w-full" size="lg" onClick={pay} disabled={paying || !canPay}>
               <Lock /> {paying ? "Opening secure payment…" : `Pay ${formatPrice(cart.totals.totalCents)}`}
             </Button>

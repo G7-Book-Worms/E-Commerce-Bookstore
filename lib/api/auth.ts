@@ -66,6 +66,7 @@ export function sessionFromVerify(raw: unknown): UserSession | null {
 /**
  * Converts the server's SanitizedUser (auth-service.ts) into the client session shape.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- pre-existing loose type, kept to avoid behaviour changes
 function toUserSession(raw: any): UserSession | null {
   if (!raw || typeof raw !== 'object') return null;
 
@@ -104,13 +105,14 @@ async function readJson<T>(res: Response): Promise<ApiResponse<T> | null> {
 async function postAuth(
   url: string,
   body: unknown,
-  fallbackError: (status: number) => string
+  fallbackError: (status: number) => string,
+  extraHeaders: Record<string, string> = {}
 ): Promise<{ user: UserSession }> {
   let res: Response;
   try {
     res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...extraHeaders },
       credentials: 'include',
       body: JSON.stringify(body),
     });
@@ -140,18 +142,20 @@ async function postAuth(
 /**
  * POST /api/auth/login
  */
-export async function loginUser(payload: LoginPayload): Promise<{ user: UserSession }> {
+/** `headers` carries the Turnstile token (components/turnstile.tsx). */
+export async function loginUser(payload: LoginPayload, headers: Record<string, string> = {}): Promise<{ user: UserSession }> {
   return postAuth(
     '/api/auth/login',
     { email: payload.email, password: payload.password, rememberMe: payload.rememberMe },
-    (status) => (status === 401 ? 'Invalid email address or password.' : 'Failed to authenticate.')
+    (status) => (status === 401 ? 'Invalid email address or password.' : 'Failed to authenticate.'),
+    headers
   );
 }
 
 /**
  * POST /api/auth/register
  */
-export async function registerUser(payload: RegisterPayload): Promise<{ user: UserSession }> {
+export async function registerUser(payload: RegisterPayload, headers: Record<string, string> = {}): Promise<{ user: UserSession }> {
   const body: RegisterPayload = {
     firstName: payload.firstName,
     lastName: payload.lastName,
@@ -165,7 +169,8 @@ export async function registerUser(payload: RegisterPayload): Promise<{ user: Us
   return postAuth('/api/auth/register', body, (status) =>
     status === 409
       ? 'An account with this email already exists. Please sign in instead.'
-      : 'Registration failed.'
+      : 'Registration failed.',
+    headers
   );
 }
 

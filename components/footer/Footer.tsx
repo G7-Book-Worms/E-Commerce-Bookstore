@@ -3,21 +3,30 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useTurnstile } from '@/components/turnstile';
 
 export const Footer: React.FC = () => {
   const [formData, setFormData] = useState({ name: '', email: '', message: '' });
   const [status, setStatus] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // The footer is on every page: only load the bot check once someone starts on the form
+  const [touched, setTouched] = useState(false);
+  const human = useTurnstile('contact', touched);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setTouched(true);
+    if (!human.ready) {
+      setStatus('One moment: the security check is still running. Try again in a second.');
+      return;
+    }
     setIsSubmitting(true);
     setStatus(null);
 
     try {
       const res = await fetch('/api/contact', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...human.headers() },
         body: JSON.stringify(formData),
       });
       const data = await res.json();
@@ -31,6 +40,7 @@ export const Footer: React.FC = () => {
       setStatus('Failed to dispatch message.');
     } finally {
       setIsSubmitting(false);
+      human.reset();
     }
   };
 
@@ -61,7 +71,7 @@ export const Footer: React.FC = () => {
 
           {status && <p className="text-xs text-stone-900 font-medium mb-3">{status}</p>}
 
-          <form onSubmit={handleSubmit} className="space-y-3">
+          <form onSubmit={handleSubmit} onFocus={() => setTouched(true)} className="space-y-3">
             {/* Spam trap: hidden from people, bots fill it in (the server rejects those) */}
             <div aria-hidden="true" className="hidden">
               <label>Leave this empty <input type="text" name="website" tabIndex={-1} autoComplete="off" defaultValue="" /></label>
@@ -97,6 +107,7 @@ export const Footer: React.FC = () => {
               onChange={(e) => setFormData({ ...formData, message: e.target.value })}
               className="w-full rounded-md border border-stone-200 bg-white p-2.5 text-xs placeholder:text-stone-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-stone-900"
             />
+            {human.widget}
             <button
               type="submit"
               disabled={isSubmitting}
