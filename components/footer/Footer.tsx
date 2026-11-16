@@ -3,6 +3,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { BrandMark } from '@/components/brand-mark';
 import { useTurnstile } from '@/components/turnstile';
 
 export const Footer: React.FC = () => {
@@ -50,7 +51,7 @@ export const Footer: React.FC = () => {
         {/* Support & Brand Details */}
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <span className="text-xl">📚</span>
+            <BrandMark size={28} />
             <span className="font-serif font-bold text-lg text-stone-900 tracking-tight">Book Worms</span>
           </div>
           <p className="text-xs text-stone-500 max-w-sm leading-relaxed">
