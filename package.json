@@ -17,6 +17,8 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
+    "@simplewebauthn/browser": "^13.3.0",
+    "@simplewebauthn/server": "^13.3.3",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.4.0",

@@ -391,6 +391,29 @@ export const mfaChallenges = mysqlTable('mfa_challenges', {
     created: timestamp('created').defaultNow().notNull(),
 }, (t) => [index('mfa_challenges_actor_idx').on(t.actorType, t.actorId)]);
 
+// Passkeys (WebAuthn): Face ID / Touch ID / Windows Hello / security keys. One row per device a
+// customer or staff member registered. Only the PUBLIC key is stored; the private key never
+// leaves the person's device, so a database leak can't be used to sign in.
+export const passkeys = mysqlTable('passkeys', {
+    passkeyId: int('passkey_id').autoincrement().primaryKey().notNull(),
+    actorType: mysqlEnum('actor_type', ['customer', 'admin']).notNull(),
+    actorId: int('actor_id').notNull(),
+    /** base64url credential id from the authenticator */
+    credentialId: varchar('credential_id', { length: 512 }).notNull(),
+    /** base64url COSE public key */
+    publicKey: text('public_key').notNull(),
+    signCount: int('sign_count').default(0).notNull(),
+    transports: varchar('transports', { length: 191 }),
+    /** "iPhone", "MacBook (Chrome)"... shown in settings so people know which one to remove */
+    name: varchar('name', { length: 64 }).notNull(),
+    backedUp: boolean('backed_up').default(false).notNull(),
+    lastUsedAt: timestamp('last_used_at'),
+    created: timestamp('created').defaultNow().notNull(),
+}, (t) => [
+    uniqueIndex('passkeys_credential_id_unique').on(t.credentialId),
+    index('passkeys_actor_idx').on(t.actorType, t.actorId),
+]);
+
 export const rateLimits = mysqlTable('rate_limits', {
     rateKey: varchar('rate_key', { length: 191 }).primaryKey().notNull(),
     hits: int('hits').default(0).notNull(),
@@ -398,6 +421,7 @@ export const rateLimits = mysqlTable('rate_limits', {
     lockedUntil: timestamp('locked_until'),
 });
 
+export type Passkey = typeof passkeys.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Address = typeof addresses.$inferSelect;

@@ -112,3 +112,16 @@ export function alertEmailChanged(actor: AlertActor, newEmail: string, byStaff: 
     facts: [['When', when()], ['New address', masked], ['IP address', ip ?? 'unknown']],
   }, { byStaff }, ip);
 }
+
+/** A passkey was added to, or removed from, the account. */
+export function alertPasskeyChanged(actor: AlertActor, change: 'added' | 'removed', name: string, ip: string | null) {
+  const headline = change === 'added' ? 'A passkey was added to your account' : 'A passkey was removed from your account';
+  return send(actor, change === 'added' ? 'security.passkey_added' : 'security.passkey_removed', {
+    subject: change === 'added' ? 'new passkey added' : 'passkey removed',
+    headline,
+    body: change === 'added'
+      ? 'The device below can now sign in to your Book Worms account with a fingerprint, face or screen lock instead of your password.'
+      : 'The device below can no longer sign in to your Book Worms account with a passkey.',
+    facts: [['When', when()], ['Passkey', name], ['IP address', ip ?? 'unknown']],
+  }, { name }, ip);
+}

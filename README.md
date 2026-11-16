@@ -68,6 +68,9 @@ The app is a single Next.js project: pages live in `app/`, and the backend is a 
 | ◆ | Guest checkout: sign in / create an account / continue as guest, recipient name and phone, address suggestions | `/checkout` | ● Done |
 | ◆ | Find a guest order with the order number and email (or the emailed link) | `/checkout/guest-order` | ● Done |
 | ◆ | Two-step sign-in: email code, authenticator app, or text (Twilio Verify). Optional for customers, required for staff | `/account?tab=security`, `/admin/change-password` | ● Done |
+| ◆ | Passkeys: sign in with Face ID / Touch ID / Windows Hello, for customers and staff | `/user-login`, `/staff-login`, security settings | ● Done |
+| ◆ | Cloudflare Turnstile bot check on sign-up, sign-in, staff sign-in, forgot password, contact and guest checkout | — | ● Done |
+| ◆ | CI: GitHub Actions runs typecheck, lint, tests and build on every PR | `.github/workflows/ci.yml` | ● Done |
 | ◆ | Security alert emails: new-network sign-in, lockouts, two-step changes, email changes | — | ● Done |
 | ◆ | Staff `@bookwrms.store` mailboxes created and removed with staff accounts (Migadu) | `/admin/staff` | ● Done, needs Migadu keys |
 | ◆ | Order-update and security-alert texts (opt-in) | — | ◐ Waiting on an approved Twilio number |
@@ -182,6 +185,7 @@ Fill in `.env` in the project root (next to `package.json`):
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID` | Optional. Sign-in codes by text (Twilio Verify). All three, or the option is hidden. |
 | `TWILIO_MESSAGING_FROM` | Optional. Carrier-approved number (or Messaging Service `MG…`) for alert and order texts. |
 | `MIGADU_API_USER`, `MIGADU_API_KEY`, `MAIL_DOMAIN` | Optional. Staff work mailboxes; see [`docs/email-migration.md`](docs/email-migration.md). |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | Optional. Cloudflare Turnstile bot check; without them it is skipped. Previews use Cloudflare's test keys (`1x00000000000000000000AA` / `1x0000000000000000000000000000000AA`). The site key is public (Vercel type Config). |
 | `MFA_ENCRYPTION_KEY` | Optional. Key for authenticator secrets; defaults to one derived from `JWT_SECRET`. |
 
 Security measures are listed in [`docs/security.md`](docs/security.md).

@@ -4,6 +4,7 @@ import { getStaffSession } from '@/server/src/modules/staff/staff-page';
 import { PageHeader, Panel } from '@/components/staff/ui';
 import { StaffPasswordForm } from './password-form';
 import { TwoStepSettings } from '@/components/auth/two-step-settings';
+import { PasskeySettings } from '@/components/auth/passkey-settings';
 
 export const metadata = { title: 'Password & sign-in' };
 
@@ -24,6 +25,14 @@ async function Content() {
           <h2 id="two-step-heading" className="mb-2 font-serif text-lg font-bold">Two-step sign-in</h2>
           <Panel>
             <TwoStepSettings endpoint="/api/staff/mfa" staff />
+          </Panel>
+        </section>
+      )}
+      {!staff.mustChangePassword && (
+        <section aria-labelledby="passkeys-heading" className="mt-6 max-w-md">
+          <h2 id="passkeys-heading" className="mb-2 font-serif text-lg font-bold">Passkeys</h2>
+          <Panel>
+            <PasskeySettings endpoint="/api/staff/passkeys" />
           </Panel>
         </section>
       )}

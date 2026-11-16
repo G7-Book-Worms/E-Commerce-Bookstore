@@ -1,6 +1,7 @@
 // Staff management of customer accounts (SCRUM-200): search, view, deactivate/reactivate,
 // set a temporary password, sign the customer out of every device, and - new in v2 - multi-select
 // bulk actions and "delete", which scrubs the account instead of removing the row.
+import { deleteAllPasskeys } from '../passkeys/passkey-service';
 import { alertEmailChanged } from '../mfa/security-alerts';
 import { randomBytes } from 'node:crypto';
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
@@ -222,6 +223,7 @@ export async function anonymiseCustomer(userId: number, deadHash: string) {
     totpLastStep: null,
     smsOrderUpdates: false,
   }).where(eq(users.userId, userId));
+  await deleteAllPasskeys('customer', userId);
   // Addresses stay as rows because placed orders point at them; only their contents go. That
   // includes addresses the customer removed from their account earlier (detached, user_id NULL)
   // that their orders still point at.

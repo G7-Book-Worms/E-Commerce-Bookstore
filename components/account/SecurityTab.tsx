@@ -9,6 +9,7 @@ import { PasswordStrength } from '@/components/ui/password-strength';
 import { passwordProblems } from '@/lib/password-policy';
 import { useAuth } from '@/app/context/auth-context';
 import { TwoStepSettings } from '@/components/auth/two-step-settings';
+import { PasskeySettings } from '@/components/auth/passkey-settings';
 
 export const SecurityTab: React.FC = () => {
   const router = useRouter();
@@ -47,8 +48,8 @@ export const SecurityTab: React.FC = () => {
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
       setTimeout(() => { window.location.href = '/user-login?passwordChanged=1'; }, 1200);
       return;
-    } catch (err: any) {
-      setStatusMsg({ type: 'error', text: err.message || 'Failed to update password.' });
+    } catch (err: unknown) {
+      setStatusMsg({ type: 'error', text: (err as Error).message || 'Failed to update password.' });
     } finally {
       setIsUpdating(false);
     }
@@ -142,6 +143,12 @@ export const SecurityTab: React.FC = () => {
       <div className="bg-white border border-stone-200 rounded-xl p-6 shadow-xs space-y-3">
         <h3 className="text-xl font-bold text-stone-900 tracking-tight">Two-step sign-in</h3>
         <TwoStepSettings endpoint="/api/users/mfa" />
+      </div>
+
+      {/* Passkeys */}
+      <div className="bg-white border border-stone-200 rounded-xl p-6 shadow-xs space-y-3">
+        <h3 className="text-xl font-bold text-stone-900 tracking-tight">Passkeys</h3>
+        <PasskeySettings endpoint="/api/passkeys" />
       </div>
 
       {/* Sign Out Card */}

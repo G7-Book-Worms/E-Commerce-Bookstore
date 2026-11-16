@@ -65,12 +65,12 @@ export async function staffLogin(input: z.infer<typeof staffLoginSchema>, ip: st
 }
 
 /** The last step of a staff sign-in, after the second step passed. */
-export async function completeStaffSignIn(adminId: number, ip: string) {
+export async function completeStaffSignIn(adminId: number, ip: string, how: Record<string, unknown> = {}) {
   const [account] = await db.select().from(admin).where(eq(admin.adminId, adminId));
   if (!account || !account.isActive) throw new UnauthorizedError('This staff account has been deactivated');
   await db.update(admin).set({ lastLogin: new Date() }).where(eq(admin.adminId, adminId));
   await alertIfNewSignIn({ kind: 'staff', id: adminId, email: account.email, firstName: account.firstName }, ip);
-  await logActivity('admin', adminId, 'staff.login', { method: account.mfaMethod }, ip);
+  await logActivity('admin', adminId, 'staff.login', { method: account.mfaMethod, ...how }, ip);
   return { token: staffToken(account), mustChangePassword: account.mustChangePassword };
 }
 

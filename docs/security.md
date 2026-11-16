@@ -79,7 +79,20 @@ Every sign-in, failed sign-in, lockout, order, refund, stock change and staff ac
 
 `pnpm test` includes `password-policy.test.ts`, `hash-utils.test.ts` and `token-util.test.ts` (forged, unsigned and wrong-audience tokens are rejected).
 
+## Passkeys (WebAuthn)
+
+- Customers (Account → Security) and staff (Password & sign-in) can add passkeys: Face ID, Touch ID, Windows Hello, an Android screen lock or a security key. Library: SimpleWebAuthn (`server/src/modules/passkeys`).
+- Adding or removing one needs the account password and emails a security alert. Each is logged as `security.passkey_added` / `security.passkey_removed`.
+- Signing in with a passkey replaces both the password and the second step. The device checks the person (`userVerification: 'required'`), and the browser only offers the passkey on the site it was made for, so it can't be phished.
+- Only public keys are stored (`passkeys` table). The challenge rides in a 5-minute signed, httpOnly, SameSite=strict cookie. Customer passkeys can't open the staff portal and staff passkeys can't open customer accounts.
+- Passkeys belong to the host they were made on: one added on bookwrms.store works only there, not on a preview link.
+
+## Bot check (Cloudflare Turnstile)
+
+- Sign-up, sign-in, staff sign-in, forgot password, the contact form and guest checkout carry a Turnstile token in the `x-turnstile-token` header. The server checks it with Cloudflare (`server/src/shared/security/turnstile.ts`).
+- On when `TURNSTILE_SECRET_KEY` is set: a missing or bad token gets a 400, and so does a request made while Cloudflare can't be reached (fail closed). Without the key (local development) the check is skipped.
+- Previews use Cloudflare's always-pass test keys. Production uses the real widget, which is tied to bookwrms.store.
+
 ## Known limits / next steps
 
 - Aiven accepts connections from any IP (Vercel has no fixed IPs on the free plan); access still needs the password over TLS. A separate least-privilege database user for the website is planned.
-- Passkeys and authenticator-app codes for staff are stretch goals.

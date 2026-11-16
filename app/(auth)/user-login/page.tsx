@@ -5,6 +5,8 @@ import React, { useState, Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { z } from 'zod';
+import { useTurnstile } from '@/components/turnstile';
+import { PasskeySignIn } from '@/components/auth/passkey-sign-in';
 import { loginUser, AuthApiError, MfaRequiredError, sessionFromVerify } from '@/lib/api/auth';
 import { TwoStepPrompt } from '@/components/auth/two-step-prompt';
 import { useAuth } from '../../context/auth-context';
@@ -58,6 +60,7 @@ function LoginForm() {
   const callbackUrl = searchParams.get('callbackUrl');
   // Carried over to "Register here", so a shopper who signs up instead still lands back where they were
   const safeCallback = callbackUrl && safeInternalPath(callbackUrl, '') ? callbackUrl : null;
+  const human = useTurnstile('login');
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -90,10 +93,14 @@ function LoginForm() {
     }
 
     setFieldErrors({});
+    if (!human.ready) {
+      setServerError('One moment: the security check is still running. Try again in a second.');
+      return;
+    }
     setIsSubmitting(true);
 
     try {
-        const sessionData = await loginUser(validationResult.data);
+        const sessionData = await loginUser(validationResult.data, human.headers());
         setUserSession(sessionData.user);
 
         // Force a full browser navigation to ensure cookie is read in (main)
@@ -101,7 +108,7 @@ function LoginForm() {
         window.location.href = sessionData.user.mustChangePassword
           ? '/account?tab=security'
           : safeInternalPath(callbackUrl);
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (err instanceof MfaRequiredError) {
           setTwoStep({ method: err.method, sentTo: err.sentTo });
         } else if (err instanceof AuthApiError) {
@@ -111,6 +118,7 @@ function LoginForm() {
         }
       } finally {
         setIsSubmitting(false);
+        human.reset(); // a token works once
       }
   };
 
@@ -249,6 +257,8 @@ function LoginForm() {
           </Link>
         </div>
 
+        {human.widget}
+
         {/* Submit Button */}
         <div className="pt-2">
           <button
@@ -268,6 +278,18 @@ function LoginForm() {
           </button>
         </div>
       </form>
+
+      <div className="my-4 flex items-center gap-3 text-xs uppercase tracking-wider text-neutral-400" aria-hidden>
+        <span className="h-px flex-1 bg-neutral-200" />or<span className="h-px flex-1 bg-neutral-200" />
+      </div>
+      <PasskeySignIn
+        kind="customer"
+        onSuccess={(data) => {
+          const session = sessionFromVerify(data.user);
+          if (session) setUserSession(session);
+          window.location.href = destination(!!session?.mustChangePassword);
+        }}
+      />
     </>
   );
 }

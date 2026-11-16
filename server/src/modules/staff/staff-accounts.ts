@@ -5,6 +5,7 @@
 //
 // Guard rails: at least one active administrator always remains, and the single owner can never be
 // deleted, demoted or deactivated by anybody.
+import { deleteAllPasskeys } from '../passkeys/passkey-service';
 import { randomBytes } from 'node:crypto';
 import { and, asc, eq, ne, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
@@ -173,6 +174,7 @@ async function anonymiseStaff(targetId: number, previousEmail: string, workMailb
     totpSecret: null,
     totpLastStep: null,
   }).where(eq(admin.adminId, targetId));
+  await deleteAllPasskeys('staff', targetId);
   await clearFailures(`staff-login:email:${previousEmail}`);
   return { mailbox: workMailbox ? `${workMailbox}@${mailDomain()}` : null, mailboxRemoved };
 }

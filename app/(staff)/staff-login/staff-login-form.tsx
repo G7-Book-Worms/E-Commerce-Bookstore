@@ -1,4 +1,6 @@
 'use client';
+import { useTurnstile } from '@/components/turnstile';
+import { PasskeySignIn } from '@/components/auth/passkey-sign-in';
 import { safeInternalPath } from '@/lib/safe-redirect';
 
 import { useState } from 'react';
@@ -22,6 +24,7 @@ export function StaffLoginForm() {
   const [missing, setMissing] = useState<FieldName | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const human = useTurnstile('staff_login');
   // Every staff sign-in has a second step (a code by email or from an authenticator app)
   const [twoStep, setTwoStep] = useState<{ method: 'email' | 'totp' | 'sms'; sentTo: string | null } | null>(null);
 
@@ -42,9 +45,14 @@ export function StaffLoginForm() {
       return;
     }
     setMissing(null);
+    if (!human.ready) {
+      setError('One moment: the security check is still running. Try again in a second.');
+      return;
+    }
     setBusy(true);
-    const res = await staffFetch<{ mfaRequired?: boolean; method?: 'email' | 'totp' | 'sms'; sentTo?: string | null }>('/api/staff/login', 'POST', form);
+    const res = await staffFetch<{ mfaRequired?: boolean; method?: 'email' | 'totp' | 'sms'; sentTo?: string | null }>('/api/staff/login', 'POST', form, human.headers());
     setBusy(false);
+    human.reset(); // a token works once
     if (!res.ok) {
       setError(res.message);
       return;
@@ -84,6 +92,7 @@ export function StaffLoginForm() {
   const invalidCls = (name: FieldName) => (missing === name ? ' border-red-400 ring-1 ring-red-300' : '');
 
   return (
+    <>
     <form onSubmit={submit} noValidate className="space-y-4">
       {error && <div role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</div>}
       {params.get('passwordChanged') === '1' && !error && (
@@ -106,10 +115,16 @@ export function StaffLoginForm() {
         <PasswordInput id="staff-password" name="password" autoComplete="current-password" value={form.password} onChange={set} className={inputCls + invalidCls('password')} disabled={busy} {...fieldProps('password', 'staff-password')} />
         {missingNote('password', 'staff-password', 'Password')}
       </div>
+      {human.widget}
       <button type="submit" className={`${btnPrimary} w-full`} disabled={busy} aria-busy={busy}>
         {busy ? 'Signing in…' : 'Sign in'}
       </button>
       <p className="text-center text-xs text-stone-500">Forgot your password? Ask an administrator for a temporary one.</p>
     </form>
+    <div className="my-4 flex items-center gap-3 text-xs uppercase tracking-wider text-stone-400" aria-hidden>
+      <span className="h-px flex-1 bg-stone-200" />or<span className="h-px flex-1 bg-stone-200" />
+    </div>
+    <PasskeySignIn kind="staff" onSuccess={(data) => signedIn(!!data.mustChangePassword)} />
+    </>
   );
 }

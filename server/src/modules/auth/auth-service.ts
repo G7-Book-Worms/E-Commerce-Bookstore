@@ -86,9 +86,9 @@ export class AuthService {
   }
 
   /** The last step of every customer sign-in: alert on a new network, log it, issue the session. */
-  async completeSignIn(user: User, remember: boolean, ip: string) {
+  async completeSignIn(user: User, remember: boolean, ip: string, how: Record<string, unknown> = {}) {
     await alertIfNewSignIn({ kind: 'customer', id: user.userId, email: user.email, firstName: user.firstName }, ip);
-    await logActivity('customer', user.userId, 'auth.login', { rememberMe: remember, twoStep: user.mfaMethod !== 'none' }, ip);
+    await logActivity('customer', user.userId, 'auth.login', { rememberMe: remember, twoStep: user.mfaMethod !== 'none', ...how }, ip);
     return { user: this.sanitizeUser(user), token: customerToken(user, remember) };
   }
 
