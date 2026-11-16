@@ -2,22 +2,25 @@
 //
 // Why this file renders its own <html> and <body>: the app has no single root layout. Each route
 // group ((main), (features), (auth), (staff)) has its own root layout with its own <html>, so
-// there is no layout above app/not-found.tsx to wrap it, and for an unmatched URL Next.js renders
-// this file on its own. It therefore brings its own document, imports globals.css itself (no
-// layout has loaded the styles) and repeats the site's base body classes (stone-50 background,
-// stone-900 text) so it looks like the rest of the shop. It doesn't render the shop Header:
-// that needs the auth and cart providers, which live in the route-group layouts.
+// there is no layout above app/not-found.tsx to wrap it. It therefore brings the same shell as the
+// storefront itself: globals.css, the auth and cart providers, the class-project strip, the real
+// Header (with the site's search) and Footer. The page then looks like any other shop page, and
+// search lives in the header where it always is.
 //
 // The illustration is an original inline SVG (a bookworm in reading glasses peeking out of an
-// open book, with the bookmark fallen out), drawn in the site's stone and green palette so it
-// sits on the stone-50 background without a white box around it. No photos.
+// open book, with the bookmark fallen out), so there is no photo with its own background.
 import './globals.css';
 import Link from 'next/link';
-import { Search } from 'lucide-react';
+import { Suspense } from 'react';
+import { AuthProvider } from './context/auth-context';
+import { CartProvider } from './context/CartContext';
+import { Header } from '../components/header/Header';
+import { Footer } from '../components/footer/Footer';
+import { DemoStrip } from '../components/demo-notice';
 
-export const metadata = { title: 'Page not found | Book Worms' };
+export const metadata = { title: 'Page not found | Book Worms', robots: { index: false, follow: false } };
 
-const SHORTCUTS = [
+const SHELVES = [
   { href: '/product-catalog/all?section=bestseller', label: 'Bestsellers' },
   { href: '/product-catalog/all?section=new-release', label: 'New releases' },
   { href: '/product-catalog/all?onSale=true', label: 'On sale' },
@@ -27,77 +30,55 @@ export default function NotFound() {
   return (
     <html lang="en">
       <body className="flex min-h-screen flex-col bg-stone-50 text-stone-900 antialiased">
-        <header className="border-b border-stone-200 bg-white/95">
-          <div className="mx-auto flex max-w-7xl items-center px-4 py-3 sm:px-6 lg:px-8">
-            <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
-              <span className="text-2xl" aria-hidden>📚</span>
-              <span className="font-serif text-lg font-bold">Book Worms</span>
-            </Link>
-          </div>
-        </header>
+        <AuthProvider>
+          <CartProvider>
+            <DemoStrip />
+            <Suspense fallback={<div className="h-16 border-b border-stone-200 bg-white" />}>
+              <Header />
+            </Suspense>
+            <main className="flex flex-1 items-center justify-center px-4 py-10 sm:py-16">
+              <div className="flex w-full max-w-lg flex-col items-center text-center">
+                <LostBookworm className="h-auto w-full max-w-[16rem] sm:max-w-[20rem]" />
 
-        <main className="flex flex-1 items-center justify-center px-4 py-12">
-          <div className="flex w-full max-w-xl flex-col items-center text-center">
-            <LostBookworm className="h-auto w-full max-w-[22rem]" />
+                <p className="mt-6 text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">Error 404 · Page not found</p>
+                <h1 className="mt-2 text-balance font-serif text-3xl font-bold leading-tight sm:text-4xl">
+                  This page has wandered off the shelf
+                </h1>
+                <p className="mt-3 text-pretty text-sm text-stone-600 sm:text-base">
+                  The link may be old, or the book may no longer be in our catalog. Search above, or try one of these:
+                </p>
 
-            <p className="mt-6 text-xs font-semibold uppercase tracking-[0.2em] text-green-800">Error 404 · Page not found</p>
-            <h1 className="mt-2 font-serif text-3xl font-bold leading-tight sm:text-4xl">
-              This page has wandered off the shelf
-            </h1>
-            <p className="mt-3 max-w-md text-sm text-stone-600 sm:text-base">
-              Our bookworm has looked between every page and can&apos;t find it. The link may be old, or the
-              book may no longer be in our catalog.
-            </p>
-
-            <form action="/product-catalog/all" role="search" className="relative mt-8 flex w-full items-center">
-              <Search className="pointer-events-none absolute left-4 size-4 text-stone-400" aria-hidden />
-              <input
-                name="q"
-                type="search"
-                aria-label="Search books"
-                placeholder="Title, author or ISBN"
-                className="h-12 w-full rounded-full border border-stone-300 bg-white pl-11 pr-28 text-sm shadow-xs placeholder:text-stone-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
-              />
-              <button
-                type="submit"
-                className="absolute right-1.5 h-9 rounded-full bg-stone-900 px-5 text-sm font-semibold text-white hover:bg-stone-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:ring-offset-2"
-              >
-                Search
-              </button>
-            </form>
-
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-              <Link
-                href="/"
-                className="inline-flex h-10 items-center rounded-md bg-stone-900 px-5 text-sm font-medium text-stone-50 hover:bg-stone-800"
-              >
-                Back to the home page
-              </Link>
-              <Link
-                href="/product-catalog"
-                className="inline-flex h-10 items-center rounded-md border border-stone-300 bg-white px-5 text-sm font-medium hover:bg-stone-100"
-              >
-                Browse all books
-              </Link>
-            </div>
-
-            <nav aria-label="Popular shelves" className="mt-8 text-sm text-stone-500">
-              <span>Or try a popular shelf: </span>
-              {SHORTCUTS.map((s, i) => (
-                <span key={s.href}>
-                  {i > 0 && <span aria-hidden> · </span>}
-                  <Link href={s.href} className="font-medium text-green-800 underline-offset-4 hover:underline">
-                    {s.label}
+                <div className="mt-7 grid w-full gap-3 sm:w-auto sm:grid-cols-2">
+                  <Link
+                    href="/"
+                    className="inline-flex h-11 items-center justify-center rounded-md bg-stone-900 px-6 text-sm font-medium text-stone-50 hover:bg-stone-800"
+                  >
+                    Back to the home page
                   </Link>
-                </span>
-              ))}
-            </nav>
-          </div>
-        </main>
+                  <Link
+                    href="/product-catalog"
+                    className="inline-flex h-11 items-center justify-center rounded-md border border-stone-300 bg-white px-6 text-sm font-medium hover:bg-stone-100"
+                  >
+                    Browse all books
+                  </Link>
+                </div>
 
-        <footer className="border-t border-stone-200 py-6 text-center text-xs text-stone-500">
-          Book Worms · A class project bookstore
-        </footer>
+                <nav aria-label="Popular shelves" className="mt-6 flex flex-wrap items-center justify-center gap-2">
+                  {SHELVES.map((s) => (
+                    <Link
+                      key={s.href}
+                      href={s.href}
+                      className="inline-flex h-9 items-center rounded-full border border-stone-200 bg-white px-4 text-sm text-stone-700 hover:border-stone-400 hover:text-stone-900"
+                    >
+                      {s.label}
+                    </Link>
+                  ))}
+                </nav>
+              </div>
+            </main>
+            <Footer />
+          </CartProvider>
+        </AuthProvider>
       </body>
     </html>
   );
