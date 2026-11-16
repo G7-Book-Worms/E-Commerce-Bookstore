@@ -142,14 +142,14 @@ export const AddressesTab: React.FC<Props> = ({ addresses, onRefresh }) => {
               <div className="space-x-3">
                 <button
                   onClick={() => openEditModal(addr)}
-                  className="text-stone-700 hover:text-stone-900 font-medium min-h-10 px-1"
+                  className="text-stone-700 hover:text-stone-900 font-medium min-h-11 px-1"
                 >
                   Edit
                 </button>
                 <button
                   onClick={() => setDeleting(addr)}
                   aria-label={`Delete address ${addr.street}, ${addr.city}`}
-                  className="text-red-600 hover:text-red-800 font-medium min-h-10 px-1"
+                  className="text-red-600 hover:text-red-800 font-medium min-h-11 px-1"
                 >
                   Delete
                 </button>
@@ -158,7 +158,7 @@ export const AddressesTab: React.FC<Props> = ({ addresses, onRefresh }) => {
               {!addr.isDefault && (
                 <button
                   onClick={() => handleSetDefault(addr.addressId)}
-                  className="text-stone-900 hover:underline font-semibold min-h-10 px-1"
+                  className="text-stone-900 hover:underline font-semibold min-h-11 px-1"
                 >
                   Set as Default
                 </button>

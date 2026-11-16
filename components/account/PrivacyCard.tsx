@@ -41,6 +41,11 @@ export function PrivacyCard() {
         <p className="text-sm text-stone-600">
           Download everything we store about you: profile, addresses, orders, messages to support, sign-in settings and account activity.
         </p>
+        <p className="mt-2 text-xs text-stone-500">
+          Why we keep it: your account and saved addresses until you delete them; orders and payments (card brand and last four
+          digits only) as the store&apos;s sales records; sign-in activity for security. We never store your full card number, and
+          passwords and passkeys are stored only in a form that can&apos;t be read back.
+        </p>
         <a
           href="/api/users/my-data"
           download
