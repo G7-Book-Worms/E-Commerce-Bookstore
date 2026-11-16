@@ -15,9 +15,21 @@ export type Candidate = CatalogBook & { categorySlug?: string | null };
 
 const norm = (s: string) => s.trim().toLowerCase();
 
+/**
+ * Tags that say where a book is shelved (catalog sections) or are as broad as "fiction": they
+ * don't make two books similar, so they neither score nor appear in a reason.
+ */
+const BROAD_TAGS = new Set([
+  'bestseller', 'new-release', 'coming-soon', 'special-edition', 'trending', 'paperback-pick',
+  'on-sale', 'fiction', 'nonfiction', 'non-fiction',
+]);
+const pretty = (tag: string) => tag.replace(/-/g, ' ');
+
 /** Pure scoring, so the ranking can be unit-tested without a database. */
 export function rankRecommendations(target: Target, candidates: Candidate[], boughtTogether: Map<number, number>, limit = 12): Recommendation[] {
-  const targetTags = new Set(target.tags.map(norm));
+  // The genre itself is scored once, as the genre, not again as a tag
+  const genreWords = new Set([target.category?.slug, target.category?.name].filter(Boolean).map((g) => norm(g!)));
+  const targetTags = new Set(target.tags.map(norm).filter((t) => !BROAD_TAGS.has(t) && !genreWords.has(t)));
   const out: Recommendation[] = [];
   for (const c of candidates) {
     if (c.bookId === target.bookId) continue;
@@ -41,7 +53,7 @@ export function rankRecommendations(target: Target, candidates: Candidate[], bou
       : together > 0
         ? 'Often bought together'
         : shared.length > 0
-          ? `Also ${shared.slice(0, 2).join(' & ')}`
+          ? `Also ${shared.slice(0, 2).map(pretty).join(' & ')}`
           : sameGenre && target.category
             ? `More ${target.category.name}`
             : 'You may like';

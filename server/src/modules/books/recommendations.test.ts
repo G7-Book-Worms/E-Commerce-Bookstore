@@ -61,6 +61,14 @@ test('in-stock beats sold out when everything else is equal', () => {
   assert.equal(rankRecommendations(target, [soldOut, inStock], new Map())[0].book.bookId, inStock.bookId);
 });
 
+test('shelf tags and the genre itself don\'t count as shared tags', () => {
+  const sameShelf = book({ categorySlug: 'romance', tags: ['bestseller', 'fiction', 'mystery'] });
+  assert.deepEqual(rankRecommendations({ ...target, tags: ['bestseller', 'fiction', 'mystery'] }, [sameShelf], new Map()), []);
+  const timeTravel = book({ categorySlug: 'mystery', tags: ['time-travel', 'fiction'] });
+  const [r] = rankRecommendations({ ...target, tags: ['time-travel', 'fiction'] }, [timeTravel], new Map());
+  assert.equal(r.reason, 'Also time travel');
+});
+
 test('respects the limit', () => {
   const many = Array.from({ length: 30 }, () => book({ categorySlug: 'mystery' }));
   assert.equal(rankRecommendations(target, many, new Map(), 12).length, 12);
