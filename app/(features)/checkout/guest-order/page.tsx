@@ -97,7 +97,7 @@ function GuestOrderLookup() {
         <p className="mt-2 text-sm text-muted-foreground">
           {token
             ? "To keep your order private, confirm the email address you ordered with."
-            : "Checked out as a guest? Enter the order number from your confirmation email and the email address you used."}
+            : "For orders placed as a guest. Enter the order number from your confirmation email and the email address you used."}
         </p>
       </div>
 

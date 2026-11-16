@@ -45,8 +45,8 @@ export function StaffLoginForm() {
       return;
     }
     setMissing(null);
-    if (!human.ready) {
-      setError('One moment: the security check is still running. Try again in a second.');
+    if (!(await human.waitUntilReady())) {
+      setError("The security check didn't finish. Refresh the page and try again.");
       return;
     }
     setBusy(true);

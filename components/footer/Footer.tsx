@@ -17,8 +17,8 @@ export const Footer: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setTouched(true);
-    if (!human.ready) {
-      setStatus('One moment: the security check is still running. Try again in a second.');
+    if (!(await human.waitUntilReady())) {
+      setStatus("The security check didn't finish. Refresh the page and try again.");
       return;
     }
     setIsSubmitting(true);

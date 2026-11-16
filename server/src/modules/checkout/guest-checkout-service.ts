@@ -29,6 +29,7 @@ import { sendEmail } from '../email/mailer';
 import { guestOrderConfirmationEmail } from '../email/templates';
 import { signGuestOrderToken, verifyGuestOrderToken } from './guest-order-token';
 import { AppError, BadRequestError, ConflictError, NotFoundError } from '../../shared/errors/app-error';
+import { siteUrl } from '../../shared/utils/site-url';
 
 const dollars = (cents: number) => (cents / 100).toFixed(2);
 const FORMAT_LABEL = { hardcover: 'Hardcover', paperback: 'Paperback' } as const;
@@ -292,7 +293,8 @@ export const guestOrderLookupSchema = z
   })
   .refine((v) => !!v.token || !!v.orderId, { message: 'Enter your order number', path: ['orderId'] });
 
-const NOT_FOUND = "We couldn't find an order with that order number and email address. Check both against your confirmation email.";
+// Says where signed-in orders are, without saying whether this number belongs to one
+const NOT_FOUND = "We couldn't find a guest order with that order number and email address. Check both against your confirmation email. Ordered while signed in? It's in your account under Orders.";
 
 /**
  * One guest order, for someone who proves they placed it: the order number (or the signed link
@@ -379,8 +381,7 @@ async function guestOrderView(orderId: number) {
 
 /** The signed link for a guest order, for its status emails. */
 export function guestOrderLink(orderId: number): string {
-  const site = (process.env.SITE_URL || 'http://localhost:3000').replace(/\/$/, '');
-  return `${site}/checkout/guest-order?token=${encodeURIComponent(signGuestOrderToken(orderId))}`;
+  return `${siteUrl()}/checkout/guest-order?token=${encodeURIComponent(signGuestOrderToken(orderId))}`;
 }
 
 /** Confirmation email with the signed link. The token is never logged. */

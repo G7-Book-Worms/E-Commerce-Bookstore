@@ -12,7 +12,7 @@ export function ForgotPasswordForm() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!human.ready) return setState({ ok: false, text: 'One moment: the security check is still running. Try again in a second.' });
+    if (!(await human.waitUntilReady())) return setState({ ok: false, text: "The security check didn't finish. Refresh the page and try again." });
     setBusy(true);
     try {
       const res = await fetch('/api/auth/forgot-password', {

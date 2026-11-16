@@ -199,7 +199,11 @@ export default function CartPage() {
                       <span className="text-muted-foreground"> each</span>
                     </p>
                     <p className={`text-xs ${line.quantity > line.stock ? "font-medium text-red-700" : "text-muted-foreground"}`}>
-                      {line.quantity > line.stock ? `Only ${line.stock} left. Lower the quantity to check out.` : stockLabel(line.stock)}
+                      {line.quantity > line.stock
+                        ? line.stock <= 0
+                          ? "Out of stock now. Remove it to check out."
+                          : `Only ${line.stock} left. Lower the quantity to check out.`
+                        : stockLabel(line.stock)}
                     </p>
                     <div className="mt-auto flex items-center gap-3 pt-2">
                       <div className="flex items-center rounded-md border">
@@ -248,7 +252,14 @@ export default function CartPage() {
             {cart && (
               <OrderSummary cart={cart}>
                 {blocked ? (
-                  <Button className="mt-5 w-full" size="lg" disabled>Checkout</Button>
+                  <>
+                    <Button className="mt-5 w-full" size="lg" disabled>Checkout</Button>
+                    <p role="status" className="mt-2 text-center text-xs font-medium text-red-700">
+                      {lines.filter((l) => l.quantity > l.stock).length === 1
+                        ? "One book in your cart has fewer copies left than you've added. Lower its quantity or remove it to check out."
+                        : "Some books in your cart have fewer copies left than you've added. Lower their quantities or remove them to check out."}
+                    </p>
+                  </>
                 ) : (
                   <Link href="/checkout" className={buttonVariants({ size: "lg", className: "mt-5 w-full" })}>
                     Checkout

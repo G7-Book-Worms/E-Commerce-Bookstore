@@ -93,8 +93,8 @@ function LoginForm() {
     }
 
     setFieldErrors({});
-    if (!human.ready) {
-      setServerError('One moment: the security check is still running. Try again in a second.');
+    if (!(await human.waitUntilReady())) {
+      setServerError("The security check didn't finish. Refresh the page and try again.");
       return;
     }
     setIsSubmitting(true);

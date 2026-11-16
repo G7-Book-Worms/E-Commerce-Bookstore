@@ -56,6 +56,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await logoutUser();
       setUserState(null);
+      // Forget an earlier "Continue as guest" so the next checkout asks again
+      try { sessionStorage.removeItem('bw:checkout:guest'); } catch { /* storage blocked */ }
       startTransition(() => {
         router.push('/');
         router.refresh();

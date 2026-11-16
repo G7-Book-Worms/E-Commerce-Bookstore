@@ -83,20 +83,29 @@ function Checkout() {
   const code = typeof window === "undefined" ? "" : loadDiscountCode();
 
   const isGuestCheckout = !authLoading && !user;
-  // Bot check for guests only (signed-in customers already passed one at sign-in)
-  const human = useTurnstile('guest_checkout', isGuestCheckout);
+  // Signed-out shoppers first choose: sign in, create an account, or continue as a guest.
+  // (The server render never shows this part: it waits for the auth check, so reading
+  // sessionStorage in the initializer can't cause a hydration mismatch.)
+  const [guestChosen, setGuestChosen] = useState(() => typeof window !== "undefined" && loadGuestChoice());
+  const choosingHow = isGuestCheckout && !guestChosen;
+  // Bot check for guests only, once they've chosen to check out as a guest (signed-in customers
+  // already passed one at sign-in)
+  const human = useTurnstile('guest_checkout', isGuestCheckout && !choosingHow);
   // A new address for a signed-in shopper starts with their own name and phone filled in
   const prefilled = useCallback(
     () => ({ ...EMPTY, recipientName: user ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() : "", phone: user?.phone ?? "" }),
     [user]
   );
-  // Signed-out shoppers first choose: sign in, create an account, or continue as a guest.
-  // (The server render never shows this part: it waits for the auth check, so reading
-  // sessionStorage in the initializer can't cause a hydration mismatch.)
-  const [guestChosen, setGuestChosen] = useState(() => typeof window !== "undefined" && loadGuestChoice());
   const emailRef = useRef<HTMLInputElement>(null);
   const focusEmail = useRef(false);
-  const choosingHow = isGuestCheckout && !guestChosen;
+
+  // Signed in: an earlier "Continue as guest" in this tab no longer applies (and after signing
+  // out, checkout should ask again rather than assume guest)
+  useEffect(() => {
+    if (user) {
+      try { sessionStorage.removeItem(GUEST_CHOICE_KEY); } catch { /* storage blocked */ }
+    }
+  }, [user]);
 
   // After "Continue as guest", move focus to the first field of the form that just appeared.
   useEffect(() => {
@@ -186,7 +195,7 @@ function Checkout() {
   async function pay() {
     setError(null);
     if (!isGuestCheckout && !addressId) return setError("Choose a shipping address");
-    if (isGuestCheckout && !human.ready) return setError("One moment: the security check is still running. Try again in a second.");
+    if (isGuestCheckout && !(await human.waitUntilReady())) return setError("The security check didn't finish. Refresh the page and try again.");
     setPaying(true);
     try {
       const res = isGuestCheckout
@@ -463,7 +472,7 @@ function Checkout() {
         {/* Pay */}
         <div className="lg:sticky lg:top-24 lg:self-start">
           <OrderSummary cart={cart}>
-            {isGuestCheckout && <div className="mt-4">{human.widget}</div>}
+            {isGuestCheckout && !choosingHow && <div className="mt-4">{human.widget}</div>}
             <Button className="mt-5 w-full" size="lg" onClick={pay} disabled={paying || !canPay}>
               <Lock /> {paying ? "Opening secure payment…" : `Pay ${formatPrice(cart.totals.totalCents)}`}
             </Button>
