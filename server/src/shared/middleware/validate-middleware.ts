@@ -5,7 +5,8 @@ export async function validateBody<T>(req: Request, schema: ZodSchema<T>): Promi
   try {
     const json = await req.json();
     return schema.parse(json);
-  } catch (err: any) {
-    throw new BadRequestError('Validation failed', err.errors || err.message);
+  } catch (err: unknown) {
+    const e = err as { errors?: unknown; message?: string };
+    throw new BadRequestError('Validation failed', e.errors || e.message);
   }
 }

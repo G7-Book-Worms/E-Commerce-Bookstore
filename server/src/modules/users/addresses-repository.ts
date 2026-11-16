@@ -20,6 +20,7 @@ export class AddressesRepository {
     return address ?? null;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- driver result shape isn't typed by drizzle
   async clearDefaultAddress(userId: number, executor: any = db): Promise<void> {
     await executor
       .update(addresses)
@@ -36,6 +37,7 @@ export class AddressesRepository {
         await this.clearDefaultAddress(userId, tx);
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- driver result shape isn't typed by drizzle
       const [result]: any = await tx.insert(addresses).values({
         ...input,
         userId,
@@ -73,6 +75,7 @@ export class AddressesRepository {
   }
 
   async deleteAddress(addressId: number, userId: number): Promise<boolean> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- driver result shape isn't typed by drizzle
     const [res]: any = await db
       .delete(addresses)
       .where(and(eq(addresses.addressId, addressId), eq(addresses.userId, userId)));

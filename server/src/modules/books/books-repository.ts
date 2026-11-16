@@ -77,6 +77,7 @@ export class BooksRepository {
   }
 
   async create(data: NewBook): Promise<Book> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- driver result shape isn't typed by drizzle
     const [result]: any = await db.insert(books).values(data);
     const [created] = await db
       .select()
@@ -97,6 +98,7 @@ export class BooksRepository {
   }
 
   async delete(bookId: number): Promise<boolean> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- driver result shape isn't typed by drizzle
     const [res]: any = await db
       .delete(books)
       .where(eq(books.bookId, bookId));

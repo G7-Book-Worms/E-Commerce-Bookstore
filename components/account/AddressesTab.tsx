@@ -76,8 +76,8 @@ export const AddressesTab: React.FC<Props> = ({ addresses, onRefresh }) => {
       }
       setModalOpen(false);
       onRefresh();
-    } catch (err: any) {
-      alert(err.message || 'Failed to save address');
+    } catch (err: unknown) {
+      alert((err as Error).message || 'Failed to save address');
     }
   };
 
@@ -85,8 +85,8 @@ export const AddressesTab: React.FC<Props> = ({ addresses, onRefresh }) => {
     try {
       await updateUserAddress(addrId, { isDefault: true });
       onRefresh();
-    } catch (err: any) {
-      alert(err.message || 'Failed to set default address');
+    } catch (err: unknown) {
+      alert((err as Error).message || 'Failed to set default address');
     }
   };
 

@@ -10,6 +10,7 @@ import {
 
 const DATA_DIR = path.resolve(__dirname, "../../test-data");
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- pre-existing loose type, kept to avoid behaviour changes
 function load<T = any>(file: string): T[] {
   return JSON.parse(readFileSync(path.join(DATA_DIR, `${file}.json`), "utf-8"));
 }

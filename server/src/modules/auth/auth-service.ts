@@ -221,10 +221,10 @@ export class AuthService {
  * Drizzle may wrap the driver error, so the cause chain is checked too.
  */
 export function isDuplicateKeyError(error: unknown): boolean {
-  let current: any = error;
+  let current = error as { code?: string; errno?: number; cause?: unknown } | undefined;
   for (let depth = 0; current && depth < 5; depth++) {
     if (current.code === 'ER_DUP_ENTRY' || current.errno === 1062) return true;
-    current = current.cause;
+    current = current.cause as typeof current;
   }
   return false;
 }

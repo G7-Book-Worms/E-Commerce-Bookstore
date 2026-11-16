@@ -48,8 +48,8 @@ export const ProfileFormTab: React.FC<Props> = ({ profile, onProfileUpdated }) =
       setCurrentPassword('');
       onProfileUpdated(updated);
       setSuccessMsg('Your personal details have been updated successfully.');
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to update personal details.');
+    } catch (err: unknown) {
+      setErrorMsg((err as Error).message || 'Failed to update personal details.');
     } finally {
       setIsSubmitting(false);
     }
