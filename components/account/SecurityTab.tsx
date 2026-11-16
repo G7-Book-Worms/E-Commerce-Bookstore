@@ -10,6 +10,7 @@ import { passwordProblems } from '@/lib/password-policy';
 import { useAuth } from '@/app/context/auth-context';
 import { TwoStepSettings } from '@/components/auth/two-step-settings';
 import { PasskeySettings } from '@/components/auth/passkey-settings';
+import { PrivacyCard } from './PrivacyCard';
 
 export const SecurityTab: React.FC = () => {
   const router = useRouter();
@@ -149,6 +150,12 @@ export const SecurityTab: React.FC = () => {
       <div className="bg-white border border-stone-200 rounded-xl p-6 shadow-xs space-y-3">
         <h3 className="text-xl font-bold text-stone-900 tracking-tight">Passkeys</h3>
         <PasskeySettings endpoint="/api/passkeys" />
+      </div>
+
+      {/* Your data (download / delete) */}
+      <div className="bg-white border border-stone-200 rounded-xl p-6 shadow-xs space-y-3">
+        <h3 className="text-xl font-bold text-stone-900 tracking-tight">Your data</h3>
+        <PrivacyCard />
       </div>
 
       {/* Sign Out Card */}

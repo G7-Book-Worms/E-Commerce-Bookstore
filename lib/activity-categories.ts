@@ -93,6 +93,8 @@ export const ACTION_INFO: Readonly<Record<string, ActionInfo>> = {
   'customer.activated': { category: 'customers', label: 'Customer account reactivated' },
   'customer.deactivated': { category: 'customers', label: 'Customer account deactivated' },
   'customer.anonymised': { category: 'customers', label: 'Customer account deleted (personal details removed)' },
+  'privacy.data_exported': { category: 'customers', label: 'Customer downloaded a copy of their data' },
+  'privacy.account_deleted': { category: 'customers', label: 'Customer deleted their own account (personal details removed)' },
   'customer.bulk_activate': { category: 'customers', label: 'Customer reactivated (bulk action)' },
   'customer.bulk_deactivate': { category: 'customers', label: 'Customer deactivated (bulk action)' },
   'customer.bulk_force_reset': { category: 'customers', label: 'Customer made to choose a new password (bulk action)' },

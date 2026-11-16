@@ -182,6 +182,19 @@ export function passwordChangedEmail(to: string, firstName: string): Email {
   };
 }
 
+export function accountDeletedEmail(to: string, firstName: string): Email {
+  return {
+    to,
+    subject: 'Your Book Worms account was deleted',
+    ...layout(
+      'Your account was deleted',
+      `<p>Hi ${escapeHtml(firstName)}, as you asked, we deleted your Book Worms account. Your name, email address, phone number and saved addresses are gone, and nobody can sign in to it any more.</p>
+<p>Orders you placed stay in our sales records without your personal details. If you didn't ask for this, reply to this email.</p>`,
+      `Hi ${firstName}, as you asked, we deleted your Book Worms account. Your name, email, phone and addresses are gone and nobody can sign in to it. Orders stay in our sales records without your details. Didn't ask for this? Reply to this email.`
+    ),
+  };
+}
+
 export function passwordResetEmail(to: string, firstName: string, token: string): Email {
   const link = `${SITE()}/reset-password?token=${encodeURIComponent(token)}`;
   return {
