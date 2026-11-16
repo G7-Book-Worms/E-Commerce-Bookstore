@@ -7,6 +7,8 @@ import { HttpResponse } from '../../shared/http/api-response';
 import { clearAuthCookie } from '../../shared/utils/cookie-utils';
 
 export const handleRegister = createApiHandler(AuthController.register);
+export const handleRegisterVerify = createApiHandler(AuthController.verifyRegistration);
+export const handleRegisterResend = createApiHandler(AuthController.resendRegistrationCode);
 export const handleLogin = createApiHandler(AuthController.login);
 export const handleLogout = createApiHandler(AuthController.logout);
 export const handleForgotPassword = createApiHandler(AuthController.forgotPassword);

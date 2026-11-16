@@ -58,6 +58,14 @@ export class MfaRequiredError extends Error {
   }
 }
 
+/** Sign-up step 1 worked: a code was emailed and must be typed in before the account exists. */
+export class EmailVerificationRequiredError extends Error {
+  constructor(public sentTo: string | null) {
+    super('Check your email for a code');
+    this.name = 'EmailVerificationRequiredError';
+  }
+}
+
 /** Converts a successful /api/mfa/verify customer response into the client session shape. */
 export function sessionFromVerify(raw: unknown): UserSession | null {
   return toUserSession(raw);
@@ -127,7 +135,8 @@ async function postAuth(
   }
 
   // Two-step sign-in: the password was right and a code is needed next (no session yet)
-  const data = payload.data as { mfaRequired?: boolean; method?: 'email' | 'totp' | 'sms'; sentTo?: string | null } | undefined;
+  const data = payload.data as { mfaRequired?: boolean; verificationRequired?: boolean; method?: 'email' | 'totp' | 'sms'; sentTo?: string | null } | undefined;
+  if (data?.verificationRequired) throw new EmailVerificationRequiredError(data.sentTo ?? null);
   if (data?.mfaRequired) {
     throw new MfaRequiredError(data.method === 'totp' || data.method === 'sms' ? data.method : 'email', data.sentTo ?? null);
   }
@@ -172,6 +181,21 @@ export async function registerUser(payload: RegisterPayload, headers: Record<str
       : 'Registration failed.',
     headers
   );
+}
+
+/** Sign-up step 2: the emailed code creates the account and signs it in. */
+export async function verifyRegistration(code: string): Promise<{ user: UserSession }> {
+  return postAuth('/api/auth/register/verify', { code }, (status) =>
+    status === 429 ? 'Too many tries. Wait a few minutes, or send a new code.' : "We couldn't check that code. Try again."
+  );
+}
+
+/** Sign-up: email a new code (the previous one stops working). */
+export async function resendRegistrationCode(): Promise<{ sentTo: string | null }> {
+  const res = await fetch('/api/auth/register/resend', { method: 'POST', credentials: 'include' });
+  const payload = await res.json().catch(() => null);
+  if (!res.ok || !payload?.success) throw new AuthApiError(payload?.error || payload?.message || "We couldn't send a new code.", res.status);
+  return { sentTo: payload.data?.sentTo ?? null };
 }
 
 /**

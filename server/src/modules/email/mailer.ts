@@ -56,6 +56,11 @@ export async function sendEmail(email: Email): Promise<boolean> {
   const t = transport(sender);
   const fromAddress = account(sender).user ?? 'no-reply@bookwrms.store';
   if (!t) {
+    // End-to-end tests read emails (e.g. the sign-up code) from a file. Never on Vercel.
+    if (process.env.E2E_MAILBOX && !process.env.VERCEL) {
+      const { appendFileSync } = await import('node:fs');
+      appendFileSync(process.env.E2E_MAILBOX, JSON.stringify({ to: email.to, subject: email.subject, text: email.text }) + '\n');
+    }
     // Local development only prints the email; codes are printed so a developer can sign in,
     // but never on a deployed site
     const showBody = !email.secret || process.env.NODE_ENV !== 'production';

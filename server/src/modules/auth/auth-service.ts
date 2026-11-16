@@ -12,9 +12,10 @@ import { BadRequestError, ConflictError, NotFoundError, UnauthorizedError } from
 import { assertNotLocked, clearFailures, rateLimit, recordFailure } from '../../shared/security/rate-limit';
 import { logActivity } from '../activity/activity-log';
 import { sendEmail } from '../email/mailer';
-import { beginSecondStep, needsSecondStep, type SecondStep } from '../mfa/mfa-service';
+import { beginSecondStep, codeDestination, maskEmail, needsSecondStep, type SecondStep } from '../mfa/mfa-service';
+import { codeMatches, newCode, readPendingRegistration, signPendingRegistration, withCode, type PendingRegistration } from './email-verification';
 import { alertIfNewSignIn, alertLockout } from '../mfa/security-alerts';
-import { passwordChangedEmail, passwordResetEmail, welcomeEmail } from '../email/templates';
+import { passwordChangedEmail, passwordResetEmail, verifyEmailCodeEmail, welcomeEmail } from '../email/templates';
 
 export type LoginInput = z.infer<typeof loginInputSchema>;
 export type RegisterInput = z.infer<typeof registerInputSchema>;
@@ -92,35 +93,47 @@ export class AuthService {
     return { user: this.sanitizeUser(user), token: customerToken(user, remember) };
   }
 
-  async register(input: RegisterInput, ip: string): Promise<{ user: SanitizedUser; token: string }> {
+  /**
+   * Sign-up, step 1: check the details, then email a 6-digit code to the address. No account
+   * exists yet; the details wait in a signed cookie (email-verification.ts) until the code is
+   * typed in, so nobody can open an account on an email address they don't control.
+   */
+  async startRegistration(input: RegisterInput, ip: string): Promise<{ pendingToken: string; sentTo: string }> {
     await rateLimit(`register:ip:${ip}`, 5, 60 * 60);
-    const normalizedEmail = input.email.trim().toLowerCase();
+    const email = input.email.trim().toLowerCase();
+    await this.assertEmailFree(email);
+    // Two sign-ups started for the same address an hour can't flood its inbox
+    await rateLimit(`register:email:${email}`, 5, 60 * 60);
 
-    const existingUser = await this.usersRepo.findByEmail(normalizedEmail);
-    if (existingUser) {
-      throw new ConflictError("We couldn't create an account with that email. If it's yours, try signing in.");
-    }
+    const code = newCode();
+    const pending = withCode({
+      firstName: input.firstName,
+      lastName: input.lastName,
+      email,
+      phone: input.phone || null,
+      passwordHash: await hashPassword(input.password),
+    }, code);
+    return { pendingToken: signPendingRegistration(pending), sentTo: await this.sendVerificationCode(pending, code) };
+  }
 
-    // A staff member's email must not spawn a parallel customer account under their identity
-    // (pentest finding M-2). The customer and staff tables have separate uniqueness, so this is
-    // checked explicitly. The message is the same as above so registration still can't be used
-    // to probe which emails are staff.
-    const [existingStaff] = await db.select({ id: admin.adminId }).from(admin).where(eq(admin.email, normalizedEmail));
-    if (existingStaff) {
-      throw new ConflictError("We couldn't create an account with that email. If it's yours, try signing in.");
-    }
-
-    const hashedPassword = await hashPassword(input.password);
+  /** Sign-up, step 2: the right code creates the account and signs it in. */
+  async completeRegistration(pendingToken: string | undefined, code: string, ip: string): Promise<{ user: SanitizedUser; token: string }> {
+    const pending = readPendingRegistration(pendingToken);
+    // Wrong guesses are counted per email address, wherever they come from
+    await rateLimit(`register:verify:${pending.email}`, 5, 15 * 60);
+    if (!codeMatches(pending, code)) throw new BadRequestError("That code isn't right. Check the email and try again, or send a new code.");
+    // Someone else may have finished signing up with this address in the meantime
+    await this.assertEmailFree(pending.email);
 
     let newUser: User;
     try {
       newUser = await this.usersRepo.createUser({
-        firstName: input.firstName,
-        lastName: input.lastName,
-        email: normalizedEmail,
-        passwordHash: hashedPassword,
+        firstName: pending.firstName,
+        lastName: pending.lastName,
+        email: pending.email,
+        passwordHash: pending.passwordHash,
         // users.phone is UNIQUE but nullable: store NULL (never '') when no phone was given
-        phone: input.phone || null,
+        phone: pending.phone || null,
       });
     } catch (error) {
       if (isDuplicateKeyError(error)) {
@@ -129,10 +142,44 @@ export class AuthService {
       throw error;
     }
 
-    await logActivity('customer', newUser.userId, 'auth.register', { email: normalizedEmail }, ip);
+    await clearFailures(`register:verify:${pending.email}`).catch(() => {});
+    await logActivity('customer', newUser.userId, 'auth.register', { email: pending.email, emailVerified: true }, ip);
     await sendEmail(welcomeEmail(newUser.email, newUser.firstName));
 
     return { user: this.sanitizeUser(newUser), token: customerToken(newUser, true) };
+  }
+
+  /** Sign-up, "send a new code": replaces the code (the old one stops working). */
+  async resendRegistrationCode(pendingToken: string | undefined): Promise<{ pendingToken: string; sentTo: string }> {
+    const pending = readPendingRegistration(pendingToken);
+    await rateLimit(`register:resend:${pending.email}`, 3, 15 * 60);
+    const code = newCode();
+    const fresh = withCode({
+      firstName: pending.firstName, lastName: pending.lastName, email: pending.email, phone: pending.phone, passwordHash: pending.passwordHash,
+    }, code);
+    return { pendingToken: signPendingRegistration(fresh), sentTo: await this.sendVerificationCode(fresh, code) };
+  }
+
+  private async sendVerificationCode(p: PendingRegistration, code: string): Promise<string> {
+    // Demo @example.com addresses have no inbox: their code goes to the shared support inbox
+    const dest = codeDestination(p.email);
+    await sendEmail(verifyEmailCodeEmail(dest.to, p.firstName, code, dest.redirectedFor));
+    return dest.redirectedFor ? 'the shared support inbox (demo address)' : maskEmail(p.email);
+  }
+
+  private async assertEmailFree(email: string): Promise<void> {
+    const existingUser = await this.usersRepo.findByEmail(email);
+    if (existingUser) {
+      throw new ConflictError("We couldn't create an account with that email. If it's yours, try signing in.");
+    }
+    // A staff member's email must not spawn a parallel customer account under their identity
+    // (pentest finding M-2). The customer and staff tables have separate uniqueness, so this is
+    // checked explicitly. The message is the same as above so registration still can't be used
+    // to probe which emails are staff.
+    const [existingStaff] = await db.select({ id: admin.adminId }).from(admin).where(eq(admin.email, email));
+    if (existingStaff) {
+      throw new ConflictError("We couldn't create an account with that email. If it's yours, try signing in.");
+    }
   }
 
   async getMe(userId: number): Promise<SanitizedUser> {

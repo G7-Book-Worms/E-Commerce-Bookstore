@@ -1,4 +1,5 @@
 import { createHmac } from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
 import { test as base, expect, type Page } from '@playwright/test';
 
 export const PASSWORD = process.env.E2E_PASSWORD ?? '';
@@ -39,9 +40,28 @@ export async function register(page: Page, email: string, password: string, firs
   await page.fill('#password', password);
   await page.fill('#confirmPassword', password);
   await page.getByRole('button', { name: /create account|sign up|register/i }).click();
+  // Step 2: the 6-digit code emailed to the address
+  await expect(page.getByRole('heading', { name: /confirm your email/i })).toBeVisible({ timeout: 20_000 });
+  await page.getByLabel(/confirmation code/i).fill(await emailedCode(email));
+  await page.getByRole('button', { name: /confirm and create account/i }).click();
   // The page does a full navigation once signed up
   await expect(page).not.toHaveURL(/\/user-register/, { timeout: 20_000 });
   await page.waitForLoadState();
+}
+
+/** The newest 6-digit code emailed to `to` (the test server writes its mail to E2E_MAILBOX). */
+export async function emailedCode(to: string): Promise<string> {
+  const file = process.env.E2E_MAILBOX ?? '';
+  for (let i = 0; i < 40; i++) {
+    if (file && existsSync(file)) {
+      const mail = readFileSync(file, 'utf8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l) as { to: string; text: string })
+        .filter((m) => m.to === to).pop();
+      const code = mail?.text.match(/\b(\d{6})\b/)?.[1];
+      if (code) return code;
+    }
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  throw new Error(`No code was emailed to ${to}`);
 }
 
 export async function addFirstBookToCart(page: Page) {

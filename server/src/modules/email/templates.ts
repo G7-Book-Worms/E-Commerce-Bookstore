@@ -2,8 +2,9 @@
 // Anything a user typed is HTML-escaped before it goes into the HTML version.
 import type { Email } from './mailer';
 import { shipmentView } from '../orders/carriers';
+import { siteUrl } from '../../shared/utils/site-url';
 
-const SITE = () => (process.env.SITE_URL || 'http://localhost:3000').replace(/\/$/, '');
+const SITE = () => siteUrl();
 
 export function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]!);
@@ -36,6 +37,27 @@ ${bodyHtml}
 
 const button = (href: string, label: string) =>
   `<p style="margin:24px 0"><a href="${href}" style="background:#14532d;color:#ffffff;padding:11px 20px;border-radius:6px;text-decoration:none;font-weight:bold">${escapeHtml(label)}</a></p>`;
+
+/** Sign-up: the code that proves the new account's email address is theirs. */
+export function verifyEmailCodeEmail(to: string, firstName: string, code: string, forAddress?: string): Email {
+  const demo = forAddress
+    ? `<p style="font-size:13px;color:#57534e">Demo address <strong>${escapeHtml(forAddress)}</strong> has no real inbox, so its code comes to this shared support inbox.</p>`
+    : '';
+  return {
+    to,
+    // The code stays out of the subject: subjects show up in notifications, logs and inbox lists
+    subject: 'Confirm your email for Book Worms',
+    secret: true,
+    ...layout(
+      `Confirm your email, ${firstName}`,
+      `<p>Enter this code on the sign-up page to finish creating your Book Worms account:</p>
+<p style="font-size:30px;letter-spacing:6px;font-weight:bold;font-family:'Courier New',monospace;margin:18px 0">${code}</p>
+<p>It expires in 15 minutes. Book Worms staff will never ask you for it.</p>
+<p style="font-size:13px;color:#57534e">Didn't sign up? Ignore this email: no account is created without the code.</p>${demo}`,
+      `Your Book Worms email confirmation code is ${code}. Enter it on the sign-up page to finish creating your account. It expires in 15 minutes.\nDidn't sign up? Ignore this email: no account is created without the code.${forAddress ? `\n(Demo address ${forAddress}: its code comes to this shared support inbox.)` : ''}`
+    ),
+  };
+}
 
 export function welcomeEmail(to: string, firstName: string): Email {
   const title = `Welcome to Book Worms, ${firstName}!`;

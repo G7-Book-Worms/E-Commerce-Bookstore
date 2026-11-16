@@ -52,7 +52,7 @@ The app is a single Next.js project: pages live in `app/`, and the backend is a 
 |:-:|:--|:--|:-:|
 | ◆ | Homepage: sale banner, promo cards, genre tiles, live book rows | `/` | ● Done |
 | ◆ | Catalog sections, See All with filters/sort/search, product page with formats | `/product-catalog`, `/product/[isbn]` | ● Done |
-| ◆ | Sign up, sign in (Remember me), sign out; password strength meter | `/user-register`, `/user-login` | ● Done |
+| ◆ | Sign up with a 6-digit email confirmation code, sign in (Remember me), sign out; password strength meter | `/user-register`, `/user-login` | ● Done |
 | ◆ | Forgot password: emailed one-time reset link (30 minutes) | `/forgot-password`, `/reset-password` | ● Done |
 | ◆ | Account: profile, order history, addresses, password | `/account` | ● Done |
 | ◆ | Cart with formats, sale prices, discount codes, 8.25% tax | `/cart` | ● Done |

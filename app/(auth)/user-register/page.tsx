@@ -6,7 +6,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { z } from 'zod';
 import { useTurnstile } from '@/components/turnstile';
-import { registerUser, AuthApiError } from '@/lib/api/auth';
+import { registerUser, AuthApiError, EmailVerificationRequiredError, type UserSession } from '@/lib/api/auth';
+import { VerifyEmailStep } from '@/components/auth/verify-email-step';
 import { useAuth } from '../../context/auth-context';
 import { PasswordInput } from '@/components/ui/password-input';
 import { PasswordStrength } from '@/components/ui/password-strength';
@@ -79,6 +80,14 @@ function RegisterForm() {
   const [serverError, setServerError] = useState<string | null>(null);
   const human = useTurnstile('register');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  // Set once the details are accepted and a code has been emailed (step 2)
+  const [codeSentTo, setCodeSentTo] = useState<string | null | undefined>(undefined);
+
+  function finish(user: UserSession) {
+    setUserSession(user);
+    // Full navigation so the new auth cookie is picked up by the proxy and (main) layout
+    window.location.href = redirectTo;
+  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -112,8 +121,8 @@ function RegisterForm() {
     }
 
     setFieldErrors({});
-    if (!human.ready) {
-      setServerError('One moment: the security check is still running. Try again in a second.');
+    if (!(await human.waitUntilReady())) {
+      setServerError("The security check didn't finish. Refresh the page and try again.");
       return;
     }
     setIsSubmitting(true);
@@ -121,11 +130,15 @@ function RegisterForm() {
     try {
       const { firstName, lastName, email, password } = validationResult.data;
       const sessionData = await registerUser({ firstName, lastName, email, password }, human.headers());
-      setUserSession(sessionData.user);
-
-      // Full navigation so the new auth cookie is picked up by the proxy and (main) layout
-      window.location.href = redirectTo;
+      finish(sessionData.user);
     } catch (err: unknown) {
+      if (err instanceof EmailVerificationRequiredError) {
+        // Step 2: confirm the email address with the code we just sent
+        setCodeSentTo(err.sentTo);
+        setIsSubmitting(false);
+        human.reset();
+        return;
+      }
       if (err instanceof AuthApiError) {
         setServerError(err.message);
       } else {
@@ -184,6 +197,16 @@ function RegisterForm() {
       )}
     </div>
   );
+
+  if (codeSentTo !== undefined) {
+    return (
+      <VerifyEmailStep
+        sentTo={codeSentTo}
+        onVerified={finish}
+        onStartOver={() => { setCodeSentTo(undefined); setFormData((f) => ({ ...f, password: '', confirmPassword: '' })); }}
+      />
+    );
+  }
 
   const loginHref = callbackUrl ? `/user-login?callbackUrl=${encodeURIComponent(redirectTo)}` : '/user-login';
 

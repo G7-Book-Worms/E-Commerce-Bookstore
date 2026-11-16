@@ -1,6 +1,30 @@
 // Sign-in security: passkeys (with Chrome's virtual authenticator), the staff portal with an
 // authenticator-app code, and staff-only pages refusing customers.
-import { test, expect, staffSignIn, PASSWORD, TOTP_SECRET } from './helpers';
+import { test, expect, staffSignIn, emailedCode, uniqueEmail, strongPassword, PASSWORD, TOTP_SECRET } from './helpers';
+
+test('sign-up only creates the account once the emailed code is entered', async ({ page }) => {
+  const email = uniqueEmail('verify');
+  await page.goto('/user-register');
+  await page.fill('#firstName', 'Grace');
+  await page.fill('#lastName', 'Hopper');
+  await page.fill('#email', email);
+  const password = strongPassword();
+  await page.fill('#password', password);
+  await page.fill('#confirmPassword', password);
+  await page.getByRole('button', { name: /create account/i }).click();
+  await expect(page.getByRole('heading', { name: /confirm your email/i })).toBeVisible();
+
+  // A wrong code is refused and nothing is signed in
+  const right = await emailedCode(email);
+  const wrong = right === '000000' ? '111111' : '000000';
+  await page.getByLabel(/confirmation code/i).fill(wrong);
+  await page.getByRole('button', { name: /confirm and create account/i }).click();
+  await expect(page.getByRole('alert').filter({ hasText: /isn.t right/i })).toBeVisible();
+
+  await page.getByLabel(/confirmation code/i).fill(right);
+  await page.getByRole('button', { name: /confirm and create account/i }).click();
+  await expect(page).not.toHaveURL(/\/user-register/, { timeout: 20_000 });
+});
 
 test('a customer adds a passkey and signs in with it', async ({ page, context }) => {
   const cdp = await context.newCDPSession(page);

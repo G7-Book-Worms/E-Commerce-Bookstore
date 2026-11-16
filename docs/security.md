@@ -12,6 +12,13 @@ How Book Worms protects accounts, payments and data. Each item names the file th
 | Strength meter on every "new password" field. | `components/ui/password-strength.tsx` |
 | Show/Hide button instead of copy-pasting passwords into other places. | `components/ui/password-input.tsx` |
 
+## Email verification at sign-up
+
+- An account is only created once its owner types the 6-digit code emailed to the address they signed up with (`server/src/modules/auth/email-verification.ts`).
+- Until then nothing is stored: the details wait in a signed, httpOnly cookie (`reg_pending`, path `/api/auth/register`, 15 minutes). The password is already a bcrypt hash inside it, and the code is only there as an HMAC keyed with `JWT_SECRET`, so reading your own cookie doesn't reveal the code.
+- Wrong codes: 5 per email per 15 minutes. New codes: 3 per email per 15 minutes; a new code retires the old one. Sign-ups started: 5 per IP and 5 per email per hour.
+- Demo `@example.com` addresses have no inbox, so their code goes to the support inbox, like sign-in codes.
+
 ## Sign-in
 
 | Measure | Where |

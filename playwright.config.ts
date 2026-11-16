@@ -6,7 +6,13 @@
 //   pnpm build && pnpm e2e
 import { defineConfig, devices } from '@playwright/test';
 
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 const PORT = Number(process.env.E2E_PORT ?? 3300);
+// Where the test server writes the emails it would have sent (server/src/modules/email/mailer.ts);
+// the tests read the sign-up code from it. Same path in the runner and its workers.
+process.env.E2E_MAILBOX ??= join(tmpdir(), `bookworms-e2e-mailbox-${PORT}.jsonl`);
 
 export default defineConfig({
   testDir: './e2e',
@@ -29,7 +35,7 @@ export default defineConfig({
       port: PORT,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
-      env: { STRIPE_SECRET_KEY: 'sk_test_e2e_fake', STRIPE_MOCK_URL: 'http://localhost:12111', STRIPE_AUTO_REFUND: 'true' },
+      env: { E2E_MAILBOX: process.env.E2E_MAILBOX!, STRIPE_SECRET_KEY: 'sk_test_e2e_fake', STRIPE_MOCK_URL: 'http://localhost:12111', STRIPE_AUTO_REFUND: 'true' },
     },
   ],
 });

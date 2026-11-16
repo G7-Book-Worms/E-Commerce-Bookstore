@@ -8,18 +8,43 @@ import { clientIp } from '../../shared/security/client-ip';
 import { verifyToken } from '../../shared/utils/token-util';
 import { MFA_PENDING_COOKIE, pendingCookieOptions } from '../mfa/mfa-service';
 import { requireHuman } from '../../shared/security/turnstile';
+import { REGISTER_PENDING_COOKIE, registerPendingCookieOptions } from './email-verification';
+import { z } from 'zod';
+
+const registerCodeSchema = z.object({ code: z.string().trim().min(6, 'Enter the 6-digit code').max(12, 'Enter the 6-digit code') });
 
 const authService = new AuthService();
 
 export class AuthController {
-  /** POST /api/auth/register (201 Created) */
+  /**
+   * POST /api/auth/register: checks the details and emails a 6-digit code. The account is only
+   * created by /api/auth/register/verify once the code is typed in.
+   */
   static async register(req: NextRequest) {
     await requireHuman(req, clientIp(req), 'register');
     const validatedInput = registerInputSchema.parse(await req.json());
-    const result = await authService.register(validatedInput, clientIp(req));
+    const { pendingToken, sentTo } = await authService.startRegistration(validatedInput, clientIp(req));
+    const response = HttpResponse.success({ verificationRequired: true, sentTo }, 'Check your email for a code');
+    response.cookies.set(REGISTER_PENDING_COOKIE, pendingToken, registerPendingCookieOptions);
+    return response;
+  }
+
+  /** POST /api/auth/register/verify { code } (201 Created): creates the account and signs it in */
+  static async verifyRegistration(req: NextRequest) {
+    const { code } = registerCodeSchema.parse(await req.json());
+    const result = await authService.completeRegistration(req.cookies.get(REGISTER_PENDING_COOKIE)?.value, code, clientIp(req));
     // The token only goes in the httpOnly cookie, never in the JSON body
     const response = HttpResponse.created({ user: result.user }, 'User registered successfully');
     setAuthCookie(response, result.token);
+    response.cookies.set(REGISTER_PENDING_COOKIE, '', { ...registerPendingCookieOptions, maxAge: 0 });
+    return response;
+  }
+
+  /** POST /api/auth/register/resend: a new code (the old one stops working) */
+  static async resendRegistrationCode(req: NextRequest) {
+    const { pendingToken, sentTo } = await authService.resendRegistrationCode(req.cookies.get(REGISTER_PENDING_COOKIE)?.value);
+    const response = HttpResponse.success({ sentTo }, 'A new code is on its way');
+    response.cookies.set(REGISTER_PENDING_COOKIE, pendingToken, registerPendingCookieOptions);
     return response;
   }
 
