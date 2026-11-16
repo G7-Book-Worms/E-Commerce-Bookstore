@@ -126,9 +126,12 @@ export async function setCustomerTemporaryPassword(userId: number) {
 /** Staff edit a customer's name, email or phone (DemoCheckList item 19). */
 export async function updateCustomerDetails(
   userId: number,
-  input: { firstName: string; lastName: string; email: string; phone: string | null }
+  input: { firstName: string; lastName: string; email: string; phone: string | null },
+  /** Runs before an email change is saved; throws to refuse it (role and password checks). */
+  beforeEmailChange?: () => Promise<void>
 ) {
   const before = await mustExist(userId);
+  if (before.email.toLowerCase() !== input.email.toLowerCase() && beforeEmailChange) await beforeEmailChange();
   try {
     await db.update(users).set({
       firstName: input.firstName,

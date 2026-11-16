@@ -54,7 +54,12 @@ export const PATCH = staffApi('customers.view', async (req, { params, log, staff
 
   switch (action) {
     case 'update': {
-      const result = await updateCustomerDetails(userId, detailsSchema.parse(body));
+      // A new email means sign-in codes and reset links go somewhere else, so changing it is a
+      // takeover risk: managers and up only, re-confirmed with their own password.
+      const result = await updateCustomerDetails(userId, detailsSchema.parse(body), async () => {
+        if (!can(staff.role, 'customers.manage')) throw new ForbiddenError('Only a manager can change a customer\'s email address');
+        await requireStepUp(staff.id, actorPassword, ip);
+      });
       await log('customer.updated', { userId, changed: result.changed });
       return HttpResponse.success(result, result.changed.length ? 'Details saved' : 'Nothing changed');
     }

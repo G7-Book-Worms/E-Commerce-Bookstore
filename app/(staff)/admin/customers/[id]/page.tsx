@@ -55,7 +55,7 @@ async function Content({ params }: { params: Promise<{ id: string }> }) {
           </Panel>
           <Panel title="Details">
             {canEdit && !anonymised ? (
-              <CustomerDetailsForm userId={user.userId} initial={{ firstName: user.firstName, lastName: user.lastName, email: user.email, phone: user.phone }} />
+              <CustomerDetailsForm userId={user.userId} initial={{ firstName: user.firstName, lastName: user.lastName, email: user.email, phone: user.phone }} canChangeEmail={canManage} />
             ) : (
               <><p className="text-sm">{user.email}</p><p className="text-sm text-stone-600">{user.phone ?? 'No phone'}</p></>
             )}
