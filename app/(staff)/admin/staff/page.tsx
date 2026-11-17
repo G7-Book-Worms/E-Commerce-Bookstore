@@ -20,7 +20,7 @@ async function Content() {
   return (
     <>
       <PageHeader
-        title="Staff accounts"
+        title="Staff Accounts"
         description="Employees handle orders, stock counts, messages and customer enquiries. Managers also set prices and sales, add books, and run discounts, customers and the activity log. Administrators also manage staff. Management only runs downward: you cannot change your own account, an account at your own level, or the owner's."
       />
       <Panel>

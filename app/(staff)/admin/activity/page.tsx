@@ -99,7 +99,7 @@ async function Content({ searchParams }: { searchParams: Promise<SP> }) {
   return (
     <>
       <PageHeader
-        title="Activity log"
+        title="Activity Log"
         description="Every sign-in, order, stock change and staff action. Entries are a permanent record: they can't be edited or deleted from the portal."
       />
       <CategoryChips filters={filters} counts={result.counts} allCount={result.allCount} />

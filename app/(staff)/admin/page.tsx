@@ -13,6 +13,9 @@ import { SalesChart } from '@/components/staff/sales-chart';
 import { ActionText, FailureBadge } from '@/components/staff/activity-ui';
 import { recentSecurityEvents } from '@/server/src/modules/activity/activity-query';
 import { describeAction } from '@/lib/activity-categories';
+import { canUnlockSignIn } from '@/server/src/modules/staff/staff-guards';
+import { listLockedAccounts } from '@/server/src/modules/staff/locked-accounts';
+import { LockedAccountsPanel } from './locked-accounts-panel';
 
 export const metadata = { title: 'Dashboard' };
 
@@ -20,7 +23,8 @@ async function Content({ searchParams }: { searchParams: Promise<Record<string, 
   const staff = await requireStaffPage('dashboard.view');
   const sp = await searchParams;
   const canSeeActivity = can(staff.role, 'activity.view');
-  const [stats, sales, stock, lowRows, msgs, recent, sellers, [{ customers }], security] = await Promise.all([
+  const canUnlock = canUnlockSignIn(staff.role);
+  const [stats, sales, stock, lowRows, msgs, recent, sellers, [{ customers }], security, locked] = await Promise.all([
     orderStats(),
     dailySales(14),
     inventoryCounts(),
@@ -30,6 +34,7 @@ async function Content({ searchParams }: { searchParams: Promise<Record<string, 
     topSellers(5),
     db.select({ customers: sql<number>`COUNT(*)` }).from(users),
     canSeeActivity ? recentSecurityEvents(6) : Promise.resolve(null),
+    canUnlock ? listLockedAccounts() : Promise.resolve(null),
   ]);
 
   return (
@@ -51,10 +56,10 @@ async function Content({ searchParams }: { searchParams: Promise<Record<string, 
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-3">
-        <Panel title="Sales, last 14 days" className="xl:col-span-2">
+        <Panel title="Sales, Last 14 Days" className="xl:col-span-2">
           <SalesChart data={sales} />
         </Panel>
-        <Panel title="Low stock alerts" actions={<Link href="/admin/inventory?filter=low" className="text-xs underline">Inventory</Link>}>
+        <Panel title="Low Stock Alerts" actions={<Link href="/admin/inventory?filter=low" className="text-xs underline">Inventory</Link>}>
           {lowRows.length === 0 ? (
             <p className="text-sm text-stone-500">Everything is above its alert level.</p>
           ) : (
@@ -71,7 +76,7 @@ async function Content({ searchParams }: { searchParams: Promise<Record<string, 
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-3">
-        <Panel title="Recent orders" className="xl:col-span-2" actions={<Link href="/admin/orders" className="text-xs underline">All Orders</Link>}>
+        <Panel title="Recent Orders" className="xl:col-span-2" actions={<Link href="/admin/orders" className="text-xs underline">All Orders</Link>}>
           {recent.rows.length === 0 ? <p className="text-sm text-stone-500">No orders yet.</p> : (
             <ul className="divide-y divide-stone-100 text-sm">
               {recent.rows.slice(0, 6).map((o) => (
@@ -86,7 +91,7 @@ async function Content({ searchParams }: { searchParams: Promise<Record<string, 
             </ul>
           )}
         </Panel>
-        <Panel title="Best sellers">
+        <Panel title="Best Sellers">
           {sellers.length === 0 ? <p className="text-sm text-stone-500">No sales yet.</p> : (
             <ol className="space-y-2 text-sm">
               {sellers.map((s, i) => (
@@ -100,9 +105,25 @@ async function Content({ searchParams }: { searchParams: Promise<Record<string, 
         </Panel>
       </div>
 
+      {locked && (
+        <Panel
+          title={`Locked Accounts${locked.length ? ` (${locked.length})` : ''}`}
+          className="mt-6"
+          actions={<span className="text-xs text-stone-500">Locked after too many failed sign-in attempts. Locks end after 15 minutes.</span>}
+        >
+          <LockedAccountsPanel
+            rows={locked.map((l) => ({
+              kind: l.kind, id: l.id, name: l.name, email: l.email,
+              roleLabel: l.role ? ROLE_LABELS[l.role as keyof typeof ROLE_LABELS] : undefined,
+              until: dateTime(l.lockedUntil),
+            }))}
+          />
+        </Panel>
+      )}
+
       {security && (
         <Panel
-          title="Recent security events"
+          title="Recent Security Events"
           className="mt-6"
           actions={<Link href="/admin/activity?category=security" className="text-xs underline">All Security Events</Link>}
         >

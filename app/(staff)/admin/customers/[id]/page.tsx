@@ -49,7 +49,7 @@ async function Content({ params }: { params: Promise<{ id: string }> }) {
           )}
         </Panel>
         <div className="space-y-6">
-          <Panel title="Account actions">
+          <Panel title="Account Actions">
             {canEdit
               ? <CustomerActions userId={user.userId} isActive={user.isActive} name={user.firstName} canManage={canManage} anonymised={anonymised} lockedUntil={lockedUntil ? dateTime(lockedUntil) : null} canUnlock={canUnlockSignIn(staff.role)} />
               : <p className="text-sm text-stone-500">View only.</p>}

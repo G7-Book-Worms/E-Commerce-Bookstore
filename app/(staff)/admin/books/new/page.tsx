@@ -11,7 +11,7 @@ async function Content() {
   const categories = await listCategories();
   return (
     <>
-      <PageHeader title="Add a book" description="It appears in the store right away, on the shelves you pick." />
+      <PageHeader title="Add a Book" description="It appears in the store right away, on the shelves you pick." />
       <Panel className="max-w-4xl"><BookForm mode="create" categories={categories.map((c) => ({ categoryId: c.categoryId, name: c.name }))} /></Panel>
     </>
   );

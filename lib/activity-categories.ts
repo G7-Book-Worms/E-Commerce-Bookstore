@@ -64,6 +64,7 @@ export const ACTION_INFO: Readonly<Record<string, ActionInfo>> = {
   'security.mfa_failed': { category: 'security', label: 'Wrong or expired verification code', failure: true },
   'security.new_sign_in_alert': { category: 'security', label: 'New sign-in alert emailed to the account owner' },
   'security.lockout_alert': { category: 'security', label: 'Account lockout alert emailed to the account owner' },
+  'security.unlocked_by_staff': { category: 'security', label: 'Sign-in lock ended early by an administrator (owner notified)' },
 
   // --- Orders & payments ------------------------------------------------------------------------
   'checkout.started': { category: 'orders', label: 'Customer started checkout' },
@@ -86,6 +87,8 @@ export const ACTION_INFO: Readonly<Record<string, ActionInfo>> = {
   // --- Customers --------------------------------------------------------------------------------
   'auth.register': { category: 'customers', label: 'New customer account created' },
   'customer.updated': { category: 'customers', label: "Staff edited a customer's details" },
+  'customer.signin_unlocked': { category: 'security', label: "Administrator unlocked a customer's sign-in" },
+  'account.updated_by_staff': { category: 'customers', label: 'Account details changed by staff (customer notified)' },
   'customer.reset_link_sent': { category: 'customers', label: 'Staff sent a customer a password reset link' },
   'customer.password_reset_forced': { category: 'customers', label: 'Staff made a customer choose a new password' },
   'customer.temp_password_set': { category: 'customers', label: 'Staff gave a customer a temporary password' },
@@ -116,6 +119,7 @@ export const ACTION_INFO: Readonly<Record<string, ActionInfo>> = {
   'staff.deactivate': { category: 'staff', label: 'Staff account deactivated' },
   'staff.temp_password': { category: 'staff', label: 'Staff member given a temporary password' },
   'staff.sign_out': { category: 'staff', label: 'Staff member signed out on all devices' },
+  'staff.unlock_signin': { category: 'security', label: "Administrator unlocked a staff member's sign-in" },
   'staff.anonymised': { category: 'staff', label: 'Staff account deleted (personal details removed)' },
 
   // --- Discounts --------------------------------------------------------------------------------

@@ -16,7 +16,7 @@ const NAV: { href: string; label: string; permission: Permission; badge?: 'messa
   { href: '/admin/messages', label: 'Messages', permission: 'messages.view', badge: 'messages' },
   { href: '/admin/discounts', label: 'Discounts', permission: 'discounts.manage' },
   { href: '/admin/customers', label: 'Customers', permission: 'customers.view' },
-  { href: '/admin/activity', label: 'Activity log', permission: 'activity.view' },
+  { href: '/admin/activity', label: 'Activity Log', permission: 'activity.view' },
   { href: '/admin/staff', label: 'Staff', permission: 'staff.manage' },
 ];
 
@@ -39,7 +39,7 @@ async function Nav() {
         <p className="font-medium text-white">{staff.firstName} {staff.lastName}</p>
         <p className="text-xs text-green-200">{ROLE_LABELS[staff.role]} · {staff.email}</p>
         <div className="mt-3 flex flex-wrap gap-2">
-          <Link href="/admin/change-password" className="text-xs text-green-100 underline underline-offset-2 hover:text-white">Password &amp; sign-in</Link>
+          <Link href="/admin/change-password" className="text-xs text-green-100 underline underline-offset-2 hover:text-white">Password &amp; Sign-In</Link>
           <SignOutButton />
         </div>
       </div>

@@ -68,7 +68,7 @@ async function Content({ params }: { params: Promise<{ id: string }> }) {
           </Panel>
         </div>
         <div className="space-y-6">
-          <Panel title="Update status">
+          <Panel title="Update Status">
             {can(staff.role, 'orders.update') ? (
               <OrderStatusForm orderId={order.orderId} status={status} next={NEXT_STATUSES[status]} carrier={order.carrier} trackingNumber={order.trackingNumber} />
             ) : <p className="text-sm text-stone-500">Your role can view orders but not change them.</p>}
@@ -90,7 +90,7 @@ async function Content({ params }: { params: Promise<{ id: string }> }) {
               </div>
             ) : <p className="text-sm text-stone-500">Account deleted</p>}
           </Panel>
-          <Panel title="Ship to">
+          <Panel title="Ship To">
             {address ? (
               <address className="text-sm not-italic text-stone-700">{address.recipientName && <><strong className="font-semibold text-stone-900">{address.recipientName}</strong><br /></>}{address.street}<br />{address.city}, {address.state} {address.zip}<br />{address.country}{address.phone && <><br />{address.phone}</>}</address>
             ) : <p className="text-sm text-stone-500">No address</p>}
