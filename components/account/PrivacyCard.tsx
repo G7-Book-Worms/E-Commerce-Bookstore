@@ -51,7 +51,7 @@ export function PrivacyCard() {
           download
           className="mt-3 inline-flex h-10 items-center gap-2 rounded-md border border-stone-300 bg-white px-4 text-sm font-medium text-stone-900 hover:bg-stone-50"
         >
-          <Download className="size-4" aria-hidden /> Download my data (JSON)
+          <Download className="size-4" aria-hidden /> Download My Data (JSON)
         </a>
       </div>
 
@@ -62,7 +62,7 @@ export function PrivacyCard() {
             onClick={() => setOpen(true)}
             className="inline-flex h-10 items-center gap-2 rounded-md border border-red-200 px-4 text-sm font-medium text-red-700 hover:bg-red-50"
           >
-            <Trash2 className="size-4" aria-hidden /> Delete my account
+            <Trash2 className="size-4" aria-hidden /> Delete My Account
           </button>
         ) : (
           <form onSubmit={remove} className="space-y-3 rounded-lg border border-red-200 bg-red-50 p-4">
@@ -81,7 +81,7 @@ export function PrivacyCard() {
             {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
             <div className="flex flex-wrap gap-2">
               <button type="submit" disabled={busy} className="h-10 rounded-md bg-red-700 px-4 text-sm font-medium text-white hover:bg-red-800 disabled:opacity-60">
-                {busy ? 'Deleting…' : 'Delete my account forever'}
+                {busy ? 'Deleting…' : 'Delete My Account Forever'}
               </button>
               <button type="button" onClick={() => { setOpen(false); setPassword(''); setConfirm(''); setError(null); }} className="h-10 rounded-md border border-stone-300 bg-white px-4 text-sm">
                 Cancel

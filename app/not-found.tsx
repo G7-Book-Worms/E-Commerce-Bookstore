@@ -51,7 +51,7 @@ export default function NotFound() {
 
                 <p className="mt-6 text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">Error 404 · Page not found</p>
                 <h1 className="mt-2 text-balance font-serif text-3xl font-bold leading-tight sm:text-4xl">
-                  This page has wandered off the shelf
+                  This Page Has Wandered Off the Shelf
                 </h1>
                 <p className="mt-3 text-pretty text-sm text-stone-600 sm:text-base">
                   The link may be old, or the book may no longer be in our catalog. Search above, or try one of these:
@@ -62,13 +62,13 @@ export default function NotFound() {
                     href="/"
                     className="inline-flex h-11 items-center justify-center rounded-md bg-stone-900 px-6 text-sm font-medium text-stone-50 hover:bg-stone-800"
                   >
-                    Back to the home page
+                    Back to the Home Page
                   </Link>
                   <Link
                     href="/product-catalog"
                     className="inline-flex h-11 items-center justify-center rounded-md border border-stone-300 bg-white px-6 text-sm font-medium hover:bg-stone-100"
                   >
-                    Browse all books
+                    Browse All Books
                   </Link>
                 </div>
 

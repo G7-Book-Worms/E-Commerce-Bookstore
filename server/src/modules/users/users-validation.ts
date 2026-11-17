@@ -7,7 +7,7 @@ export const updateProfileSchema = z.object({
   firstName: z.string().min(1, 'First name is required').max(50).optional(),
   lastName: z.string().min(1, 'Last name is required').max(50).optional(),
   phone: z.string().min(7, 'Invalid phone number format').max(20).optional(),
-  email: z.string().trim().toLowerCase().email('Invalid email address').max(100).optional(),
+  email: z.string().trim().toLowerCase().email('Enter a valid email address').max(100).optional(),
   // Required only when the email changes: the email is where sign-in codes and resets go
   currentPassword: z.string().max(200).optional(),
 });

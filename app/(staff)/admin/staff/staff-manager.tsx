@@ -26,6 +26,8 @@ interface StaffRow {
   mustChangePassword: boolean;
   lastLogin: string | null;
   created: string;
+  /** Set while the account is locked out after failed sign-in attempts */
+  lockedUntil?: string | null;
 }
 
 const DELETED_DOMAIN = '@deleted.invalid';
@@ -41,6 +43,7 @@ export function StaffManager({
   assignable,
   nextEmployeeId,
   mailboxDomain,
+  canUnlock = false,
 }: {
   rows: StaffRow[];
   meId: number;
@@ -49,6 +52,8 @@ export function StaffManager({
   nextEmployeeId: string;
   /** Set when work mailboxes can be created (Migadu configured), e.g. "bookwrms.store" */
   mailboxDomain: string | null;
+  /** Administrators and the owner may end a sign-in lockout early */
+  canUnlock?: boolean;
 }) {
   const router = useRouter();
   const [form, setForm] = useState({
@@ -184,6 +189,7 @@ export function StaffManager({
                         ? <Badge color="gray">Deleted</Badge>
                         : r.isActive ? <Badge color="green">Active</Badge> : <Badge color="red">Deactivated</Badge>}
                       {r.mustChangePassword && !deleted && <Badge color="amber">Temp password</Badge>}
+                      {r.lockedUntil && !deleted && <Badge color="red">Locked</Badge>}
                     </div>
                   </td>
                   <td className="py-2 text-xs text-stone-600">{dateTime(r.lastLogin)}</td>
@@ -191,6 +197,22 @@ export function StaffManager({
                   <td className="py-2">
                     {actionable && (
                       <div className="flex flex-wrap justify-end gap-2">
+                        {r.lockedUntil && canUnlock && (
+                          <button
+                            type="button"
+                            disabled={busy}
+                            className={btnSecondary}
+                            onClick={() => confirmThen(
+                              r,
+                              { action: 'unlock-signin' },
+                              `Unlock Sign-In for ${who(r)}`,
+                              `Their account is locked after too many failed sign-in attempts. Unlocking lets them try again now instead of waiting. They will be notified by email.`,
+                              'Unlock Sign-In',
+                            )}
+                          >
+                            Unlock Sign-In
+                          </button>
+                        )}
                         <button
                           type="button"
                           disabled={busy}
@@ -253,7 +275,7 @@ export function StaffManager({
         <p className="text-sm text-stone-500">Your role cannot create staff accounts.</p>
       ) : (
         <form onSubmit={create} className="rounded-lg border border-stone-200 bg-stone-50 p-4">
-          <h2 className="mb-3 text-sm font-semibold">Add a staff member</h2>
+          <h2 className="mb-3 text-sm font-semibold">Add a Staff Member</h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <label className="text-sm"><span className="mb-1 block font-medium">First name</span><input required value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} className={inputCls} /></label>
             <label className="text-sm"><span className="mb-1 block font-medium">Last name</span><input required value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} className={inputCls} /></label>
@@ -293,7 +315,7 @@ export function StaffManager({
               Give them a @{mailboxDomain} mailbox (removed automatically if their account is deleted)
             </label>
           )}
-          <button className={`${btnPrimary} mt-4`} disabled={busy}>{busy ? 'Creating…' : 'Create account'}</button>
+          <button className={`${btnPrimary} mt-4`} disabled={busy}>{busy ? 'Creating…' : 'Create Account'}</button>
           <p className="mt-2 text-xs text-stone-500">They get a one-time temporary password (shown here once) and must choose their own at first sign-in.</p>
         </form>
       )}

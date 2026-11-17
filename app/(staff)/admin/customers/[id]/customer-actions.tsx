@@ -16,12 +16,18 @@ export function CustomerActions({
   name,
   canManage,
   anonymised,
+  lockedUntil = null,
+  canUnlock = false,
 }: {
   userId: number;
   isActive: boolean;
   name: string;
   canManage: boolean;
   anonymised: boolean;
+  /** When the current sign-in lockout ends (formatted), or null when not locked */
+  lockedUntil?: string | null;
+  /** Administrators and the owner may end a lockout early */
+  canUnlock?: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -69,6 +75,27 @@ export function CustomerActions({
   return (
     <div className="space-y-3">
       <StepUpPrompt request={prompt} onClose={() => setPrompt(null)} />
+      {lockedUntil && (
+        <div role="status" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+          <p className="font-semibold">Sign-In Locked</p>
+          <p className="mt-0.5">Too many failed sign-in attempts. The lock ends automatically at {lockedUntil}.</p>
+          {canUnlock ? (
+            <button
+              type="button"
+              disabled={busy}
+              className={`${btnSecondary} mt-2`}
+              onClick={() => confirmThen(
+                'unlock-signin',
+                `Unlock Sign-In for ${name}`,
+                `This ends the lock now so they can sign in again. Only do this once you have confirmed it is really them. They will be notified by email.`,
+                'Unlock Sign-In',
+              )}
+            >
+              Unlock Sign-In
+            </button>
+          ) : <p className="mt-1 text-xs">Only an administrator can unlock it early.</p>}
+        </div>
+      )}
       <div className="flex flex-col gap-2">
         <button type="button" disabled={busy} className={btnSecondary} onClick={() => act('send-reset-link', `Email ${name} a password reset link?`)}>
           Send password reset link

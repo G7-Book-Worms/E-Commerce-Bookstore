@@ -93,7 +93,7 @@ function GuestOrderLookup() {
     <div className="mx-auto w-full max-w-md px-4 py-14">
       <div className="text-center">
         <Search className="mx-auto size-9 text-stone-700" aria-hidden />
-        <h1 className="mt-3 font-serif text-3xl font-bold">Find your order</h1>
+        <h1 className="mt-3 font-serif text-3xl font-bold">Find Your Order</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           {token
             ? "To keep your order private, confirm the email address you ordered with."
@@ -128,11 +128,11 @@ function GuestOrderLookup() {
             className="h-10 rounded-md border px-3"
           />
         </label>
-        <Button type="submit" className="w-full" disabled={busy}>{busy ? "Looking it up…" : "Show my order"}</Button>
+        <Button type="submit" className="w-full" disabled={busy}>{busy ? "Looking it up…" : "Show My Order"}</Button>
       </form>
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
-        Have an account? <Link href="/user-login?callbackUrl=%2Faccount%3Ftab%3Dorders" className="underline">Sign in</Link> to see all your orders.
+        Have an account? <Link href="/user-login?callbackUrl=%2Faccount%3Ftab%3Dorders" className="underline">Sign In</Link> to see all your orders.
       </p>
     </div>
   );
@@ -213,7 +213,7 @@ function OrderView({ data }: { data: GuestOrder }) {
       </div>
 
       <div className="mt-6 flex justify-center gap-3">
-        <Link href="/product-catalog" className={buttonVariants({ variant: "outline" })}>Browse books</Link>
+        <Link href="/product-catalog" className={buttonVariants({ variant: "outline" })}>Browse Books</Link>
         <Link href={`/user-register?callbackUrl=${encodeURIComponent("/account?tab=orders")}`} className={buttonVariants({ variant: "ghost" })}>Create an account</Link>
       </div>
     </div>

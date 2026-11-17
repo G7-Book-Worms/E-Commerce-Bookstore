@@ -29,6 +29,7 @@ export function CartStepper({
   max,
   title,
   className = "",
+  other,
 }: {
   bookId: number;
   format: CartFormat;
@@ -38,6 +39,11 @@ export function CartStepper({
   /** Book title, for the button labels a screen reader reads out */
   title: string;
   className?: string;
+  /**
+   * The book's other edition, when it has copies: once this edition's stock runs out, the tile
+   * says so and points to the product page, where the other edition can be added.
+   */
+  other?: { label: string; href: string } | null;
 }) {
   const { setCartQuantity } = useCart();
   const [busy, setBusy] = useState(false);
@@ -56,9 +62,13 @@ export function CartStepper({
     else if (to === 0) showToast(`Removed “${title}” from your cart`, { href: '/cart', linkText: 'View cart' });
   }
 
+  const label = format === "hardcover" ? "Hardcover" : "Paperback";
+  const atMax = shown >= max;
+
   return (
+    <div className={className}>
     <div
-      className={`group/stepper flex w-full items-center justify-between gap-1 rounded-md border border-stone-300 bg-white px-1 ${className}`}
+      className={`group/stepper flex w-full items-center justify-between gap-1 rounded-md border border-stone-300 bg-white px-1`}
       // One label for the whole control, so a screen reader announces what the buttons belong to
       role="group"
       aria-label={`Copies of ${title} in your cart`}
@@ -74,18 +84,31 @@ export function CartStepper({
         <Minus aria-hidden />
       </Button>
       <span className="min-w-0 flex-1 truncate text-center text-sm font-medium tabular-nums" aria-live="polite">
-        {shown} in cart
+        {shown} {label} in Cart
       </span>
       <Button
         variant="ghost"
         size="icon-sm"
         className="shrink-0 opacity-0 transition-opacity group-hover/stepper:opacity-100 group-focus-within/stepper:opacity-100 focus-visible:opacity-100 max-md:opacity-100 disabled:opacity-40"
         disabled={busy || shown >= max}
-        aria-label={shown >= max ? `No more copies of ${title} in stock` : `One more copy of ${title}`}
+        aria-label={atMax ? `No more ${label.toLowerCase()} copies of ${title} in stock` : `One more ${label.toLowerCase()} copy of ${title}`}
         onClick={() => change(shown + 1)}
       >
         <Plus aria-hidden />
       </Button>
+    </div>
+    {/* Why the + stopped: the tile's stock counts both editions, but this line is one edition */}
+    {atMax && (
+      <p className="mt-1 text-center text-xs text-stone-600">
+        That&apos;s every {label.toLowerCase()} copy in stock.
+        {other && (
+          <>
+            {" "}
+            <Link href={other.href} className="font-medium underline underline-offset-2 hover:text-stone-900">Add a {other.label.toLowerCase()}</Link>
+          </>
+        )}
+      </p>
+    )}
     </div>
   );
 }
@@ -104,6 +127,10 @@ export function BookCard({ book, eager = false }: { book: Book; eager?: boolean 
     const lines = linesForBook(book.bookId);
     const line = lines.length === 1 ? lines[0] : null;
     const lineStock = line ? (book.formats.find((f) => f.format === line.format)?.stock ?? 0) : 0;
+    const otherFormat = line ? book.formats.find((f) => f.format !== line.format && f.stock > 0) : undefined;
+    const other = otherFormat
+        ? { label: otherFormat.format === "hardcover" ? "Hardcover" : "Paperback", href: `/product/${encodeURIComponent(book.isbn)}` }
+        : null;
 
     async function addToCart() {
         setBusy(true);
@@ -158,10 +185,11 @@ export function BookCard({ book, eager = false }: { book: Book; eager?: boolean 
                 quantity={line.quantity}
                 max={lineStock}
                 title={book.title}
+                other={other}
             />
         ) : lines.length > 1 ? (
             <Link href="/cart" className={buttonVariants({ variant: "outline", className: "w-full shadow-sm hover:shadow-md" })}>
-                In cart ({lines.reduce((n, l) => n + l.quantity, 0)}) · Edit
+                In Cart ({lines.reduce((n, l) => n + l.quantity, 0)}) · Edit
             </Link>
         ) : (
             <Button

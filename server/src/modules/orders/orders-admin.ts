@@ -32,7 +32,13 @@ export const NEXT_STATUSES: Record<OrderStatus, OrderStatus[]> = {
 export type OrderSort = 'date' | 'customer' | 'total' | 'status';
 export const PAGE_SIZE = 25;
 
-const customerName = sql<string>`COALESCE(CONCAT(${users.firstName}, ' ', ${users.lastName}), 'Deleted account')`;
+// Guest orders have no account: their name comes from the order's shipping address (the guest's
+// email if the address has no name). "Deleted account" is only for an account that is gone.
+const customerName = sql<string>`CASE
+  WHEN ${orders.userId} IS NULL THEN COALESCE(NULLIF(TRIM(${addresses.recipientName}), ''), ${orders.guestEmail}, 'Guest')
+  ELSE COALESCE(CONCAT(${users.firstName}, ' ', ${users.lastName}), 'Deleted account')
+END`;
+const customerEmail = sql<string | null>`COALESCE(${users.email}, ${orders.guestEmail})`;
 
 export async function listOrders(opts: {
   q?: string;
@@ -50,7 +56,7 @@ export async function listOrders(opts: {
   if (opts.q) {
     const q = opts.q.replace(/^#/, '');
     const like = `%${q}%`;
-    conds.push(sql`(${orders.orderId} = ${Number(q) || 0} OR ${users.email} LIKE ${like} OR CONCAT(${users.firstName}, ' ', ${users.lastName}) LIKE ${like})`);
+    conds.push(sql`(${orders.orderId} = ${Number(q) || 0} OR ${users.email} LIKE ${like} OR CONCAT(${users.firstName}, ' ', ${users.lastName}) LIKE ${like} OR ${orders.guestEmail} LIKE ${like} OR ${addresses.recipientName} LIKE ${like})`);
   }
   const dir = opts.dir === 'asc' ? asc : desc;
   const orderBy =
@@ -70,19 +76,22 @@ export async function listOrders(opts: {
         totalCents: orders.priceCents,
         userId: orders.userId,
         customerName,
-        email: users.email,
+        isGuest: sql<number>`${orders.userId} IS NULL`,
+        email: customerEmail,
         itemCount: sql<number>`(SELECT COALESCE(SUM(oi.quantity), 0) FROM order_items oi WHERE oi.order_id = ${orders.orderId})`,
         paymentStatus: sql<string | null>`(SELECT p.status FROM payments p WHERE p.order_id = ${orders.orderId} ORDER BY p.payment_id DESC LIMIT 1)`,
       })
       .from(orders)
       .leftJoin(users, eq(users.userId, orders.userId))
+      .leftJoin(addresses, eq(addresses.addressId, orders.shippingAddressId))
       .where(where)
       .orderBy(...orderBy)
       .limit(PAGE_SIZE)
       .offset((page - 1) * PAGE_SIZE),
-    db.select({ total: sql<number>`COUNT(*)` }).from(orders).leftJoin(users, eq(users.userId, orders.userId)).where(where),
+    db.select({ total: sql<number>`COUNT(*)` }).from(orders).leftJoin(users, eq(users.userId, orders.userId))
+      .leftJoin(addresses, eq(addresses.addressId, orders.shippingAddressId)).where(where),
   ]);
-  return { rows: rows.map((r) => ({ ...r, itemCount: Number(r.itemCount) })), total: Number(total), page, pageSize: PAGE_SIZE };
+  return { rows: rows.map((r) => ({ ...r, isGuest: !!Number(r.isGuest), itemCount: Number(r.itemCount) })), total: Number(total), page, pageSize: PAGE_SIZE };
 }
 
 export async function getOrderDetail(orderId: number) {

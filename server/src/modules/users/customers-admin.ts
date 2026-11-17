@@ -2,19 +2,20 @@
 // set a temporary password, sign the customer out of every device, and - new in v2 - multi-select
 // bulk actions and "delete", which scrubs the account instead of removing the row.
 import { deleteAllPasskeys } from '../passkeys/passkey-service';
-import { alertEmailChanged } from '../mfa/security-alerts';
+import { alertEmailChanged, alertUnlockedByStaff } from '../mfa/security-alerts';
+import { logActivity } from '../activity/activity-log';
 import { randomBytes } from 'node:crypto';
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '../../../db';
-import { addresses, orders, users } from '../../../db/schema';
+import { activityLog, addresses, admin, orders, users } from '../../../db/schema';
 import { ConflictError, NotFoundError } from '../../shared/errors/app-error';
 import { AuthService, isDuplicateKeyError } from '../auth/auth-service';
 import { hashPassword } from '../../shared/utils/hash-utils';
-import { clearFailures } from '../../shared/security/rate-limit';
+import { activeLockUntil, clearFailures, clearLocks, signInLockKeys } from '../../shared/security/rate-limit';
 import { isPlacedOrder } from '../orders/placed-orders';
 import { temporaryPassword } from '../staff/staff-auth';
 import { sendEmail } from '../email/mailer';
-import { temporaryPasswordEmail } from '../email/templates';
+import { accountUpdatedByStaffEmail, temporaryPasswordEmail } from '../email/templates';
 import { ANONYMISED, anonymisedEmail, isAnonymised, type BulkOutcome } from '../staff/staff-guards';
 
 export type CustomerSort = 'name' | 'joined' | 'orders' | 'spent';
@@ -146,9 +147,20 @@ export async function updateCustomerDetails(
   }
   const changed = (['firstName', 'lastName', 'email', 'phone'] as const).filter((k) => (before[k] ?? null) !== (input[k] || null));
   if (changed.includes('email')) {
-    // The old address hears about it: sign-in codes and resets now go to the new one
+    // The old address gets a security alert and the new one a confirmation
     await alertEmailChanged({ kind: 'customer', id: userId, email: before.email, firstName: before.firstName }, input.email, true, null);
   }
+  // Any other change made by staff is emailed to the customer (at the current address), with a
+  // way to object, and recorded in the customer's own activity so it shows in their data export.
+  const LABELS = { firstName: 'First name', lastName: 'Last name', phone: 'Phone number' } as const;
+  const others = changed.filter((k): k is keyof typeof LABELS => k !== 'email');
+  if (others.length) {
+    const describe = (k: keyof typeof LABELS) =>
+      k === 'phone' ? (input.phone ? `Phone number changed to ending in ${input.phone.replace(/\D/g, '').slice(-4)}` : 'Phone number removed') : `${LABELS[k]} changed to ${input[k]}`;
+    const emailed = await sendEmail(accountUpdatedByStaffEmail(input.email, input.firstName || before.firstName, others.map(describe)));
+    await logActivity('customer', userId, 'account.updated_by_staff', { changed: others, emailed }, null);
+  }
+  if (changed.includes('email')) await logActivity('customer', userId, 'account.updated_by_staff', { changed: ['email'] }, null);
   return { changed, email: input.email };
 }
 
@@ -242,7 +254,17 @@ export async function anonymiseCustomer(userId: number, deadHash: string) {
     await db.update(addresses).set(scrubbed).where(inArray(addresses.addressId, [...new Set(shippedTo.map((o) => o.id))]));
   }
   await clearFailures(`login:email:${u.email}`);
-  // The old address is returned for the activity log entry, so the action can be audited.
+  // The activity log keeps what happened but not who it was: the email address written into
+  // entries (sign-up, failed sign-ins, lockouts, staff actions on this account) and the IP
+  // addresses of the customer's own entries are removed. The account id still ties them together.
+  await db.update(activityLog)
+    .set({ details: sql`JSON_REMOVE(${activityLog.details}, '$.email')` })
+    .where(sql`JSON_UNQUOTE(JSON_EXTRACT(${activityLog.details}, '$.email')) = ${u.email}`);
+  await db.update(activityLog)
+    .set({ details: sql`JSON_REMOVE(${activityLog.details}, '$.previousEmail')` })
+    .where(sql`JSON_UNQUOTE(JSON_EXTRACT(${activityLog.details}, '$.previousEmail')) = ${u.email}`);
+  await db.update(activityLog).set({ ip: null })
+    .where(and(eq(activityLog.actorType, 'customer'), eq(activityLog.actorId, userId)));
   return { email: u.email };
 }
 
@@ -284,7 +306,6 @@ export async function bulkCustomerAction(
       continue;
     }
     try {
-      let previousEmail: string | undefined;
       switch (action) {
         case 'deactivate':
           await setCustomerActive(id, false);
@@ -296,11 +317,12 @@ export async function bulkCustomerAction(
           await forceCustomerPasswordReset(id, ip);
           break;
         case 'delete':
-          previousEmail = (await anonymiseCustomer(id, deadHash)).email;
+          await anonymiseCustomer(id, deadHash);
           break;
       }
       // One activity-log entry per target, not one for the batch, so an audit can see each account.
-      await log?.(`customer.bulk_${action.replace('-', '_')}`, { userId: id, ...(previousEmail ? { previousEmail } : {}) });
+      // (No email for deletions: the account's personal details are gone from the log too.)
+      await log?.(`customer.bulk_${action.replace('-', '_')}`, { userId: id });
       results.push({ id, ok: true });
     } catch (err) {
       // One bad row must not abandon the rest. The staff member sees which ones were skipped.
@@ -309,4 +331,35 @@ export async function bulkCustomerAction(
     }
   }
   return { results };
+}
+
+/** Whether a customer's email can be changed to `email`: not used by another customer or a staff account. */
+export async function customerEmailAvailable(userId: number, email: string): Promise<boolean> {
+  const e = email.trim().toLowerCase();
+  const [[other], [staff]] = await Promise.all([
+    db.select({ id: users.userId }).from(users).where(and(eq(users.email, e), sql`${users.userId} <> ${userId}`)).limit(1),
+    db.select({ id: admin.adminId }).from(admin).where(eq(admin.email, e)).limit(1),
+  ]);
+  return !other && !staff;
+}
+
+/** When the customer's sign-in lock ends, or null if they aren't locked out. */
+export async function customerSignInLock(userId: number): Promise<Date | null> {
+  const u = await mustExist(userId);
+  return activeLockUntil(signInLockKeys('customer', userId, u.email));
+}
+
+/**
+ * An administrator's "Unlock sign-in": ends a lockout from wrong passwords or wrong codes now,
+ * instead of after 15 minutes, and tells the customer.
+ */
+export async function unlockCustomerSignIn(userId: number) {
+  const u = await mustExist(userId);
+  const keys = signInLockKeys('customer', userId, u.email);
+  const wasLocked = !!(await activeLockUntil(keys));
+  await clearLocks(keys);
+  if (wasLocked) {
+    await alertUnlockedByStaff({ kind: 'customer', id: userId, email: u.email, firstName: u.firstName });
+  }
+  return { email: u.email, wasLocked };
 }

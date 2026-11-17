@@ -16,13 +16,16 @@ export const PATCH = staffApi('staff.manage', async (req, { params, log, staff, 
   const result = await updateStaff({ id: staff.id, role: staff.role }, targetId, input, ip);
   const { password, ...details } = (result ?? {}) as Record<string, unknown> & { password?: string };
   // "delete" is recorded as what it really is, so the log does not suggest the row was removed.
-  const action = input.action === 'delete' ? 'anonymised' : input.action.replace('-', '_');
+  const action = input.action === 'delete' ? 'anonymised' : input.action.replaceAll('-', '_');
   await log(`staff.${action}`, { actorId: staff.id, targetId, ...details });
   if (details.mailbox) {
     await log(details.mailboxRemoved ? 'staff.mailbox_deleted' : 'staff.mailbox_delete_failed', { targetId, mailbox: details.mailbox });
     if (!details.mailboxRemoved) {
       return HttpResponse.success({}, `Saved, but the mailbox ${details.mailbox} couldn't be removed. Remove it in Migadu by hand.`);
     }
+  }
+  if (input.action === 'unlock-signin') {
+    return HttpResponse.success({}, details.wasLocked ? 'Sign-in unlocked. They have been notified by email.' : 'This account was not locked');
   }
   return HttpResponse.success(password ? { password } : {}, 'Saved');
 });

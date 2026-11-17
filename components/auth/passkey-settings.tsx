@@ -76,7 +76,7 @@ export function PasskeySettings({ endpoint }: { endpoint: '/api/passkeys' | '/ap
       const { options } = await call(endpoint, 'POST', { step: 'options' });
       const response = await startRegistration({ optionsJSON: options });
       const r = await call(endpoint, 'POST', { step: 'add', response, name: name.trim() || undefined, password });
-      setMsg({ ok: true, text: `Passkey added (${r.name}). Next time, choose "Sign in with a passkey".` });
+      setMsg({ ok: true, text: `Passkey added (${r.name}). Next time, choose "Sign In with a Passkey".` });
       close();
       await load();
     } catch (err) {

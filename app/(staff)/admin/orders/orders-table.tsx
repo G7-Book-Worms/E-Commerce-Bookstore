@@ -33,6 +33,7 @@ export interface OrderRow {
   status: string;
   totalCents: number;
   customerName: string;
+  isGuest?: boolean;
   email: string | null;
   itemCount: number;
   paymentStatus: string | null;
@@ -203,7 +204,7 @@ export function OrdersTable({
                 </td>
                 <td className={`${td} whitespace-nowrap text-stone-600`}>{dateTime(o.created)}</td>
                 <td className={td}>
-                  <div className="font-medium">{o.customerName}</div>
+                  <div className="font-medium">{o.customerName}{o.isGuest && <span className="ml-1.5 rounded bg-stone-100 px-1.5 py-0.5 text-[11px] font-medium text-stone-600">Guest</span>}</div>
                   <div className="text-xs text-stone-500">{o.email}</div>
                 </td>
                 <td className={td}>{o.itemCount}</td>

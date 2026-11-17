@@ -36,7 +36,7 @@ export const OrdersTab: React.FC<Props> = ({ orders, isLoading }) => {
       <EmptyState image="orders" title="No orders yet">
         <p>Once you check out, your orders show up here.</p>
         <Link href="/product-catalog" className="inline-block mt-4 text-sm font-semibold text-stone-900 hover:underline">
-          Browse books &rarr;
+          Browse Books &rarr;
         </Link>
       </EmptyState>
     );

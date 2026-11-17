@@ -79,7 +79,14 @@ async function Content({ params }: { params: Promise<{ id: string }> }) {
                 <p className="font-medium">{customer.firstName} {customer.lastName}</p>
                 <p className="text-stone-600">{customer.email}</p>
                 {customer.phone && <p className="text-stone-600">{customer.phone}</p>}
-                {can(staff.role, 'customers.view') && <Link href={`/admin/customers/${customer.userId}`} className="text-xs underline">View customer</Link>}
+                {can(staff.role, 'customers.view') && <Link href={`/admin/customers/${customer.userId}`} className="text-xs underline">View Customer</Link>}
+              </div>
+            ) : order.userId == null ? (
+              <div className="space-y-1 text-sm">
+                <p className="font-medium">{address?.recipientName || 'Guest'} <span className="ml-1 rounded bg-stone-100 px-1.5 py-0.5 text-[11px] font-medium text-stone-600">Guest</span></p>
+                {order.guestEmail && <p className="text-stone-600">{order.guestEmail}</p>}
+                {address?.phone && <p className="text-stone-600">{address.phone}</p>}
+                <p className="text-xs text-stone-500">Checked out without an account.</p>
               </div>
             ) : <p className="text-sm text-stone-500">Account deleted</p>}
           </Panel>

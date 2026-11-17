@@ -15,7 +15,7 @@ export default function StaffLoginPage() {
           <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-green-900/10 text-green-900">
             <Lock className="h-5 w-5" aria-hidden="true" />
           </div>
-          <h1 className="text-xl font-bold">Staff sign in</h1>
+          <h1 className="text-xl font-bold">Staff Sign-In</h1>
           <p className="mt-1 text-sm text-stone-500">Authorized Book Worms staff only</p>
         </div>
         <Suspense>
@@ -23,7 +23,7 @@ export default function StaffLoginPage() {
         </Suspense>
       </div>
       <p className="mt-6 max-w-sm text-center text-xs text-stone-500">
-        Shopping? <Link href="/user-login" className="underline underline-offset-2 hover:text-stone-800">Customer sign in</Link>.
+        Shopping? <Link href="/user-login" className="underline underline-offset-2 hover:text-stone-800">Customer Sign-In</Link>.
         Every staff action is recorded in the activity log.
       </p>
     </main>

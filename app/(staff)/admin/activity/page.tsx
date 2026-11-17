@@ -123,7 +123,7 @@ async function Content({ searchParams }: { searchParams: Promise<SP> }) {
       </FilterBar>
       {filtered && (
         <p className="mb-3 text-sm text-stone-500">
-          <Link href="/admin/activity" className="underline underline-offset-2 hover:text-stone-900">Clear all filters</Link>
+          <Link href="/admin/activity" className="underline underline-offset-2 hover:text-stone-900">Clear All Filters</Link>
         </p>
       )}
 

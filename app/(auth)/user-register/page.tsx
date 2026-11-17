@@ -220,7 +220,7 @@ function RegisterForm() {
             href={loginHref}
             className="font-medium text-neutral-900 underline underline-offset-4 hover:text-neutral-600 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-900 rounded-xs"
           >
-            Sign in here
+            Sign In Here
           </Link>
         </p>
       </div>

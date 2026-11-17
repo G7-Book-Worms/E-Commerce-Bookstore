@@ -7,6 +7,7 @@
  * The JWT itself lives in the httpOnly `auth_token` cookie, so the browser sends it
  * automatically (credentials: 'include'); client code never needs to read it.
  */
+import { forgetGuestChoice } from '@/lib/checkout-choice';
 
 export interface LoginPayload {
   email: string;
@@ -156,7 +157,7 @@ export async function loginUser(payload: LoginPayload, headers: Record<string, s
   return postAuth(
     '/api/auth/login',
     { email: payload.email, password: payload.password, rememberMe: payload.rememberMe },
-    (status) => (status === 401 ? 'Invalid email address or password.' : 'Failed to authenticate.'),
+    (status) => (status === 401 ? 'Incorrect email address or password.' : 'Failed to authenticate.'),
     headers
   );
 }
@@ -226,6 +227,8 @@ export async function fetchCurrentSession(): Promise<UserSession | null> {
  * POST /api/auth/logout — the server clears the auth_token cookie.
  */
 export async function logoutUser(): Promise<void> {
+  // An earlier "Continue as guest" must not carry over to the next shopper (lib/checkout-choice.ts)
+  forgetGuestChoice();
   await fetch('/api/auth/logout', {
     method: 'POST',
     credentials: 'include',

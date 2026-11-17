@@ -33,7 +33,7 @@ export function staffToken(a: { adminId: number; email: string; adminRole: strin
   return generateToken({ id: a.adminId, email: a.email, role: a.adminRole as StaffRole, tv: a.tokenVersion }, 'staff');
 }
 
-const GENERIC = 'Invalid email, password or employee ID';
+const GENERIC = 'Incorrect email address, password, or employee ID.';
 
 export async function staffLogin(input: z.infer<typeof staffLoginSchema>, ip: string) {
   await rateLimit(`staff-login:ip:${ip}`, 20, 15 * 60);

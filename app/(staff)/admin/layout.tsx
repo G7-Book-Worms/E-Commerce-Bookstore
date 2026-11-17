@@ -59,7 +59,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <Link href="/admin" className="font-serif text-lg font-bold text-white">
             Book Worms <span className="ml-1 rounded bg-green-800 px-1.5 py-0.5 font-sans text-[10px] font-semibold uppercase tracking-wide">Staff</span>
           </Link>
-          <Link href="/" className="shrink-0 whitespace-nowrap text-xs text-green-200 underline underline-offset-2 hover:text-white">View store</Link>
+          <Link href="/" className="shrink-0 whitespace-nowrap text-xs text-green-200 underline underline-offset-2 hover:text-white">View Store</Link>
         </div>
         <Suspense fallback={<div className="h-10" />}>
           <Nav />

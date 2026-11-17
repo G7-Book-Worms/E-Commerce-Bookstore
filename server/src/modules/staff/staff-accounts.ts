@@ -13,7 +13,8 @@ import { db } from '../../../db';
 import { admin } from '../../../db/schema';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../../shared/errors/app-error';
 import { hashPassword } from '../../shared/utils/hash-utils';
-import { clearFailures } from '../../shared/security/rate-limit';
+import { activeLockUntil, clearFailures, clearLocks, signInLockKeys } from '../../shared/security/rate-limit';
+import { alertUnlockedByStaff } from '../mfa/security-alerts';
 import { isDuplicateKeyError } from '../auth/auth-service';
 import { temporaryPassword } from './staff-auth';
 import { sendEmail } from '../email/mailer';
@@ -22,6 +23,7 @@ import { assignableRoles } from '../../../../lib/staff-permissions';
 import {
   ANONYMISED,
   STAFF_ACTIONS,
+  canUnlockSignIn,
   anonymisedEmail,
   canActOn,
   staffActionNeedsStepUp,
@@ -56,7 +58,7 @@ export const updateStaffSchema = z.object({
 });
 
 export async function listStaff() {
-  return db
+  const rows = await db
     .select({
       adminId: admin.adminId,
       firstName: admin.firstName,
@@ -72,6 +74,9 @@ export async function listStaff() {
     })
     .from(admin)
     .orderBy(asc(admin.lastName));
+  // Which accounts are locked out of signing in right now (wrong passwords or codes)
+  const locks = await Promise.all(rows.map((r) => activeLockUntil(signInLockKeys('staff', r.adminId, r.email))));
+  return rows.map((r, i) => ({ ...r, lockedUntil: locks[i] }));
 }
 
 export async function nextEmployeeId(): Promise<string> {
@@ -232,6 +237,10 @@ export async function updateStaff(
     throw new BadRequestError('There must always be at least one active administrator');
   }
 
+  if (input.action === 'unlock-signin' && !canUnlockSignIn(actor.role)) {
+    throw new ForbiddenError('Only an administrator can unlock sign-in');
+  }
+
   if (staffActionNeedsStepUp(input.action, target.adminRole, input.role)) {
     await requireStepUp(actor.id, input.actorPassword, ip);
   }
@@ -251,6 +260,13 @@ export async function updateStaff(
     case 'delete': {
       const { mailbox, mailboxRemoved } = await anonymiseStaff(targetId, target.email, target.workMailbox);
       return { email: target.email, before: target.adminRole, mailbox, mailboxRemoved };
+    }
+    case 'unlock-signin': {
+      const keys = signInLockKeys('staff', targetId, target.email);
+      const wasLocked = !!(await activeLockUntil(keys));
+      await clearLocks(keys);
+      if (wasLocked) await alertUnlockedByStaff({ kind: 'staff', id: targetId, email: target.email, firstName: target.firstName });
+      return { email: target.email, wasLocked };
     }
     case 'temp-password': {
       const password = temporaryPassword();

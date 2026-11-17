@@ -117,7 +117,7 @@ export function StaffLoginForm() {
       </div>
       {human.widget}
       <button type="submit" className={`${btnPrimary} w-full`} disabled={busy} aria-busy={busy}>
-        {busy ? 'Signing in…' : 'Sign in'}
+        {busy ? 'Signing in…' : 'Sign In'}
       </button>
       <p className="text-center text-xs text-stone-500">Forgot your password? Ask an administrator for a temporary one.</p>
     </form>

@@ -158,7 +158,7 @@ export function ProductView({ book }: { book: CatalogBook }) {
           <p role="status" className={`text-sm ${status.kind === "error" ? "text-red-700" : "text-emerald-700"}`}>
             {status.text}
             {status.kind === "added" && (
-              <> · <Link href="/cart" className="font-medium underline">View cart</Link></>
+              <> · <Link href="/cart" className="font-medium underline">View Cart</Link></>
             )}
           </p>
         )}

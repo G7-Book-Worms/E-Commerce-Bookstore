@@ -59,7 +59,7 @@ export function VerifyEmailStep({ sentTo, onVerified, onStartOver }: {
   return (
     <form onSubmit={submit} noValidate className="space-y-4" aria-labelledby="verify-email-title">
       <div className="space-y-1">
-        <h2 id="verify-email-title" className="font-serif text-2xl font-bold tracking-tight text-neutral-900">Confirm your email</h2>
+        <h2 id="verify-email-title" className="font-serif text-2xl font-bold tracking-tight text-neutral-900">Confirm Your Email</h2>
         <p className="text-sm text-neutral-600">
           We emailed a 6-digit code{to ? ` to ${to}` : ''}. Enter it to finish creating your account. It expires in 15 minutes.
         </p>
@@ -93,10 +93,10 @@ export function VerifyEmailStep({ sentTo, onVerified, onStartOver }: {
 
       <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
         <button type="button" onClick={resend} disabled={busy} className="min-h-10 font-medium text-neutral-900 underline underline-offset-4 hover:text-neutral-600 disabled:opacity-50">
-          Send a new code
+          Send a New Code
         </button>
         <button type="button" onClick={onStartOver} disabled={busy} className="min-h-10 text-neutral-600 underline underline-offset-4 hover:text-neutral-900 disabled:opacity-50">
-          Use a different email
+          Use a Different Email
         </button>
       </div>
       <p className="text-xs text-neutral-500">Can&apos;t find it? Check your spam or junk folder.</p>

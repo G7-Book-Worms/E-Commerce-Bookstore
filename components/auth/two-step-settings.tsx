@@ -134,7 +134,7 @@ export function TwoStepSettings({ endpoint, staff = false }: { endpoint: string;
       </p>
 
       <fieldset className="space-y-2">
-        <legend className="sr-only">How to get your sign-in code</legend>
+        <legend className="sr-only">How to Get Your Sign-In Code</legend>
         {options.map((m) => (
           <label key={m} className={`flex cursor-pointer gap-3 rounded-lg border p-3 text-sm ${choice === m ? 'border-stone-900 bg-stone-50' : 'border-stone-200'}`}>
             <input type="radio" name={`${id}-method`} checked={choice === m} onChange={() => { setChoice(m); setSetup(null); setTextedTo(null); setMsg(null); }} className="mt-0.5" />
@@ -195,7 +195,7 @@ export function TwoStepSettings({ endpoint, staff = false }: { endpoint: string;
       )}
       {choice === 'totp' && needsSetup && choice === method && (
         <button type="button" onClick={beginTotp} disabled={busy} className="text-sm text-stone-700 underline underline-offset-4 disabled:opacity-50">
-          Move to a new phone or app
+          Move to a New Phone or App
         </button>
       )}
 

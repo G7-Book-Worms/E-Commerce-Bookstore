@@ -31,7 +31,7 @@ export const registerInputSchema = z.object({
   email: z
     .string({ required_error: 'Email is required' })
     .trim()
-    .email('Invalid email address')
+    .email('Enter a valid email address')
     .max(100, 'Email cannot exceed 100 characters')
     .toLowerCase(),
   // Rules live in lib/password-policy.ts (shared with the sign-up form)
@@ -45,7 +45,7 @@ export const loginInputSchema = z.object({
   email: z
     .string({ required_error: 'Email is required' })
     .trim()
-    .email('Invalid email address')
+    .email('Enter a valid email address')
     .toLowerCase(),
   password: z
     .string({ required_error: 'Password is required' })

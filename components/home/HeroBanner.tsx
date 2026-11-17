@@ -37,7 +37,7 @@ export function HeroBanner({ code, label }: HeroBannerProps) {
           href="/product-catalog/all?onSale=true"
           className="inline-flex h-9 shrink-0 items-center rounded-full bg-red-700 px-5 text-sm font-semibold text-white hover:bg-red-800"
         >
-          Shop the sale &rarr;
+          Shop the Sale &rarr;
         </Link>
       </div>
     </section>

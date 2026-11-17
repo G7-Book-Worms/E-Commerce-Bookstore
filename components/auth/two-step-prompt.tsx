@@ -82,7 +82,7 @@ export function TwoStepPrompt({ method: initialMethod, sentTo: initialSentTo, on
   return (
     <form onSubmit={submit} noValidate className="space-y-4" aria-labelledby="two-step-title">
       <div className="space-y-1">
-        <h2 id="two-step-title" className="font-serif text-2xl font-bold tracking-tight text-neutral-900">Check it&apos;s you</h2>
+        <h2 id="two-step-title" className="font-serif text-2xl font-bold tracking-tight text-neutral-900">Check It&apos;s You</h2>
         <p className="text-sm text-neutral-600">
           {method === 'totp'
             ? 'Open your authenticator app and enter the 6-digit code for Book Worms.'
@@ -115,7 +115,7 @@ export function TwoStepPrompt({ method: initialMethod, sentTo: initialSentTo, on
       </div>
 
       <button type="submit" disabled={busy} aria-busy={busy} className={`flex h-10 w-full items-center justify-center rounded-md text-sm font-medium text-white focus-visible:outline-none focus-visible:ring-2 disabled:opacity-60 ${primary}`}>
-        {busy ? 'Checking…' : 'Verify and sign in'}
+        {busy ? 'Checking…' : 'Verify and Sign In'}
       </button>
 
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
@@ -130,7 +130,7 @@ export function TwoStepPrompt({ method: initialMethod, sentTo: initialSentTo, on
           </button>
         </span>
         <button type="button" onClick={onCancel} disabled={busy} className="text-neutral-600 underline underline-offset-4 hover:text-neutral-900 disabled:opacity-50">
-          Start over
+          Start Over
         </button>
       </div>
     </form>

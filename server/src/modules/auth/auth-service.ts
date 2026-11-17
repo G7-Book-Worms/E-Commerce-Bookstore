@@ -59,19 +59,24 @@ export class AuthService {
     const user = await this.usersRepo.findByEmail(email);
     if (!user) {
       await burnHashTime(input.password);
-      await recordFailure(lockKey);
-      throw new UnauthorizedError('Invalid email or password');
+      // Unknown emails lock exactly like real ones, so the message can't reveal which exist
+      if (await recordFailure(lockKey)) await assertNotLocked(lockKey);
+      throw new UnauthorizedError('Incorrect email address or password.');
     }
 
     const isMatch = await comparePassword(input.password, user.passwordHash);
     if (!isMatch) {
       const locked = await recordFailure(lockKey);
       await logActivity('customer', user.userId, locked ? 'auth.locked_out' : 'auth.login_failed', { email }, ip);
-      if (locked) await alertLockout({ kind: 'customer', id: user.userId, email: user.email, firstName: user.firstName }, ip);
-      throw new UnauthorizedError('Invalid email or password');
+      if (locked) {
+        await alertLockout({ kind: 'customer', id: user.userId, email: user.email, firstName: user.firstName }, ip);
+        // Same lockout message the next attempt gets, so the person knows straight away
+        await assertNotLocked(lockKey);
+      }
+      throw new UnauthorizedError('Incorrect email address or password.');
     }
     if (!user.isActive) {
-      throw new UnauthorizedError('This account has been deactivated. Contact support@bookwrms.store for help.');
+      throw new UnauthorizedError('This account has been deactivated. For help, contact support@bookwrms.store.');
     }
 
     await clearFailures(lockKey);

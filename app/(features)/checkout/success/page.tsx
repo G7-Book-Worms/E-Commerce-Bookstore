@@ -99,12 +99,12 @@ function Success() {
     })();
   }, [sessionId, isGuestOrder, refreshCart, clearGuestCart]);
 
-  if (!sessionId) return <p className="p-16 text-center">Missing checkout session. <Link href="/cart" className="underline">Back to cart</Link></p>;
+  if (!sessionId) return <p className="p-16 text-center">Missing checkout session. <Link href="/cart" className="underline">Back to Cart</Link></p>;
   if (error) {
     return (
       <div className="mx-auto max-w-xl px-4 py-16 text-center">
         <p className="text-lg font-medium text-red-700">{error}</p>
-        <Link href="/cart" className="mt-4 inline-block underline">Back to cart</Link>
+        <Link href="/cart" className="mt-4 inline-block underline">Back to Cart</Link>
       </div>
     );
   }
@@ -115,7 +115,7 @@ function Success() {
     <div className="mx-auto w-full max-w-2xl px-4 py-12">
       <div className="text-center">
         <CheckCircle2 className="mx-auto size-12 text-emerald-600" />
-        <h1 className="mt-3 font-serif text-3xl font-bold">Thank you for your order!</h1>
+        <h1 className="mt-3 font-serif text-3xl font-bold">Thank You for Your Order!</h1>
         <p className="mt-2 text-muted-foreground">
           Order #{order.orderId}{summary.email ? ` · confirmation for ${summary.email}` : ""}
         </p>
@@ -168,13 +168,13 @@ function Success() {
           )}
           <CreateAccountOffer email={guestEmail} />
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Link href="/product-catalog" className={buttonVariants()}>Keep shopping</Link>
+            <Link href="/product-catalog" className={buttonVariants()}>Keep Shopping</Link>
           </div>
         </>
       ) : (
         <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <Link href="/account?tab=orders" className={buttonVariants({ variant: "outline" })}>View order history</Link>
-          <Link href="/product-catalog" className={buttonVariants()}>Keep shopping</Link>
+          <Link href="/account?tab=orders" className={buttonVariants({ variant: "outline" })}>View Order History</Link>
+          <Link href="/product-catalog" className={buttonVariants()}>Keep Shopping</Link>
         </div>
       )}
     </div>
@@ -225,7 +225,7 @@ function CreateAccountOffer({ email }: { email: string | null }) {
 
   return (
     <div className="mt-6 rounded-xl border bg-white p-5">
-      <h2 className="font-serif text-lg font-bold">Want an account for next time?</h2>
+      <h2 className="font-serif text-lg font-bold">Want an Account for Next Time?</h2>
       <p className="mt-1 text-sm text-muted-foreground">
         We&apos;ll set one up for <strong>{email}</strong> so your next orders are saved and checkout is
         one click. Your cart and this order stay exactly as they are.
@@ -254,7 +254,7 @@ function CreateAccountOffer({ email }: { email: string | null }) {
             <input required type="password" minLength={8} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} className="h-9 rounded-md border px-3" />
           </label>
           <div className="flex gap-2 sm:col-span-2">
-            <Button type="submit" disabled={busy}>{busy ? "Creating…" : "Create account"}</Button>
+            <Button type="submit" disabled={busy}>{busy ? "Creating…" : "Create Account"}</Button>
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Not now</Button>
           </div>
         </form>

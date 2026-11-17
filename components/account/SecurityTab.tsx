@@ -1,6 +1,7 @@
 // components/account/SecurityTab.tsx
 'use client';
 
+import { logoutUser } from '@/lib/api/auth';
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { changeUserPassword } from '@/lib/api/user';
@@ -59,7 +60,7 @@ export const SecurityTab: React.FC = () => {
   const handleSignOut = async () => {
     try {
       setIsLoggingOut(true);
-      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+      await logoutUser();
       router.push('/');
       router.refresh();
     } catch {
@@ -154,7 +155,7 @@ export const SecurityTab: React.FC = () => {
 
       {/* Your data (download / delete) */}
       <div className="bg-white border border-stone-200 rounded-xl p-6 shadow-xs space-y-3">
-        <h3 className="text-xl font-bold text-stone-900 tracking-tight">Your data</h3>
+        <h3 className="text-xl font-bold text-stone-900 tracking-tight">Your Data</h3>
         <PrivacyCard />
       </div>
 

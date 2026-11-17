@@ -157,14 +157,14 @@ export default function CartPage() {
         <EmptyState image="signIn" title="Sign in to see your cart">
           <p>Your cart is saved to your account, so it follows you to any device.</p>
           <div className="mt-5 flex flex-wrap justify-center gap-3">
-            <Link href={`/user-login?callbackUrl=${encodeURIComponent("/cart")}`} className={buttonVariants()}>Sign in</Link>
+            <Link href={`/user-login?callbackUrl=${encodeURIComponent("/cart")}`} className={buttonVariants()}>Sign In</Link>
             <Link href={`/user-register?callbackUrl=${encodeURIComponent("/cart")}`} className={buttonVariants({ variant: "outline" })}>Create an account</Link>
           </div>
         </EmptyState>
       ) : lines.length === 0 ? (
         <EmptyState image="cart" title="Your cart is empty">
           <p>This pup is waiting for you to find a good book.</p>
-          <Link href="/product-catalog" className={`${buttonVariants()} mt-5`}>Browse books</Link>
+          <Link href="/product-catalog" className={`${buttonVariants()} mt-5`}>Browse Books</Link>
         </EmptyState>
       ) : (
         <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
@@ -271,7 +271,7 @@ export default function CartPage() {
                     Next, sign in, create an account or check out as a guest.
                   </p>
                 )}
-                <Link href="/product-catalog" className="mt-1 block py-3 text-center text-sm underline">Continue shopping</Link>
+                <Link href="/product-catalog" className="mt-1 block py-3 text-center text-sm underline">Continue Shopping</Link>
               </OrderSummary>
             )}
           </div>

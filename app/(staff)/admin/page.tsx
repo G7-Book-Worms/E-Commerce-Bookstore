@@ -71,13 +71,13 @@ async function Content({ searchParams }: { searchParams: Promise<Record<string, 
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-3">
-        <Panel title="Recent orders" className="xl:col-span-2" actions={<Link href="/admin/orders" className="text-xs underline">All orders</Link>}>
+        <Panel title="Recent orders" className="xl:col-span-2" actions={<Link href="/admin/orders" className="text-xs underline">All Orders</Link>}>
           {recent.rows.length === 0 ? <p className="text-sm text-stone-500">No orders yet.</p> : (
             <ul className="divide-y divide-stone-100 text-sm">
               {recent.rows.slice(0, 6).map((o) => (
                 <li key={o.orderId} className="flex flex-wrap items-center justify-between gap-2 py-2">
                   <Link href={`/admin/orders/${o.orderId}`} className="font-medium underline-offset-2 hover:underline">#{o.orderId}</Link>
-                  <span className="min-w-0 flex-1 truncate text-stone-600">{o.customerName}</span>
+                  <span className="min-w-0 flex-1 truncate text-stone-600">{o.customerName}{o.isGuest ? ' (Guest)' : ''}</span>
                   <span className="text-stone-500">{dateTime(o.created)}</span>
                   <Badge color={ORDER_STATUS_BADGE[o.status].color}>{ORDER_STATUS_BADGE[o.status].label}</Badge>
                   <span className="w-20 text-right font-medium">{money(o.totalCents)}</span>
@@ -104,7 +104,7 @@ async function Content({ searchParams }: { searchParams: Promise<Record<string, 
         <Panel
           title="Recent security events"
           className="mt-6"
-          actions={<Link href="/admin/activity?category=security" className="text-xs underline">All security events</Link>}
+          actions={<Link href="/admin/activity?category=security" className="text-xs underline">All Security Events</Link>}
         >
           {security.length === 0 ? <p className="text-sm text-stone-500">No sign-ins or security changes recorded yet.</p> : (
             <ul className="divide-y divide-stone-100 text-sm">

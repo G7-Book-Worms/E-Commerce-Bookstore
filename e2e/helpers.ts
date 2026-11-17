@@ -80,7 +80,7 @@ export async function staffSignIn(page: Page) {
     await page.getByLabel('Work email').fill('edsger@example.com');
     await page.getByLabel('Employee ID').fill('BW-1002');
     await page.locator('#staff-password').fill(PASSWORD);
-    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await page.getByRole('button', { name: 'Sign In', exact: true }).click();
     const code = page.getByRole('textbox').first();
     await expect(code).toBeVisible();
     await code.fill(totp(TOTP_SECRET));

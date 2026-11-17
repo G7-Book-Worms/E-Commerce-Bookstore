@@ -58,7 +58,7 @@ function LoginForm() {
 
   // SCRUM-165: Extract callbackUrl query parameter
   const callbackUrl = searchParams.get('callbackUrl');
-  // Carried over to "Register here", so a shopper who signs up instead still lands back where they were
+  // Carried over to "Register Here", so a shopper who signs up instead still lands back where they were
   const safeCallback = callbackUrl && safeInternalPath(callbackUrl, '') ? callbackUrl : null;
   const human = useTurnstile('login');
 
@@ -114,7 +114,7 @@ function LoginForm() {
         } else if (err instanceof AuthApiError) {
           setServerError(err.message);
         } else {
-          setServerError('Invalid email or password. Please try again.');
+          setServerError('Incorrect email address or password. Please try again.');
         }
       } finally {
         setIsSubmitting(false);
@@ -142,7 +142,7 @@ function LoginForm() {
 
   return (
     <>
-      {/* Title & shadcn "Register here" Subtitle */}
+      {/* Title & shadcn "Register Here" Subtitle */}
       <div className="space-y-1 mb-6 text-left">
         <h2 className="text-2xl font-bold tracking-tight text-neutral-900 font-serif">
           Sign In
@@ -153,7 +153,7 @@ function LoginForm() {
             href={safeCallback ? `/user-register?callbackUrl=${encodeURIComponent(safeCallback)}` : '/user-register'}
             className="font-medium text-neutral-900 underline underline-offset-4 hover:text-neutral-600 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-900 rounded-xs"
           >
-            Register here
+            Register Here
           </Link>
         </p>
       </div>
@@ -253,7 +253,7 @@ function LoginForm() {
             href="/forgot-password"
             className="text-xs text-neutral-500 underline underline-offset-4 hover:text-neutral-900 transition-colors"
           >
-            Forgot password?
+            Forgot Password?
           </Link>
         </div>
 
