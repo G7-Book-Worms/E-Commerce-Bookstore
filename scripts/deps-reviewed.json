@@ -1,0 +1,4 @@
+{
+  "@tailwindcss/turbopack": "Reviewed 11/16/2026: under 90 days old when added. Published by Tailwind's maintainers (Adam Wathan, Jonathan Reinink, Robin Malfait); source in tailwindlabs/tailwindcss/packages/@tailwindcss-turbopack.",
+  "server-only": "Reviewed 11/16/2026: no repository field. Published by React core (sebmarkbage); part of React / Next.js server components."
+}

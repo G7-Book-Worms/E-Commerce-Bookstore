@@ -100,6 +100,10 @@ Every sign-in, failed sign-in, lockout, order, refund, stock change and staff ac
 - On when `TURNSTILE_SECRET_KEY` is set: a missing or bad token gets a 400, and so does a request made while Cloudflare can't be reached (fail closed). Without the key (local development) the check is skipped.
 - Previews use Cloudflare's always-pass test keys. Production uses the real widget, which is tied to bookwrms.store.
 
+## Dependencies (supply chain)
+
+Installs refuse brand-new releases, trust downgrades, packages from outside the npm registry and unreviewed install scripts, and CI verifies every package's hash, signature and (for the ones we chose) publisher signals. Details and the checklist for adding a package: [supply-chain.md](supply-chain.md).
+
 ## Known limits / next steps
 
 - Aiven accepts connections from any IP (Vercel has no fixed IPs on the free plan); access still needs the password over TLS. A separate least-privilege database user for the website is planned.

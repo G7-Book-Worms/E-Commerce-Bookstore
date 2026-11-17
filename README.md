@@ -189,7 +189,7 @@ Fill in `.env` in the project root (next to `package.json`):
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | Optional. Cloudflare Turnstile bot check; without them it is skipped. Previews use Cloudflare's test keys (`1x00000000000000000000AA` / `1x0000000000000000000000000000000AA`). The site key is public (Vercel type Config). |
 | `MFA_ENCRYPTION_KEY` | Optional. Key for authenticator secrets; defaults to one derived from `JWT_SECRET`. |
 
-Security measures are listed in [`docs/security.md`](docs/security.md).
+Security measures are listed in [`docs/security.md`](docs/security.md); how dependencies are protected against slopsquatting and hijacked packages is in [`docs/supply-chain.md`](docs/supply-chain.md).
 
 > [!CAUTION]
 > `.env` holds the database password. It is ignored by git (`.env*` in `.gitignore`); never paste it into chat, issues, or commits.
