@@ -3,7 +3,7 @@ import { Suspense } from 'react';
 import { Lock } from 'lucide-react';
 import { StaffLoginForm } from './staff-login-form';
 
-export const metadata = { title: 'Staff sign in' };
+export const metadata = { title: 'Staff Sign-In' };
 
 // One card (fixes the old page that nested a card inside the auth layout's card)
 export default function StaffLoginPage() {

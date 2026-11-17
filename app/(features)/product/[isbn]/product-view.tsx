@@ -169,7 +169,7 @@ export function ProductView({ book }: { book: CatalogBook }) {
             <AccordionContent>{book.description || "No summary yet."}</AccordionContent>
           </AccordionItem>
           <AccordionItem value="details">
-            <AccordionTrigger>Product details</AccordionTrigger>
+            <AccordionTrigger>Product Details</AccordionTrigger>
             <AccordionContent>
               <dl className="grid grid-cols-[120px_1fr] gap-y-1 text-sm">
                 <dt className="text-muted-foreground">ISBN</dt><dd>{book.isbn}</dd>

@@ -8,7 +8,7 @@ test('browse: home, catalog and a product page with "You may like"', async ({ pa
   await expect(page.getByText('The Last Bookshop').first()).toBeVisible();
   await page.goto('/product/978-0-00-000000-0');
   await expect(page.getByRole('heading', { name: 'The Last Bookshop' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'You may like' }).first()).toBeVisible();
+  await expect(page.getByRole('heading', { name: /you may like/i }).first()).toBeVisible();
   // Unknown book: the 404 page
   await page.goto('/product/978-9-99-999999-9');
   await expect(page.getByText(/not found|couldn.t find/i).first()).toBeVisible();

@@ -76,7 +76,7 @@ export function defaultCartFormat(book: Pick<CatalogBook, "formats">): Format | 
 
 // "12 in stock" / "Only 3 left" / "Out of stock"
 export function stockLabel(stock: number) {
-  if (stock <= 0) return "Out of stock";
+  if (stock <= 0) return "Out of Stock";
   if (stock <= 3) return `Only ${stock} left`;
   return `${stock} in stock`;
 }

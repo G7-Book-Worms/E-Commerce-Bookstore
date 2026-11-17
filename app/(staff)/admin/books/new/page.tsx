@@ -4,7 +4,7 @@ import { listCategories } from '@/server/src/modules/books/books-admin';
 import { PageHeader, Panel } from '@/components/staff/ui';
 import { BookForm } from '@/components/staff/book-form';
 
-export const metadata = { title: 'Add a book' };
+export const metadata = { title: 'Add a Book' };
 
 async function Content() {
   await requireStaffPage('inventory.manage');

@@ -32,7 +32,7 @@ export function ForgotPasswordForm() {
 
   return (
     <div className="space-y-4 text-left">
-      <h2 className="text-2xl font-bold tracking-tight text-neutral-900 font-serif">Forgot Your Password?</h2>
+      <h1 className="text-2xl font-bold tracking-tight text-neutral-900 font-serif">Forgot Your Password?</h1>
       {state?.ok ? (
         <div role="status" className="rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-900">
           {state.text} Check your spam folder if it doesn&apos;t arrive in a few minutes.

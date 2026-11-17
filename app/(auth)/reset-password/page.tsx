@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import { ResetPasswordForm } from './reset-form';
 
-export const metadata = { title: 'Choose a new password | Book Worms', robots: { index: false } };
+export const metadata = { title: 'Choose a New Password | Book Worms', robots: { index: false } };
 
 export default function ResetPasswordPage() {
   return (

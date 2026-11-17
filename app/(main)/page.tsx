@@ -47,6 +47,9 @@ function RowsSkeleton() {
 export default function HomePage() {
   return (
     <div className="max-w-7xl mx-auto w-full min-w-0 px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-10">
+      {/* The page's one real heading. The rest of the page is section headings (h2), and the
+          hero is a picture, so this names the page for screen readers without changing the look. */}
+      <h1 className="sr-only">Book Worms: a curated online bookstore</h1>
       <Suspense fallback={null}><AccountDeletedNotice /></Suspense>
       <Suspense fallback={<div className="aspect-[8/3] rounded-2xl bg-stone-200 animate-pulse" />}>
         <Banner />

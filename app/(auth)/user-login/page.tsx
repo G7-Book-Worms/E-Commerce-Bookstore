@@ -144,9 +144,9 @@ function LoginForm() {
     <>
       {/* Title & shadcn "Register Here" Subtitle */}
       <div className="space-y-1 mb-6 text-left">
-        <h2 className="text-2xl font-bold tracking-tight text-neutral-900 font-serif">
+        <h1 className="text-2xl font-bold tracking-tight text-neutral-900 font-serif">
           Sign In
-        </h2>
+        </h1>
         <p className="text-sm text-neutral-500">
           Don&apos;t have an account?{' '}
           <Link

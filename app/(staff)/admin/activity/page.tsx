@@ -9,7 +9,7 @@ import { ACTIVITY_CATEGORIES, CATEGORY_INFO, describeAction, type ActivityCatego
 import { activityFilterParams, parseActivityFilters, type ActivityFilters } from '@/lib/activity-filters';
 import { describeDetails } from '@/lib/activity-details';
 
-export const metadata = { title: 'Activity log' };
+export const metadata = { title: 'Activity Log' };
 type SP = Record<string, string | string[] | undefined>;
 const ACTOR = { customer: 'blue', admin: 'purple', system: 'gray' } as const;
 const DOT: Record<string, string> = {

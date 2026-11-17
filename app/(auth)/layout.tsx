@@ -41,7 +41,7 @@ export default function AuthLayout({
               </p>
             </div>
 
-            <div className="flex flex-col justify-center px-4 py-12 sm:px-6 lg:px-12">
+            <main className="flex flex-col justify-center px-4 py-12 sm:px-6 lg:px-12">
               {/* Header Branding */}
               <div className="mx-auto mb-6 w-full max-w-md text-center">
                 <Link
@@ -63,7 +63,7 @@ export default function AuthLayout({
                   <Link href="/product-catalog" className="text-stone-600 hover:text-stone-900 hover:underline">&larr; Keep browsing books</Link>
                 </p>
               </div>
-            </div>
+            </main>
           </div>
         </AuthProvider>
       </body>
