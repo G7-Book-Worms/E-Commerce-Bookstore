@@ -14,7 +14,7 @@ export function GenreTiles() {
     <section aria-labelledby="shop-by-genre">
       <div className="mb-4 flex items-end justify-between gap-4 border-b pb-2">
         <h2 id="shop-by-genre" className="font-serif text-2xl font-bold">Shop by Genre</h2>
-        <Link href="/product-catalog" className="text-sm font-medium hover:underline">All books &rarr;</Link>
+        <Link href="/product-catalog" className="-my-3 inline-block py-3 text-sm font-medium hover:underline">All Books &rarr;</Link>
       </div>
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-6">
         {GENRES.map((g) => (

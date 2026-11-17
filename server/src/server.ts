@@ -4,6 +4,7 @@ import { ZodError } from 'zod';
 import { AppError } from '../src/shared/errors/app-error';
 import { HttpResponse } from '../src/shared/http/api-response';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- pre-existing loose type, kept to avoid behaviour changes
 type HandlerFn = (req: NextRequest, context?: any) => Promise<NextResponse>;
 
 /**
@@ -15,10 +16,11 @@ type HandlerFn = (req: NextRequest, context?: any) => Promise<NextResponse>;
  *   sees a generic 500, so raw SQL/driver messages never leak.
  */
 export function createApiHandler(handler: HandlerFn): HandlerFn {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- pre-existing loose type, kept to avoid behaviour changes
   return async (req: NextRequest, context?: any) => {
     try {
       return await handler(req, context);
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Let Next.js handle its own control-flow errors (e.g. bailing out of prerendering
       // when a GET handler reads cookies at build time) instead of turning them into a 500.
       unstable_rethrow(error);

@@ -6,7 +6,7 @@ export function OrderSummary({ cart, children }: { cart: CartData; children?: Re
   const t = cart.totals;
   return (
     <div className="rounded-xl border bg-white p-5 shadow-xs">
-      <h2 className="mb-4 font-serif text-xl font-bold">Order summary</h2>
+      <h2 className="mb-4 font-serif text-xl font-bold">Order Summary</h2>
       <dl className="space-y-2 text-sm">
         <div className="flex justify-between">
           <dt>Subtotal ({cart.totalCount} item{cart.totalCount === 1 ? "" : "s"})</dt>

@@ -6,7 +6,7 @@ import { books } from '../books/books-schema';
 import { payments } from '../../../db/schema';
 import { isPlacedOrder } from '../orders/placed-orders';
 
-export type NewUser = Omit<User, 'userId' | 'created' | 'updated' | 'isActive' | 'tokenVersion' | 'mustChangePassword'> & { isActive?: boolean };
+export type NewUser = Omit<User, 'userId' | 'created' | 'updated' | 'isActive' | 'tokenVersion' | 'mustChangePassword' | 'mfaMethod' | 'totpSecret' | 'totpLastStep' | 'mfaPhone' | 'smsOrderUpdates'> & { isActive?: boolean };
 
 export class UsersRepository {
   async findByEmail(email: string): Promise<User | null> {
@@ -29,6 +29,7 @@ export class UsersRepository {
 
   // Create new customer account
   async createUser(input: NewUser): Promise<User> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- driver result shape isn't typed by drizzle
     const [result]: any = await db.insert(users).values({
       ...input,
       created: new Date(),
@@ -104,6 +105,7 @@ export class UsersRepository {
       await this.clearDefaultAddress(userId);
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- driver result shape isn't typed by drizzle
     const [result]: any = await db.insert(addresses).values({
       ...input,
       userId,
@@ -131,8 +133,19 @@ export class UsersRepository {
   }
 
   async deleteAddress(addressId: number, userId: number): Promise<boolean> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- driver result shape isn't typed by drizzle
     const [res]: any = await db
       .delete(addresses)
+      .where(and(eq(addresses.addressId, addressId), eq(addresses.userId, userId)));
+    return res.affectedRows > 0;
+  }
+
+  /** Removes an address from the account without deleting the row (it is still on past orders). */
+  async detachAddress(addressId: number, userId: number): Promise<boolean> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- driver result shape isn't typed by drizzle
+    const [res]: any = await db
+      .update(addresses)
+      .set({ userId: null, isDefault: false })
       .where(and(eq(addresses.addressId, addressId), eq(addresses.userId, userId)));
     return res.affectedRows > 0;
   }
@@ -152,9 +165,11 @@ export class UsersRepository {
         discountCents: orders.discountCents,
         taxCents: orders.taxCents,
         shippingAddressId: orders.shippingAddressId,
+        carrier: orders.carrier,
         trackingNumber: orders.trackingNumber,
         created: orders.created,
         address: {
+          recipientName: addresses.recipientName,
           street: addresses.street,
           city: addresses.city,
           state: addresses.state,
@@ -175,6 +190,7 @@ export class UsersRepository {
       .limit(limit)
       .offset(offset);
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- driver result shape isn't typed by drizzle
     const [countResult]: any = await db
       .select({ count: sql<number>`count(*)` })
       .from(orders)

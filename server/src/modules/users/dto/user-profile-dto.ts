@@ -5,7 +5,7 @@ export const updateProfileSchema = z.object({
   firstName: z.string().min(1, 'First name is required').max(50).optional(),
   lastName: z.string().min(1, 'Last name is required').max(50).optional(),
   phone: z.string().min(7, 'Invalid phone number format').max(20).optional(),
-  email: z.string().email('Invalid email address').max(100).optional(),
+  email: z.string().email('Enter a valid email address').max(100).optional(),
 });
 
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;

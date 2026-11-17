@@ -89,7 +89,7 @@ export function InventoryRow({ row, canStock, canManage }: { row: Row; canStock:
             {mode === 'stock' ? (
               <form onSubmit={saveStock} className="flex flex-wrap items-end gap-3">
                 <fieldset className="flex gap-3 text-sm">
-                  <legend className="sr-only">Type of change</legend>
+                  <legend className="sr-only">Type of Change</legend>
                   <label className="flex items-center gap-1.5"><input type="radio" name={`kind-${id}`} checked={kind === 'restock'} onChange={() => { setKind('restock'); setQty('10'); }} /> Restock</label>
                   <label className="flex items-center gap-1.5"><input type="radio" name={`kind-${id}`} checked={kind === 'adjustment'} onChange={() => { setKind('adjustment'); setQty('-1'); }} /> Correct count</label>
                 </fieldset>

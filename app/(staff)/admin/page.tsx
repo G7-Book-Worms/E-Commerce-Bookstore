@@ -10,13 +10,21 @@ import { inventoryCounts, listInventory } from '@/server/src/modules/inventory/i
 import { messageCounts } from '@/server/src/modules/contact/contact-service';
 import { Badge, ORDER_STATUS_BADGE, PageHeader, Panel, StatCard, dateTime, money } from '@/components/staff/ui';
 import { SalesChart } from '@/components/staff/sales-chart';
+import { ActionText, FailureBadge } from '@/components/staff/activity-ui';
+import { recentSecurityEvents } from '@/server/src/modules/activity/activity-query';
+import { describeAction } from '@/lib/activity-categories';
+import { canUnlockSignIn } from '@/server/src/modules/staff/staff-guards';
+import { listLockedAccounts } from '@/server/src/modules/staff/locked-accounts';
+import { LockedAccountsPanel } from './locked-accounts-panel';
 
 export const metadata = { title: 'Dashboard' };
 
 async function Content({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const staff = await requireStaffPage('dashboard.view');
   const sp = await searchParams;
-  const [stats, sales, stock, lowRows, msgs, recent, sellers, [{ customers }]] = await Promise.all([
+  const canSeeActivity = can(staff.role, 'activity.view');
+  const canUnlock = canUnlockSignIn(staff.role);
+  const [stats, sales, stock, lowRows, msgs, recent, sellers, [{ customers }], security, locked] = await Promise.all([
     orderStats(),
     dailySales(14),
     inventoryCounts(),
@@ -25,6 +33,8 @@ async function Content({ searchParams }: { searchParams: Promise<Record<string, 
     listOrders({ sort: 'date', dir: 'desc' }),
     topSellers(5),
     db.select({ customers: sql<number>`COUNT(*)` }).from(users),
+    canSeeActivity ? recentSecurityEvents(6) : Promise.resolve(null),
+    canUnlock ? listLockedAccounts() : Promise.resolve(null),
   ]);
 
   return (
@@ -46,10 +56,10 @@ async function Content({ searchParams }: { searchParams: Promise<Record<string, 
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-3">
-        <Panel title="Sales, last 14 days" className="xl:col-span-2">
+        <Panel title="Sales, Last 14 Days" className="xl:col-span-2">
           <SalesChart data={sales} />
         </Panel>
-        <Panel title="Low stock alerts" actions={<Link href="/admin/inventory?filter=low" className="text-xs underline">Inventory</Link>}>
+        <Panel title="Low Stock Alerts" actions={<Link href="/admin/inventory?filter=low" className="text-xs underline">Inventory</Link>}>
           {lowRows.length === 0 ? (
             <p className="text-sm text-stone-500">Everything is above its alert level.</p>
           ) : (
@@ -66,13 +76,13 @@ async function Content({ searchParams }: { searchParams: Promise<Record<string, 
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-3">
-        <Panel title="Recent orders" className="xl:col-span-2" actions={<Link href="/admin/orders" className="text-xs underline">All orders</Link>}>
+        <Panel title="Recent Orders" className="xl:col-span-2" actions={<Link href="/admin/orders" className="text-xs underline">All Orders</Link>}>
           {recent.rows.length === 0 ? <p className="text-sm text-stone-500">No orders yet.</p> : (
             <ul className="divide-y divide-stone-100 text-sm">
               {recent.rows.slice(0, 6).map((o) => (
                 <li key={o.orderId} className="flex flex-wrap items-center justify-between gap-2 py-2">
                   <Link href={`/admin/orders/${o.orderId}`} className="font-medium underline-offset-2 hover:underline">#{o.orderId}</Link>
-                  <span className="min-w-0 flex-1 truncate text-stone-600">{o.customerName}</span>
+                  <span className="min-w-0 flex-1 truncate text-stone-600">{o.customerName}{o.isGuest ? ' (Guest)' : ''}</span>
                   <span className="text-stone-500">{dateTime(o.created)}</span>
                   <Badge color={ORDER_STATUS_BADGE[o.status].color}>{ORDER_STATUS_BADGE[o.status].label}</Badge>
                   <span className="w-20 text-right font-medium">{money(o.totalCents)}</span>
@@ -81,7 +91,7 @@ async function Content({ searchParams }: { searchParams: Promise<Record<string, 
             </ul>
           )}
         </Panel>
-        <Panel title="Best sellers">
+        <Panel title="Best Sellers">
           {sellers.length === 0 ? <p className="text-sm text-stone-500">No sales yet.</p> : (
             <ol className="space-y-2 text-sm">
               {sellers.map((s, i) => (
@@ -94,6 +104,47 @@ async function Content({ searchParams }: { searchParams: Promise<Record<string, 
           )}
         </Panel>
       </div>
+
+      {locked && (
+        <Panel
+          title={`Locked Accounts${locked.length ? ` (${locked.length})` : ''}`}
+          className="mt-6"
+          actions={<span className="text-xs text-stone-500">Locked after too many failed sign-in attempts. Locks end after 15 minutes.</span>}
+        >
+          <LockedAccountsPanel
+            rows={locked.map((l) => ({
+              kind: l.kind, id: l.id, name: l.name, email: l.email,
+              roleLabel: l.role ? ROLE_LABELS[l.role as keyof typeof ROLE_LABELS] : undefined,
+              until: dateTime(l.lockedUntil),
+            }))}
+          />
+        </Panel>
+      )}
+
+      {security && (
+        <Panel
+          title="Recent Security Events"
+          className="mt-6"
+          actions={<Link href="/admin/activity?category=security" className="text-xs underline">All Security Events</Link>}
+        >
+          {security.length === 0 ? <p className="text-sm text-stone-500">No sign-ins or security changes recorded yet.</p> : (
+            <ul className="divide-y divide-stone-100 text-sm">
+              {security.map((e) => {
+                const d = describeAction(e.action);
+                return (
+                  <li key={e.activityId} className={`flex flex-wrap items-start justify-between gap-2 py-2 ${d.failure ? '-mx-2 rounded bg-red-50 px-2' : ''}`}>
+                    <div className="min-w-0 flex-1">
+                      <ActionText d={d} action={e.action} />
+                    </div>
+                    {d.failure && <FailureBadge />}
+                    <span className="shrink-0 text-xs text-stone-500">{dateTime(e.created)}{e.ip ? ` · ${e.ip}` : ''}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Panel>
+      )}
     </>
   );
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { HttpStatus, HttpStatusCode } from './status-codes';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- pre-existing loose type, kept to avoid behaviour changes
 export interface ApiResponsePayload<T = any> {
   success: boolean;
   message?: string;

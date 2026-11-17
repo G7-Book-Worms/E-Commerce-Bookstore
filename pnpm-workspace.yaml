@@ -1,4 +1,31 @@
+# pnpm settings, including supply-chain protections (see docs/supply-chain.md).
+
+# Packages allowed to run install scripts; any other package with one fails the install
+# (strictDepBuilds) instead of running code we never reviewed.
 allowBuilds:
   esbuild: true
   sharp: false
   unrs-resolver: false
+strictDepBuilds: true
+
+# Never install a version published less than 3 days ago. Most malicious or hijacked releases
+# (and slopsquats) are caught and pulled from npm within hours.
+minimumReleaseAge: 4320
+
+# Refuse a release whose publishing is less trustworthy than earlier ones (e.g. previous
+# versions were published from CI with provenance and this one by hand): a sign the
+# maintainer's account was taken over.
+trustPolicy: no-downgrade
+
+# Dependencies of dependencies may only come from the npm registry, never from a git repo or
+# a tarball URL that nobody reviewed.
+blockExoticSubdeps: true
+# Reviewed exceptions (11/17/2026): each was hand-published by the package's long-standing
+# maintainer on an older release line (no CI provenance), years ago, with a registry hash that
+# matches our lockfile. Exact versions only, so a new release is checked again.
+#   semver@6.3.1 (npm CLI team, 2023), undici-types@6.21.0 (Node.js undici lead, 2024),
+#   eslint-import-resolver-typescript@3.10.1 (its maintainer, 2025)
+trustPolicyExclude:
+  - semver@6.3.1
+  - undici-types@6.21.0
+  - eslint-import-resolver-typescript@3.10.1

@@ -1,3 +1,4 @@
+import { alertEmailChanged } from '../mfa/security-alerts';
 import { UsersRepository } from './users-repository';
 import {
   UpdateProfileInput,
@@ -12,13 +13,22 @@ import { users } from '../../../db/schema';
 import { logActivity } from '../activity/activity-log';
 import { sendEmail } from '../email/mailer';
 import { passwordChangedEmail } from '../email/templates';
-import { customerToken } from '../auth/auth-service';
 import { rateLimit } from '../../shared/security/rate-limit';
 import {
   BadRequestError,
   NotFoundError,
   UnauthorizedError,
 } from '../../shared/errors/app-error';
+
+/** MySQL refused a delete because another row still points at this one (errno 1451). */
+function isStillReferencedError(error: unknown): boolean {
+  let current = error as { code?: string; errno?: number; cause?: unknown } | undefined;
+  for (let depth = 0; current && depth < 5; depth++) {
+    if (current.code === 'ER_ROW_IS_REFERENCED_2' || current.code === 'ER_ROW_IS_REFERENCED' || current.errno === 1451) return true;
+    current = current.cause as typeof current;
+  }
+  return false;
+}
 
 export class UsersService {
   constructor(private usersRepo = new UsersRepository()) {}
@@ -47,27 +57,39 @@ export class UsersService {
   /**
    * SCRUM-94 & SCRUM-95: Update profile with email uniqueness check
    */
-  async updateProfile(userId: number, input: UpdateProfileInput) {
+  async updateProfile(userId: number, input: UpdateProfileInput, ip?: string | null) {
     const user = await this.usersRepo.findById(userId);
     if (!user) {
       throw new NotFoundError('User not found');
     }
 
-    if (input.email && input.email !== user.email) {
-      const emailInUse = await this.usersRepo.isEmailTakenByOtherUser(input.email, userId);
+    const { currentPassword, ...changes } = input;
+    const emailChanging = !!changes.email && changes.email !== user.email;
+    if (emailChanging) {
+      // The email is where sign-in codes and password resets go, so changing it takes the
+      // current password (a stolen session alone can't redirect the account), and the old
+      // address is told.
+      await rateLimit(`change-email:user:${userId}`, 10, 15 * 60);
+      if (!currentPassword || !(await comparePassword(currentPassword, user.passwordHash))) {
+        throw new UnauthorizedError('Enter your current password to change your email address');
+      }
+      const emailInUse = await this.usersRepo.isEmailTakenByOtherUser(changes.email!, userId);
       if (emailInUse) {
         throw new BadRequestError('Email address is already associated with another account');
       }
     }
 
-    const updated = await this.usersRepo.updateProfile(userId, input);
+    await this.usersRepo.updateProfile(userId, changes);
+    if (emailChanging) {
+      await alertEmailChanged({ kind: 'customer', id: userId, email: user.email, firstName: user.firstName }, changes.email!, false, ip ?? null);
+    }
     return this.getProfile(userId);
   }
 
   /**
    * SCRUM-96, SCRUM-97, SCRUM-98: Password change flow
    */
-  async changePassword(userId: number, input: ChangePasswordInput, remember = false) {
+  async changePassword(userId: number, input: ChangePasswordInput) {
     await rateLimit(`change-password:user:${userId}`, 10, 15 * 60);
     const user = await this.usersRepo.findById(userId);
     if (!user) {
@@ -84,18 +106,19 @@ export class UsersService {
       throw new BadRequestError('Choose a password different from your current one');
     }
 
-    // New hash + bump the token version: every other signed-in device is signed out.
-    // The controller gives this browser a fresh cookie so it stays signed in.
+    // New hash + bump the token version, which signs out every signed-in device - this browser
+    // included. A password is usually changed because the old one might be known to somebody else,
+    // and leaving the device that did it signed in would leave that exact hole open. The controller
+    // clears the cookie, and the account page sends them to the sign-in form.
     await db.update(users).set({
       passwordHash: await hashPassword(input.newPassword),
       tokenVersion: sql`${users.tokenVersion} + 1`,
       mustChangePassword: false,
     }).where(eq(users.userId, userId));
-    const updated = await this.usersRepo.findById(userId);
     await logActivity('customer', userId, 'auth.password_changed', {});
     await sendEmail(passwordChangedEmail(user.email, user.firstName));
 
-    return { success: true, message: 'Password updated successfully', token: customerToken(updated!, remember) };
+    return { success: true, message: 'Password updated successfully', signedOut: true };
   }
 
   /**
@@ -122,7 +145,15 @@ export class UsersService {
     if (!existing) {
       throw new NotFoundError('Address not found or unauthorized');
     }
-    return this.usersRepo.deleteAddress(addressId, userId);
+    try {
+      return await this.usersRepo.deleteAddress(addressId, userId);
+    } catch (err) {
+      if (!isStillReferencedError(err)) throw err;
+      // Past orders keep a link to the address they shipped to, so the row can't be dropped.
+      // Detach it from the account instead: it disappears from the customer's saved addresses
+      // and from checkout, and their order history still shows where each order went.
+      return await this.usersRepo.detachAddress(addressId, userId);
+    }
   }
 
   /**
@@ -155,6 +186,7 @@ export class UsersService {
           address: o.address?.street ? o.address : null,
           payment: o.payment?.status ? o.payment : null,
           shippingAddressId: o.shippingAddressId,
+          carrier: o.carrier,
           trackingNumber: o.trackingNumber,
           created: o.created,
           totalItems: items.reduce((sum, i) => sum + i.quantity, 0),

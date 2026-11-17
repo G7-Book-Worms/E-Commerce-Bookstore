@@ -1,10 +1,13 @@
 'use client';
+import { safeInternalPath } from '@/lib/safe-redirect';
 
 import React, { useState, Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { z } from 'zod';
-import { registerUser, AuthApiError } from '@/lib/api/auth';
+import { useTurnstile } from '@/components/turnstile';
+import { registerUser, AuthApiError, EmailVerificationRequiredError, type UserSession } from '@/lib/api/auth';
+import { VerifyEmailStep } from '@/components/auth/verify-email-step';
 import { useAuth } from '../../context/auth-context';
 import { PasswordInput } from '@/components/ui/password-input';
 import { PasswordStrength } from '@/components/ui/password-strength';
@@ -57,7 +60,7 @@ function RegisterForm() {
 
   // Only allow same-site relative redirects
   const callbackUrl = searchParams.get('callbackUrl');
-  const redirectTo = callbackUrl && callbackUrl.startsWith('/') && !callbackUrl.startsWith('//') ? callbackUrl : '/';
+  const redirectTo = safeInternalPath(callbackUrl);
 
   // Already signed in (or just signed up): go where the user was headed, same as the submit handler
   useEffect(() => {
@@ -75,7 +78,16 @@ function RegisterForm() {
   });
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<FieldName, string>>>({});
   const [serverError, setServerError] = useState<string | null>(null);
+  const human = useTurnstile('register');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  // Set once the details are accepted and a code has been emailed (step 2)
+  const [codeSentTo, setCodeSentTo] = useState<string | null | undefined>(undefined);
+
+  function finish(user: UserSession) {
+    setUserSession(user);
+    // Full navigation so the new auth cookie is picked up by the proxy and (main) layout
+    window.location.href = redirectTo;
+  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -101,26 +113,39 @@ function RegisterForm() {
         password: flattened.password?.[0],
         confirmPassword: flattened.confirmPassword?.[0],
       });
+      // Move the cursor to the first field that needs fixing (form order)
+      const order: FieldName[] = ['firstName', 'lastName', 'email', 'password', 'confirmPassword'];
+      const first = order.find((f) => flattened[f]?.length);
+      if (first) document.getElementById(first)?.focus();
       return;
     }
 
     setFieldErrors({});
+    if (!(await human.waitUntilReady())) {
+      setServerError("The security check didn't finish. Refresh the page and try again.");
+      return;
+    }
     setIsSubmitting(true);
 
     try {
       const { firstName, lastName, email, password } = validationResult.data;
-      const sessionData = await registerUser({ firstName, lastName, email, password });
-      setUserSession(sessionData.user);
-
-      // Full navigation so the new auth cookie is picked up by the proxy and (main) layout
-      window.location.href = redirectTo;
+      const sessionData = await registerUser({ firstName, lastName, email, password }, human.headers());
+      finish(sessionData.user);
     } catch (err: unknown) {
+      if (err instanceof EmailVerificationRequiredError) {
+        // Step 2: confirm the email address with the code we just sent
+        setCodeSentTo(err.sentTo);
+        setIsSubmitting(false);
+        human.reset();
+        return;
+      }
       if (err instanceof AuthApiError) {
         setServerError(err.message);
       } else {
         setServerError('Registration failed. Please try again.');
       }
       setIsSubmitting(false);
+      human.reset(); // a token works once
     }
   };
 
@@ -139,6 +164,8 @@ function RegisterForm() {
         <PasswordInput
           id={name}
           name={name}
+          // The confirmation box stays masked: re-typing it from memory is the whole check.
+          reveal={name !== 'confirmPassword'}
           autoComplete={autoComplete}
           disabled={isSubmitting}
           value={formData[name]}
@@ -171,6 +198,16 @@ function RegisterForm() {
     </div>
   );
 
+  if (codeSentTo !== undefined) {
+    return (
+      <VerifyEmailStep
+        sentTo={codeSentTo}
+        onVerified={finish}
+        onStartOver={() => { setCodeSentTo(undefined); setFormData((f) => ({ ...f, password: '', confirmPassword: '' })); }}
+      />
+    );
+  }
+
   const loginHref = callbackUrl ? `/user-login?callbackUrl=${encodeURIComponent(redirectTo)}` : '/user-login';
 
   return (
@@ -183,7 +220,7 @@ function RegisterForm() {
             href={loginHref}
             className="font-medium text-neutral-900 underline underline-offset-4 hover:text-neutral-600 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-900 rounded-xs"
           >
-            Sign in here
+            Sign In Here
           </Link>
         </p>
       </div>
@@ -218,6 +255,8 @@ function RegisterForm() {
           <PasswordStrength password={formData.password} email={formData.email} />
         </div>
         {renderField('confirmPassword', 'Confirm password', 'password', 'new-password')}
+
+        {human.widget}
 
         <div className="pt-2">
           <button

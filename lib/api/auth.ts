@@ -7,6 +7,7 @@
  * The JWT itself lives in the httpOnly `auth_token` cookie, so the browser sends it
  * automatically (credentials: 'include'); client code never needs to read it.
  */
+import { forgetGuestChoice } from '@/lib/checkout-choice';
 
 export interface LoginPayload {
   email: string;
@@ -50,9 +51,31 @@ export class AuthApiError extends Error {
   }
 }
 
+/** Thrown by loginUser when the password was right but the account needs a sign-in code. */
+export class MfaRequiredError extends Error {
+  constructor(public method: 'email' | 'totp' | 'sms', public sentTo: string | null) {
+    super('Enter your sign-in code');
+    this.name = 'MfaRequiredError';
+  }
+}
+
+/** Sign-up step 1 worked: a code was emailed and must be typed in before the account exists. */
+export class EmailVerificationRequiredError extends Error {
+  constructor(public sentTo: string | null) {
+    super('Check your email for a code');
+    this.name = 'EmailVerificationRequiredError';
+  }
+}
+
+/** Converts a successful /api/mfa/verify customer response into the client session shape. */
+export function sessionFromVerify(raw: unknown): UserSession | null {
+  return toUserSession(raw);
+}
+
 /**
  * Converts the server's SanitizedUser (auth-service.ts) into the client session shape.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- pre-existing loose type, kept to avoid behaviour changes
 function toUserSession(raw: any): UserSession | null {
   if (!raw || typeof raw !== 'object') return null;
 
@@ -91,13 +114,14 @@ async function readJson<T>(res: Response): Promise<ApiResponse<T> | null> {
 async function postAuth(
   url: string,
   body: unknown,
-  fallbackError: (status: number) => string
+  fallbackError: (status: number) => string,
+  extraHeaders: Record<string, string> = {}
 ): Promise<{ user: UserSession }> {
   let res: Response;
   try {
     res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...extraHeaders },
       credentials: 'include',
       body: JSON.stringify(body),
     });
@@ -111,6 +135,13 @@ async function postAuth(
     throw new AuthApiError(payload?.error || payload?.message || fallbackError(res.status), res.status);
   }
 
+  // Two-step sign-in: the password was right and a code is needed next (no session yet)
+  const data = payload.data as { mfaRequired?: boolean; verificationRequired?: boolean; method?: 'email' | 'totp' | 'sms'; sentTo?: string | null } | undefined;
+  if (data?.verificationRequired) throw new EmailVerificationRequiredError(data.sentTo ?? null);
+  if (data?.mfaRequired) {
+    throw new MfaRequiredError(data.method === 'totp' || data.method === 'sms' ? data.method : 'email', data.sentTo ?? null);
+  }
+
   const user = toUserSession(payload.data?.user);
   if (!user) {
     throw new AuthApiError('Unexpected response from the server.', res.status);
@@ -121,18 +152,20 @@ async function postAuth(
 /**
  * POST /api/auth/login
  */
-export async function loginUser(payload: LoginPayload): Promise<{ user: UserSession }> {
+/** `headers` carries the Turnstile token (components/turnstile.tsx). */
+export async function loginUser(payload: LoginPayload, headers: Record<string, string> = {}): Promise<{ user: UserSession }> {
   return postAuth(
     '/api/auth/login',
     { email: payload.email, password: payload.password, rememberMe: payload.rememberMe },
-    (status) => (status === 401 ? 'Invalid email address or password.' : 'Failed to authenticate.')
+    (status) => (status === 401 ? 'Incorrect email address or password.' : 'Failed to authenticate.'),
+    headers
   );
 }
 
 /**
  * POST /api/auth/register
  */
-export async function registerUser(payload: RegisterPayload): Promise<{ user: UserSession }> {
+export async function registerUser(payload: RegisterPayload, headers: Record<string, string> = {}): Promise<{ user: UserSession }> {
   const body: RegisterPayload = {
     firstName: payload.firstName,
     lastName: payload.lastName,
@@ -146,8 +179,24 @@ export async function registerUser(payload: RegisterPayload): Promise<{ user: Us
   return postAuth('/api/auth/register', body, (status) =>
     status === 409
       ? 'An account with this email already exists. Please sign in instead.'
-      : 'Registration failed.'
+      : 'Registration failed.',
+    headers
   );
+}
+
+/** Sign-up step 2: the emailed code creates the account and signs it in. */
+export async function verifyRegistration(code: string): Promise<{ user: UserSession }> {
+  return postAuth('/api/auth/register/verify', { code }, (status) =>
+    status === 429 ? 'Too many tries. Wait a few minutes, or send a new code.' : "We couldn't check that code. Try again."
+  );
+}
+
+/** Sign-up: email a new code (the previous one stops working). */
+export async function resendRegistrationCode(): Promise<{ sentTo: string | null }> {
+  const res = await fetch('/api/auth/register/resend', { method: 'POST', credentials: 'include' });
+  const payload = await res.json().catch(() => null);
+  if (!res.ok || !payload?.success) throw new AuthApiError(payload?.error || payload?.message || "We couldn't send a new code.", res.status);
+  return { sentTo: payload.data?.sentTo ?? null };
 }
 
 /**
@@ -178,6 +227,8 @@ export async function fetchCurrentSession(): Promise<UserSession | null> {
  * POST /api/auth/logout — the server clears the auth_token cookie.
  */
 export async function logoutUser(): Promise<void> {
+  // An earlier "Continue as guest" must not carry over to the next shopper (lib/checkout-choice.ts)
+  forgetGuestChoice();
   await fetch('/api/auth/logout', {
     method: 'POST',
     credentials: 'include',

@@ -1,17 +1,39 @@
-// Administrators manage staff accounts (SCRUM-206): create with a role and employee ID,
-// change role, deactivate, and reset passwords. Guard rails keep at least one active admin.
-import { and, asc, eq, ne, sql } from 'drizzle-orm';
+// Staff manage staff accounts (SCRUM-206): create with a role and employee ID, promote and demote,
+// deactivate, force a password reset, and "delete" (which scrubs the account, never removes the
+// row). Who may act on whom is decided by lib/staff-permissions' canManage() plus the rule that
+// nobody acts on their own row - see staff-guards.ts, which both halves go through.
+//
+// Guard rails: at least one active administrator always remains, and the single owner can never be
+// deleted, demoted or deactivated by anybody.
+import { deleteAllPasskeys } from '../passkeys/passkey-service';
+import { randomBytes } from 'node:crypto';
+import { and, asc, eq, ne, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../../../db';
 import { admin } from '../../../db/schema';
-import { BadRequestError, ConflictError, NotFoundError } from '../../shared/errors/app-error';
+import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../../shared/errors/app-error';
 import { hashPassword } from '../../shared/utils/hash-utils';
-import { clearFailures } from '../../shared/security/rate-limit';
+import { activeLockUntil, clearFailures, clearLocks, signInLockKeys } from '../../shared/security/rate-limit';
+import { alertUnlockedByStaff } from '../mfa/security-alerts';
 import { isDuplicateKeyError } from '../auth/auth-service';
 import { temporaryPassword } from './staff-auth';
 import { sendEmail } from '../email/mailer';
 import { temporaryPasswordEmail } from '../email/templates';
+import { assignableRoles } from '../../../../lib/staff-permissions';
+import {
+  ANONYMISED,
+  STAFF_ACTIONS,
+  canUnlockSignIn,
+  anonymisedEmail,
+  canActOn,
+  staffActionNeedsStepUp,
+  type ActorRef,
+} from './staff-guards';
+import { requireStepUp, stepUpPasswordSchema } from './step-up';
+import { createWorkMailbox, deleteWorkMailbox, localPartProblem, mailDomain } from './staff-mailbox';
 
+// 'owner' is deliberately not assignable: there is exactly one owner and it is seeded, so no API
+// can create or promote one.
 const role = z.enum(['admin', 'manager', 'employee']);
 
 export const createStaffSchema = z.object({
@@ -20,15 +42,23 @@ export const createStaffSchema = z.object({
   email: z.string().trim().email('Enter a valid email').max(100).toLowerCase(),
   employeeId: z.string().trim().toUpperCase().regex(/^BW-\d{4}$/, 'Employee IDs look like BW-1234'),
   role,
+  // Optional: make them a @bookwrms.store mailbox too. Its address becomes their staff email, and
+  // the mailbox invitation (where they choose the mailbox password) goes to inviteEmail.
+  mailbox: z.object({
+    localPart: z.string().trim().toLowerCase().max(40),
+    inviteEmail: z.string().trim().email('Enter their personal email for the mailbox invitation').max(100).toLowerCase(),
+  }).optional(),
 });
 
 export const updateStaffSchema = z.object({
-  action: z.enum(['set-role', 'deactivate', 'activate', 'temp-password', 'sign-out']),
+  action: z.enum(STAFF_ACTIONS),
   role: role.optional(),
+  // Only read for the destructive actions; see staffActionNeedsStepUp().
+  actorPassword: stepUpPasswordSchema.optional(),
 });
 
 export async function listStaff() {
-  return db
+  const rows = await db
     .select({
       adminId: admin.adminId,
       firstName: admin.firstName,
@@ -38,11 +68,15 @@ export async function listStaff() {
       role: admin.adminRole,
       isActive: admin.isActive,
       mustChangePassword: admin.mustChangePassword,
+      workMailbox: admin.workMailbox,
       lastLogin: admin.lastLogin,
       created: admin.created,
     })
     .from(admin)
     .orderBy(asc(admin.lastName));
+  // Which accounts are locked out of signing in right now (wrong passwords or codes)
+  const locks = await Promise.all(rows.map((r) => activeLockUntil(signInLockKeys('staff', r.adminId, r.email))));
+  return rows.map((r, i) => ({ ...r, lockedUntil: locks[i] }));
 }
 
 export async function nextEmployeeId(): Promise<string> {
@@ -51,49 +85,169 @@ export async function nextEmployeeId(): Promise<string> {
   return `BW-${n}`;
 }
 
-export async function createStaff(input: z.infer<typeof createStaffSchema>) {
+export async function createStaff(actor: ActorRef, input: z.infer<typeof createStaffSchema>) {
+  // A manager can open the staff page, so the role being created has to be checked against what
+  // this actor may assign - otherwise a manager could create an administrator and promote itself.
+  if (!assignableRoles(actor.role).includes(input.role)) {
+    throw new ForbiddenError('Your role cannot create an account with that role');
+  }
   const password = temporaryPassword();
+
+  // The mailbox first: if the provider refuses, nothing is saved. If saving the account then
+  // fails, the new mailbox is removed again so the two never drift apart.
+  let email = input.email;
+  let workMailbox: string | null = null;
+  if (input.mailbox) {
+    const problem = localPartProblem(input.mailbox.localPart);
+    if (problem) throw new BadRequestError(problem);
+    const [taken] = await db.select({ id: admin.adminId }).from(admin).where(eq(admin.email, `${input.mailbox.localPart}@${mailDomain()}`));
+    if (taken) throw new ConflictError('A staff account already uses that address. Pick another mailbox name.');
+    try {
+      email = await createWorkMailbox(input.mailbox.localPart, `${input.firstName} ${input.lastName}`, input.mailbox.inviteEmail);
+    } catch (err) {
+      throw new BadRequestError((err as Error).message);
+    }
+    workMailbox = input.mailbox.localPart;
+  }
+
   try {
     await db.insert(admin).values({
       firstName: input.firstName,
       lastName: input.lastName,
-      email: input.email,
+      email,
       employeeId: input.employeeId,
       adminRole: input.role,
       passwordHash: await hashPassword(password),
       mustChangePassword: true,
+      workMailbox,
     });
   } catch (err) {
+    if (workMailbox) await deleteWorkMailbox(workMailbox);
     if (isDuplicateKeyError(err)) throw new ConflictError('That email or employee ID is already used by another staff account');
     throw err;
   }
-  return { password };
+  return { password, email, mailboxCreated: !!workMailbox };
 }
 
-async function activeAdminsExcept(adminId: number) {
+/**
+ * How many accounts other than `adminId` could still administer staff accounts: active owners and
+ * active administrators. The owner counts because it outranks an admin and can do everything on
+ * the staff page, so an organisation left with only the owner is still administrable.
+ */
+async function otherActiveAdministrators(adminId: number) {
   const [row] = await db.select({ n: sql<number>`COUNT(*)` }).from(admin)
-    .where(and(eq(admin.adminRole, 'admin'), eq(admin.isActive, true), ne(admin.adminId, adminId)));
+    .where(and(
+      or(eq(admin.adminRole, 'admin'), eq(admin.adminRole, 'owner')),
+      eq(admin.isActive, true),
+      ne(admin.adminId, adminId),
+    ));
   return Number(row?.n ?? 0);
 }
 
-export async function updateStaff(actorId: number, targetId: number, input: z.infer<typeof updateStaffSchema>) {
+/** A bcrypt hash of random bytes that are then thrown away: no password matches it. */
+async function unusablePasswordHash(): Promise<string> {
+  return hashPassword(randomBytes(32).toString('base64'));
+}
+
+/**
+ * "Delete" a staff account. As with customers the row stays: the activity log, inventory
+ * movements, ticket replies and answered contact messages all point at this admin id, and removing
+ * the row would break those trails (which is exactly the history an audit needs).
+ *
+ * So the person is removed from it instead: name, email and employee ID go, the role drops to the
+ * least privileged one so a scrubbed row can never carry authority, the account is disabled, the
+ * password is replaced with one nobody knows, and the token version is bumped to kill any session.
+ */
+async function anonymiseStaff(targetId: number, previousEmail: string, workMailbox: string | null) {
+  // Their work mailbox goes too. If the provider can't be reached, the name is kept so the
+  // activity log says which mailbox still needs removing by hand.
+  const mailboxRemoved = workMailbox ? await deleteWorkMailbox(workMailbox) : null;
+  await db.update(admin).set({
+    workMailbox: workMailbox && !mailboxRemoved ? workMailbox : null,
+    firstName: ANONYMISED.firstName,
+    lastName: ANONYMISED.staffLastName,
+    email: anonymisedEmail('staff', targetId),
+    employeeId: null,
+    adminRole: 'employee',
+    passwordHash: await unusablePasswordHash(),
+    isActive: false,
+    mustChangePassword: false,
+    tokenVersion: sql`${admin.tokenVersion} + 1`,
+    // Their phone and authenticator secret are personal data too
+    mfaMethod: 'email',
+    mfaPhone: null,
+    totpSecret: null,
+    totpLastStep: null,
+  }).where(eq(admin.adminId, targetId));
+  await deleteAllPasskeys('staff', targetId);
+  await clearFailures(`staff-login:email:${previousEmail}`);
+  return { mailbox: workMailbox ? `${workMailbox}@${mailDomain()}` : null, mailboxRemoved };
+}
+
+/**
+ * Apply one action to one staff account.
+ *
+ * The order matters, and every step is on the server:
+ *   1. the target is read from the database (never trusted from the request);
+ *   2. canActOn() checks the role hierarchy AND that these are two different accounts;
+ *   3. a role change must be a role this actor is allowed to assign;
+ *   4. the owner is refused outright, and the last active administrator is protected;
+ *   5. destructive actions re-confirm the actor's own password;
+ *   6. only then does anything change.
+ *
+ * `actor` comes from the staff session, whose role was re-read from the database by
+ * authenticateStaff(), so a demoted or deactivated session cannot act with its old role.
+ */
+export async function updateStaff(
+  actor: ActorRef,
+  targetId: number,
+  input: z.infer<typeof updateStaffSchema>,
+  ip?: string | null
+) {
   const [target] = await db.select().from(admin).where(eq(admin.adminId, targetId));
   if (!target) throw new NotFoundError('Staff account not found');
-  const isSelf = actorId === targetId;
-  const losesAdmin =
-    target.adminRole === 'admin' &&
-    ((input.action === 'set-role' && input.role !== 'admin') || input.action === 'deactivate');
-  if (isSelf && (input.action === 'deactivate' || input.action === 'set-role')) {
-    throw new BadRequestError("You can't change your own role or deactivate yourself");
+
+  // The owner is stated separately from canActOn(), which also refuses it, because this is the
+  // invariant we care about most and it should not depend on one helper staying correct.
+  if (target.adminRole === 'owner') {
+    throw new ForbiddenError('The owner account cannot be changed');
   }
-  if (losesAdmin && (await activeAdminsExcept(targetId)) === 0) {
+  if (actor.id === targetId) {
+    throw new ForbiddenError("You can't change your own staff account here");
+  }
+  if (!canActOn(actor, { id: targetId, role: target.adminRole })) {
+    throw new ForbiddenError('Your role cannot change that staff account');
+  }
+
+  if (input.action === 'set-role') {
+    if (!input.role) throw new BadRequestError('Choose a role');
+    if (!assignableRoles(actor.role).includes(input.role)) {
+      throw new ForbiddenError('Your role cannot assign that role');
+    }
+    if (input.role === target.adminRole) throw new BadRequestError('That is already their role');
+  }
+
+  // Deleting an account demotes and disables it, so it loses administrator rights too.
+  const losesAdministrator =
+    target.adminRole === 'admin' &&
+    ((input.action === 'set-role' && input.role !== 'admin') ||
+      input.action === 'deactivate' ||
+      input.action === 'delete');
+  if (losesAdministrator && (await otherActiveAdministrators(targetId)) === 0) {
     throw new BadRequestError('There must always be at least one active administrator');
+  }
+
+  if (input.action === 'unlock-signin' && !canUnlockSignIn(actor.role)) {
+    throw new ForbiddenError('Only an administrator can unlock sign-in');
+  }
+
+  if (staffActionNeedsStepUp(input.action, target.adminRole, input.role)) {
+    await requireStepUp(actor.id, input.actorPassword, ip);
   }
 
   switch (input.action) {
     case 'set-role':
-      if (!input.role) throw new BadRequestError('Choose a role');
-      await db.update(admin).set({ adminRole: input.role }).where(eq(admin.adminId, targetId));
+      await db.update(admin).set({ adminRole: input.role! }).where(eq(admin.adminId, targetId));
       return { email: target.email, before: target.adminRole, after: input.role };
     case 'deactivate':
     case 'activate':
@@ -103,6 +257,17 @@ export async function updateStaff(actorId: number, targetId: number, input: z.in
     case 'sign-out':
       await db.update(admin).set({ tokenVersion: sql`${admin.tokenVersion} + 1` }).where(eq(admin.adminId, targetId));
       return { email: target.email };
+    case 'delete': {
+      const { mailbox, mailboxRemoved } = await anonymiseStaff(targetId, target.email, target.workMailbox);
+      return { email: target.email, before: target.adminRole, mailbox, mailboxRemoved };
+    }
+    case 'unlock-signin': {
+      const keys = signInLockKeys('staff', targetId, target.email);
+      const wasLocked = !!(await activeLockUntil(keys));
+      await clearLocks(keys);
+      if (wasLocked) await alertUnlockedByStaff({ kind: 'staff', id: targetId, email: target.email, firstName: target.firstName });
+      return { email: target.email, wasLocked };
+    }
     case 'temp-password': {
       const password = temporaryPassword();
       await db.update(admin).set({
@@ -110,9 +275,14 @@ export async function updateStaff(actorId: number, targetId: number, input: z.in
         mustChangePassword: true,
         tokenVersion: sql`${admin.tokenVersion} + 1`,
       }).where(eq(admin.adminId, targetId));
-      await clearFailures(`staff-login:email:${target.email}`);
+      await clearLocks(signInLockKeys('staff', targetId, target.email));
       await sendEmail(temporaryPasswordEmail(target.email, target.firstName, 'staff'));
       return { email: target.email, password };
     }
   }
+}
+
+/** Which rows the staff page may offer actions on, decided server-side for the signed-in actor. */
+export function actionableStaffIds(actor: ActorRef, rows: { adminId: number; role: string }[]): number[] {
+  return rows.filter((r) => canActOn(actor, { id: r.adminId, role: r.role })).map((r) => r.adminId);
 }

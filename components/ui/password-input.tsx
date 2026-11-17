@@ -2,13 +2,23 @@
 
 // Password box with a Show/Hide button, so people can check what they typed.
 // Takes the same props as <input>; the type is managed here.
+//
+// Pass reveal={false} on a "confirm your password" field. The point of asking twice is that the
+// person types the password again from memory and the two are compared; being able to read the
+// first box and copy it defeats that, so those fields stay masked.
 import React, { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 
-type Props = Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type'>;
+type Props = Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type'> & {
+  /** Show the Show/Hide button. Default true; false for confirm-password fields. */
+  reveal?: boolean;
+};
 
-export function PasswordInput({ className = '', ...props }: Props) {
+export function PasswordInput({ className = '', reveal = true, ...props }: Props) {
   const [visible, setVisible] = useState(false);
+  if (!reveal) {
+    return <input {...props} type="password" className={className} />;
+  }
   return (
     <div className="relative">
       <input {...props} type={visible ? 'text' : 'password'} className={`${className} pr-16`} />

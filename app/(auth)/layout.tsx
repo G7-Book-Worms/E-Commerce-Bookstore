@@ -4,6 +4,7 @@ import '../globals.css';
 import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { BrandMark } from '../../components/brand-mark';
 import { AuthProvider } from '../context/auth-context';
 import { DemoStrip } from '../../components/demo-notice';
 
@@ -47,7 +48,7 @@ export default function AuthLayout({
                   href="/"
                   className="inline-flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-stone-900 rounded"
                 >
-                  <span className="text-3xl" aria-hidden>📚</span>
+                  <BrandMark size={44} />
                   <span className="text-3xl font-serif font-bold text-stone-900 tracking-tight">Book Worms</span>
                 </Link>
                 <p className="mt-2 text-sm text-stone-600">Your cozy corner for all fiction &amp; non-fiction</p>

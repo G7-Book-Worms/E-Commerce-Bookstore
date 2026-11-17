@@ -16,7 +16,7 @@ const NAV: { href: string; label: string; permission: Permission; badge?: 'messa
   { href: '/admin/messages', label: 'Messages', permission: 'messages.view', badge: 'messages' },
   { href: '/admin/discounts', label: 'Discounts', permission: 'discounts.manage' },
   { href: '/admin/customers', label: 'Customers', permission: 'customers.view' },
-  { href: '/admin/activity', label: 'Activity log', permission: 'activity.view' },
+  { href: '/admin/activity', label: 'Activity Log', permission: 'activity.view' },
   { href: '/admin/staff', label: 'Staff', permission: 'staff.manage' },
 ];
 
@@ -39,7 +39,7 @@ async function Nav() {
         <p className="font-medium text-white">{staff.firstName} {staff.lastName}</p>
         <p className="text-xs text-green-200">{ROLE_LABELS[staff.role]} · {staff.email}</p>
         <div className="mt-3 flex flex-wrap gap-2">
-          <Link href="/admin/change-password" className="text-xs text-green-100 underline underline-offset-2 hover:text-white">Change password</Link>
+          <Link href="/admin/change-password" className="text-xs text-green-100 underline underline-offset-2 hover:text-white">Password &amp; Sign-In</Link>
           <SignOutButton />
         </div>
       </div>
@@ -59,7 +59,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <Link href="/admin" className="font-serif text-lg font-bold text-white">
             Book Worms <span className="ml-1 rounded bg-green-800 px-1.5 py-0.5 font-sans text-[10px] font-semibold uppercase tracking-wide">Staff</span>
           </Link>
-          <Link href="/" className="shrink-0 whitespace-nowrap text-xs text-green-200 underline underline-offset-2 hover:text-white">View store</Link>
+          <Link href="/" className="shrink-0 whitespace-nowrap text-xs text-green-200 underline underline-offset-2 hover:text-white">View Store</Link>
         </div>
         <Suspense fallback={<div className="h-10" />}>
           <Nav />

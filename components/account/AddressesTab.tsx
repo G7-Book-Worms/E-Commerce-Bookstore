@@ -1,13 +1,16 @@
 // components/account/AddressesTab.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
+import { AddressAutocomplete, fillAddress } from '@/components/address-autocomplete';
 import {
   AddressItem,
   createUserAddress,
   updateUserAddress,
-  deleteUserAddress,
 } from '@/lib/api/user';
+import { DeleteAddressDialog } from '@/components/delete-address-dialog';
+import { useAuth } from '@/app/context/auth-context';
+import { recipientLine } from '@/lib/address-rules';
 
 interface Props {
   addresses: AddressItem[];
@@ -16,9 +19,15 @@ interface Props {
 
 export const AddressesTab: React.FC<Props> = ({ addresses, onRefresh }) => {
   const [modalOpen, setModalOpen] = useState(false);
+  const addButtonRef = useRef<HTMLButtonElement>(null);
   const [editingAddress, setEditingAddress] = useState<AddressItem | null>(null);
+  // The address waiting on the "Delete this address?" dialog (same dialog as checkout)
+  const [deleting, setDeleting] = useState<AddressItem | null>(null);
 
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
+    recipientName: '',
+    phone: '',
     street: '',
     city: '',
     state: '',
@@ -30,6 +39,8 @@ export const AddressesTab: React.FC<Props> = ({ addresses, onRefresh }) => {
   const openCreateModal = () => {
     setEditingAddress(null);
     setFormData({
+      recipientName: user ? `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() : '',
+      phone: user?.phone ?? '',
       street: '',
       city: '',
       state: '',
@@ -43,6 +54,8 @@ export const AddressesTab: React.FC<Props> = ({ addresses, onRefresh }) => {
   const openEditModal = (addr: AddressItem) => {
     setEditingAddress(addr);
     setFormData({
+      recipientName: addr.recipientName ?? '',
+      phone: addr.phone ?? '',
       street: addr.street,
       city: addr.city,
       state: addr.state,
@@ -63,8 +76,8 @@ export const AddressesTab: React.FC<Props> = ({ addresses, onRefresh }) => {
       }
       setModalOpen(false);
       onRefresh();
-    } catch (err: any) {
-      alert(err.message || 'Failed to save address');
+    } catch (err: unknown) {
+      alert((err as Error).message || 'Failed to save address');
     }
   };
 
@@ -72,19 +85,16 @@ export const AddressesTab: React.FC<Props> = ({ addresses, onRefresh }) => {
     try {
       await updateUserAddress(addrId, { isDefault: true });
       onRefresh();
-    } catch (err: any) {
-      alert(err.message || 'Failed to set default address');
+    } catch (err: unknown) {
+      alert((err as Error).message || 'Failed to set default address');
     }
   };
 
-  const handleDelete = async (addrId: number) => {
-    if (!confirm('Are you sure you want to delete this address?')) return;
-    try {
-      await deleteUserAddress(addrId);
-      onRefresh();
-    } catch (err: any) {
-      alert(err.message || 'Failed to delete address');
-    }
+  const handleDeleted = () => {
+    setDeleting(null);
+    onRefresh();
+    // The card (and its Delete button) is gone, so move focus to the Add button above the list.
+    requestAnimationFrame(() => addButtonRef.current?.focus());
   };
 
   return (
@@ -95,6 +105,7 @@ export const AddressesTab: React.FC<Props> = ({ addresses, onRefresh }) => {
           <p className="text-sm text-stone-500 mt-0.5">Manage your shipping and billing destinations.</p>
         </div>
         <button
+          ref={addButtonRef}
           onClick={openCreateModal}
           className="h-10 px-4 rounded-md bg-stone-900 text-stone-50 text-xs font-semibold hover:bg-stone-800 transition-colors shadow-xs"
         >
@@ -119,6 +130,7 @@ export const AddressesTab: React.FC<Props> = ({ addresses, onRefresh }) => {
                   </span>
                 )}
               </div>
+              {recipientLine(addr) && <p className="text-sm font-medium text-stone-700">{recipientLine(addr)}</p>}
               <p className="text-base font-semibold text-stone-900">{addr.street}</p>
               <p className="text-sm text-stone-600 mt-1">
                 {addr.city}, {addr.state} {addr.zip}
@@ -130,13 +142,14 @@ export const AddressesTab: React.FC<Props> = ({ addresses, onRefresh }) => {
               <div className="space-x-3">
                 <button
                   onClick={() => openEditModal(addr)}
-                  className="text-stone-700 hover:text-stone-900 font-medium"
+                  className="text-stone-700 hover:text-stone-900 font-medium min-h-11 px-1"
                 >
                   Edit
                 </button>
                 <button
-                  onClick={() => handleDelete(addr.addressId)}
-                  className="text-red-600 hover:text-red-800 font-medium"
+                  onClick={() => setDeleting(addr)}
+                  aria-label={`Delete address ${addr.street}, ${addr.city}`}
+                  className="text-red-600 hover:text-red-800 font-medium min-h-11 px-1"
                 >
                   Delete
                 </button>
@@ -145,7 +158,7 @@ export const AddressesTab: React.FC<Props> = ({ addresses, onRefresh }) => {
               {!addr.isDefault && (
                 <button
                   onClick={() => handleSetDefault(addr.addressId)}
-                  className="text-stone-900 hover:underline font-semibold"
+                  className="text-stone-900 hover:underline font-semibold min-h-11 px-1"
                 >
                   Set as Default
                 </button>
@@ -154,6 +167,8 @@ export const AddressesTab: React.FC<Props> = ({ addresses, onRefresh }) => {
           </div>
         ))}
       </div>
+
+      <DeleteAddressDialog address={deleting} onCancel={() => setDeleting(null)} onDeleted={handleDeleted} />
 
       {/* Modal Dialog */}
       {modalOpen && (
@@ -167,16 +182,43 @@ export const AddressesTab: React.FC<Props> = ({ addresses, onRefresh }) => {
             </div>
 
             <form onSubmit={handleSave} className="space-y-4 text-sm">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-stone-700 uppercase">Street Address</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.street}
-                  onChange={(e) => setFormData({ ...formData, street: e.target.value })}
-                  className="h-10 w-full rounded-md border border-stone-200 bg-white px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label htmlFor="addr-name" className="block text-xs font-semibold text-stone-700 uppercase">Full name</label>
+                  <input
+                    id="addr-name"
+                    required
+                    autoComplete="name"
+                    maxLength={100}
+                    value={formData.recipientName}
+                    onChange={(e) => setFormData({ ...formData, recipientName: e.target.value })}
+                    className="h-10 w-full rounded-md border border-stone-200 bg-white px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="addr-phone" className="block text-xs font-semibold text-stone-700 uppercase">Phone <span className="font-normal normal-case text-stone-500">(optional)</span></label>
+                  <input
+                    id="addr-phone"
+                    type="tel"
+                    autoComplete="tel"
+                    maxLength={20}
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="h-10 w-full rounded-md border border-stone-200 bg-white px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
+                  />
+                </div>
               </div>
+              <AddressAutocomplete
+                label="Street Address"
+                required
+                value={formData.street}
+                onChange={(street) => setFormData((f) => ({ ...f, street }))}
+                // Keeps any other form state (such as the default-address flag) as it was.
+                onSelect={(a) => setFormData((f) => fillAddress(f, a))}
+                className="space-y-1.5"
+                labelClassName="block text-xs font-semibold text-stone-700 uppercase"
+                inputClassName="h-10 w-full rounded-md border border-stone-200 bg-white px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
+              />
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">

@@ -41,14 +41,30 @@ export interface Email {
   html: string;
   text: string;
   from?: Sender;
+  /**
+   * Holds a one-time sign-in code. Such mail carries a header the support-inbox sync uses to
+   * leave it out of the staff portal, and its body is never written to the server logs.
+   */
+  secret?: boolean;
 }
+
+/** Header on mail that must never be imported into the staff portal's inbox. */
+export const SECRET_MAIL_HEADER = 'X-BookWorms-Secret';
 
 export async function sendEmail(email: Email): Promise<boolean> {
   const sender = email.from ?? 'noreply';
   const t = transport(sender);
   const fromAddress = account(sender).user ?? 'no-reply@bookwrms.store';
   if (!t) {
-    console.info(`[email:dev] (SMTP not configured) to=${email.to} subject="${email.subject}"\n${email.text}\n`);
+    // End-to-end tests read emails (e.g. the sign-up code) from a file. Never on Vercel.
+    if (process.env.E2E_MAILBOX && !process.env.VERCEL) {
+      const { appendFileSync } = await import('node:fs');
+      appendFileSync(process.env.E2E_MAILBOX, JSON.stringify({ to: email.to, subject: email.subject, text: email.text }) + '\n');
+    }
+    // Local development only prints the email; codes are printed so a developer can sign in,
+    // but never on a deployed site
+    const showBody = !email.secret || process.env.NODE_ENV !== 'production';
+    console.info(`[email:dev] (SMTP not configured) to=${email.to} subject="${email.subject}"\n${showBody ? email.text : '(sign-in code withheld)'}\n`);
     return false;
   }
   try {
@@ -58,6 +74,7 @@ export async function sendEmail(email: Email): Promise<boolean> {
       to: email.to,
       subject: email.subject,
       html: email.html,
+      ...(email.secret ? { headers: { [SECRET_MAIL_HEADER]: 'sign-in-code' } } : {}),
       text: email.text,
     });
     return true;

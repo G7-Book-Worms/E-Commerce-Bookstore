@@ -81,7 +81,7 @@ async function Content({ searchParams }: { searchParams: Promise<SP> }) {
         </Table>
       )}
 
-      <Panel title="Recent stock changes" className="mt-6">
+      <Panel title="Recent Stock Changes" className="mt-6">
         {movements.length === 0 ? <p className="text-sm text-stone-500">No stock changes yet.</p> : (
           <ul className="divide-y divide-stone-100 text-sm">
             {movements.map((m) => (

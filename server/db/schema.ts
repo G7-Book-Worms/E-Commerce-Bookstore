@@ -35,6 +35,18 @@ export const users = mysqlTable('users', {
     tokenVersion: int('token_version').default(0).notNull(),
     // Set when staff give the customer a temporary password; cleared when they choose a new one
     mustChangePassword: boolean('must_change_password').default(false).notNull(),
+    // Two-step sign-in, optional for customers: 'none', a code by email, or an authenticator app.
+    // The authenticator secret is stored encrypted (server/src/modules/mfa/secret-box.ts) and
+    // totp_last_step stops one code being used twice.
+    mfaMethod: mysqlEnum('mfa_method', ['none', 'email', 'totp', 'sms']).default('none').notNull(),
+    // Verified mobile number for text-message codes (+12105550100); separate from the optional
+    // contact phone above, which is never used for sign-in
+    mfaPhone: varchar('mfa_phone', { length: 20 }),
+    // Opted in to texts about their orders (shipped, delivered, cancelled), sent to mfa_phone.
+    // Off by default; texts carry "Reply STOP to opt out" and the carrier handles STOP.
+    smsOrderUpdates: boolean('sms_order_updates').default(false).notNull(),
+    totpSecret: varchar('totp_secret', { length: 255 }),
+    totpLastStep: int('totp_last_step'),
 });
 
 // Addresses Table
@@ -46,6 +58,10 @@ export const addresses = mysqlTable('addresses', {
     state: varchar('state', { length: 100 }).notNull(),
     zip: varchar('zip', { length: 20 }).notNull(),
     country: varchar('country', { length: 100 }).notNull(),
+    // Who the parcel is for and a number the carrier can call. Nullable because addresses saved
+    // before these columns existed have neither; every form asks for the name from now on.
+    recipientName: varchar('recipient_name', { length: 100 }),
+    phone: varchar('phone', { length: 20 }),
     isDefault: boolean('is_default').default(false).notNull(),
 });
 
@@ -150,6 +166,12 @@ export const orders = mysqlTable('orders', {
         .notNull(),
     note: varchar('note', { length: 500 }),
     trackingNumber: varchar('tracking_number', { length: 100 }),
+    // Real carrier for the tracking number above, so the order page can link to the carrier's
+    // own tracking page. Null until staff mark the order shipped.
+    carrier: mysqlEnum('carrier', ['ups', 'fedex', 'usps', 'dhl']),
+    // Set for guest checkout (SCRUM-208), where there is no user_id to get an address or an
+    // email from. Order confirmation and the signed view-order link go here.
+    guestEmail: varchar('guest_email', { length: 100 }),
     // Totals in cents: subtotal - discount + tax = priceCents (the grand total)
     subtotalCents: int('subtotal_cents').default(0).notNull(),
     discountCents: int('discount_cents').default(0).notNull(),
@@ -217,12 +239,25 @@ export const admin = mysqlTable('admin', {
     passwordHash: varchar('password_hash', { length: 255 }).notNull(),
     // employee = orders, inventory, messages; manager = + discounts, customers, activity log;
     // admin = + staff accounts (see server/src/modules/staff/permissions.ts)
-    adminRole: mysqlEnum('admin_role', ['admin', 'employee', 'manager'])
+    // owner outranks admin and can never be managed by anyone; see lib/staff-permissions.ts
+    // for who may act on whom. There is exactly one owner.
+    adminRole: mysqlEnum('admin_role', ['owner', 'admin', 'employee', 'manager'])
         .default('employee')
         .notNull(),
     isActive: boolean('is_active').default(true).notNull(),
     tokenVersion: int('token_version').default(0).notNull(),
     mustChangePassword: boolean('must_change_password').default(false).notNull(),
+    // Two-step sign-in is required for staff: a code by email (the default), an authenticator app,
+    // or a text message (Twilio Verify, when it is configured)
+    mfaMethod: mysqlEnum('mfa_method', ['email', 'totp', 'sms']).default('email').notNull(),
+    // Mobile number for text-message codes, in international form (+12105550100). Set only after
+    // a code sent to it was entered, so it is known to reach this person.
+    mfaPhone: varchar('mfa_phone', { length: 20 }),
+    totpSecret: varchar('totp_secret', { length: 255 }),
+    totpLastStep: int('totp_last_step'),
+    // The @bookwrms.store mailbox made for this person (its local part), if any; removed with the
+    // staff account. See server/src/modules/staff/staff-mailbox.ts
+    workMailbox: varchar('work_mailbox', { length: 64 }),
     lastLogin: timestamp('last_login'),
     created: timestamp('created').defaultNow().notNull(),
     updated: timestamp('updated').defaultNow().onUpdateNow().notNull(),
@@ -275,6 +310,60 @@ export const contactMessages = mysqlTable('contact_messages', {
     created: timestamp('created').defaultNow().notNull(),
 });
 
+// Support Tickets: a conversation with one customer, built from the footer contact form and from
+// mail arriving at support@. contact_messages stays as it is for the Session 3 demo; tickets is
+// the threaded replacement that the staff inbox reads.
+export const tickets = mysqlTable('tickets', {
+    ticketId: int('ticket_id').autoincrement().primaryKey().notNull(),
+    // Shown to the customer and used to thread replies: "[Ticket #123]" in the subject line.
+    number: int('number').notNull().unique(),
+    subject: varchar('subject', { length: 200 }).notNull(),
+    // Null when the sender has no account; the email address is the only identity we have.
+    userId: int('user_id').references(() => users.userId),
+    customerName: varchar('customer_name', { length: 100 }).notNull(),
+    customerEmail: varchar('customer_email', { length: 100 }).notNull(),
+    status: mysqlEnum('status', ['open', 'pending', 'resolved', 'closed']).default('open').notNull(),
+    assignedTo: int('assigned_to').references(() => admin.adminId),
+    created: timestamp('created').defaultNow().notNull(),
+    updated: timestamp('updated').defaultNow().onUpdateNow().notNull(),
+}, (t) => [
+    index('tickets_status_idx').on(t.status),
+    index('tickets_email_idx').on(t.customerEmail),
+]);
+
+// One message in a ticket thread, inbound (from the customer) or outbound (a staff reply).
+export const ticketMessages = mysqlTable('ticket_messages', {
+    ticketMessageId: int('ticket_message_id').autoincrement().primaryKey().notNull(),
+    ticketId: int('ticket_id')
+        .references(() => tickets.ticketId, { onDelete: 'cascade' })
+        .notNull(),
+    direction: mysqlEnum('direction', ['in', 'out']).notNull(),
+    fromEmail: varchar('from_email', { length: 100 }).notNull(),
+    body: text('body').notNull(),
+    // RFC 5322 Message-ID of this message and of the one it replies to, so a reply that comes
+    // back by email is attached to the right thread instead of opening a new ticket.
+    messageId: varchar('message_id', { length: 255 }).unique(),
+    inReplyTo: varchar('in_reply_to', { length: 255 }),
+    // Which staff member sent it; null for inbound messages.
+    staffId: int('staff_id').references(() => admin.adminId),
+    created: timestamp('created').defaultNow().notNull(),
+}, (t) => [index('ticket_messages_ticket_idx').on(t.ticketId)]);
+
+// Staff Notifications: things the portal should surface that are not customer messages -
+// low stock, sold out. Previously these were emailed to support@ only, so they were invisible
+// in the portal and looked like a bug.
+export const staffNotifications = mysqlTable('staff_notifications', {
+    notificationId: int('notification_id').autoincrement().primaryKey().notNull(),
+    kind: mysqlEnum('kind', ['low_stock', 'sold_out']).notNull(),
+    title: varchar('title', { length: 200 }).notNull(),
+    body: text('body'),
+    // What it refers to, so the UI can link straight to the book or order.
+    subjectType: mysqlEnum('subject_type', ['book', 'order']),
+    subjectId: int('subject_id'),
+    readAt: timestamp('read_at'),
+    created: timestamp('created').defaultNow().notNull(),
+}, (t) => [index('staff_notifications_read_idx').on(t.readAt)]);
+
 // Password Reset Tokens Table: emailed one-time links. Only a SHA-256 hash of the token is stored.
 export const passwordResetTokens = mysqlTable('password_reset_tokens', {
     tokenId: int('token_id').autoincrement().primaryKey().notNull(),
@@ -289,6 +378,42 @@ export const passwordResetTokens = mysqlTable('password_reset_tokens', {
 
 // Rate Limits Table: counters for sign-in lockout and per-IP limits (kept in the DB so they work
 // across serverless instances). key examples: "login:email:ada@example.com", "contact:ip:1.2.3.4"
+// One-time sign-in codes sent by email (two-step sign-in). Only a hash of the code is stored;
+// a code expires after 10 minutes, works once, and is void after 5 wrong tries.
+export const mfaChallenges = mysqlTable('mfa_challenges', {
+    challengeId: int('challenge_id').autoincrement().primaryKey().notNull(),
+    actorType: mysqlEnum('actor_type', ['customer', 'admin']).notNull(),
+    actorId: int('actor_id').notNull(),
+    codeHash: varchar('code_hash', { length: 64 }).notNull(),
+    attempts: int('attempts').default(0).notNull(),
+    usedAt: timestamp('used_at'),
+    expiresAt: timestamp('expires_at').notNull(),
+    created: timestamp('created').defaultNow().notNull(),
+}, (t) => [index('mfa_challenges_actor_idx').on(t.actorType, t.actorId)]);
+
+// Passkeys (WebAuthn): Face ID / Touch ID / Windows Hello / security keys. One row per device a
+// customer or staff member registered. Only the PUBLIC key is stored; the private key never
+// leaves the person's device, so a database leak can't be used to sign in.
+export const passkeys = mysqlTable('passkeys', {
+    passkeyId: int('passkey_id').autoincrement().primaryKey().notNull(),
+    actorType: mysqlEnum('actor_type', ['customer', 'admin']).notNull(),
+    actorId: int('actor_id').notNull(),
+    /** base64url credential id from the authenticator */
+    credentialId: varchar('credential_id', { length: 512 }).notNull(),
+    /** base64url COSE public key */
+    publicKey: text('public_key').notNull(),
+    signCount: int('sign_count').default(0).notNull(),
+    transports: varchar('transports', { length: 191 }),
+    /** "iPhone", "MacBook (Chrome)"... shown in settings so people know which one to remove */
+    name: varchar('name', { length: 64 }).notNull(),
+    backedUp: boolean('backed_up').default(false).notNull(),
+    lastUsedAt: timestamp('last_used_at'),
+    created: timestamp('created').defaultNow().notNull(),
+}, (t) => [
+    uniqueIndex('passkeys_credential_id_unique').on(t.credentialId),
+    index('passkeys_actor_idx').on(t.actorType, t.actorId),
+]);
+
 export const rateLimits = mysqlTable('rate_limits', {
     rateKey: varchar('rate_key', { length: 191 }).primaryKey().notNull(),
     hits: int('hits').default(0).notNull(),
@@ -296,6 +421,7 @@ export const rateLimits = mysqlTable('rate_limits', {
     lockedUntil: timestamp('locked_until'),
 });
 
+export type Passkey = typeof passkeys.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Address = typeof addresses.$inferSelect;
@@ -322,3 +448,9 @@ export type Admin = typeof admin.$inferSelect;
 export type ActivityLogEntry = typeof activityLog.$inferSelect;
 export type InventoryMovement = typeof inventoryMovements.$inferSelect;
 export type ContactMessage = typeof contactMessages.$inferSelect;
+export type Ticket = typeof tickets.$inferSelect;
+export type NewTicket = typeof tickets.$inferInsert;
+export type TicketMessage = typeof ticketMessages.$inferSelect;
+export type NewTicketMessage = typeof ticketMessages.$inferInsert;
+export type StaffNotification = typeof staffNotifications.$inferSelect;
+export type NewStaffNotification = typeof staffNotifications.$inferInsert;

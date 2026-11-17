@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { jwtVerify } from "jose";
+import { requiresCustomerSession } from "./lib/route-access";
 
 // Next.js 16 "proxy" (formerly middleware). Runs before every matched request.
 // 1. Adds a request ID to every response (security headers are set in next.config.ts)
@@ -9,7 +10,6 @@ import { jwtVerify } from "jose";
 //    against the database (deactivated accounts, signed-out tokens, role permissions).
 
 const AUTH_PAGES = ["/user-login", "/user-register"];
-const PROTECTED_PREFIXES = ["/account", "/checkout", "/orders"];
 const STAFF_PREFIXES = ["/admin"];
 const LOGIN_PAGE = "/user-login";
 const STAFF_LOGIN_PAGE = "/staff-login";
@@ -86,7 +86,8 @@ export async function proxy(req: NextRequest) {
   }
 
   const isAuthPage = startsWithAny(pathname, AUTH_PAGES);
-  const isProtected = startsWithAny(pathname, PROTECTED_PREFIXES);
+  // Which pages need a customer, including the guest-checkout exceptions: lib/route-access.ts
+  const isProtected = requiresCustomerSession(pathname, req.nextUrl.searchParams);
   if (isAuthPage || isProtected) {
     const session = await readSession(req, "auth_token", "customer");
     if (session && isAuthPage) {

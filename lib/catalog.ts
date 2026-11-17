@@ -62,6 +62,18 @@ export function effectivePrice(f: CatalogFormat) {
   return f.salePriceCents ?? f.priceCents;
 }
 
+/**
+ * The edition the cart takes when the shopper hasn't picked one (the Add to Cart button on a
+ * book tile): the cheapest one in stock, sale price counting. This is the same rule the server
+ * applies to a line with no format (resolveFormat in guest-cart.ts, and the signed-in cart), so
+ * a guest's line gets the edition a signed-in shopper's would. Null when every edition is sold out.
+ */
+export function defaultCartFormat(book: Pick<CatalogBook, "formats">): Format | null {
+  const inStock = book.formats.filter((f) => f.stock > 0);
+  if (inStock.length === 0) return null;
+  return [...inStock].sort((a, b) => effectivePrice(a) - effectivePrice(b))[0].format;
+}
+
 // "12 in stock" / "Only 3 left" / "Out of stock"
 export function stockLabel(stock: number) {
   if (stock <= 0) return "Out of stock";

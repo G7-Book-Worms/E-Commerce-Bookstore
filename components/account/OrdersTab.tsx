@@ -3,9 +3,11 @@
 
 import React, { useState } from 'react';
 import { EmptyState } from '@/components/empty-state';
+import { FormatBadge } from '@/components/format-badge';
 import Link from 'next/link';
 import { UserOrder } from '@/lib/api/user';
 import { formatPrice } from '@/lib/catalog';
+import { OrderTracker } from './OrderTracker';
 
 interface Props {
   orders: UserOrder[];
@@ -34,7 +36,7 @@ export const OrdersTab: React.FC<Props> = ({ orders, isLoading }) => {
       <EmptyState image="orders" title="No orders yet">
         <p>Once you check out, your orders show up here.</p>
         <Link href="/product-catalog" className="inline-block mt-4 text-sm font-semibold text-stone-900 hover:underline">
-          Browse books &rarr;
+          Browse Books &rarr;
         </Link>
       </EmptyState>
     );
@@ -76,6 +78,12 @@ export const OrdersTab: React.FC<Props> = ({ orders, isLoading }) => {
               </div>
             </div>
 
+            {/* Where this order has got to, always visible: the tracker, the tracking number
+                and a link to the carrier's own page (session 4) */}
+            <div className="border-t border-stone-200 px-5 pb-5 pt-4 sm:px-6">
+              <OrderTracker status={order.status} carrier={order.carrier} trackingNumber={order.trackingNumber} orderId={order.orderId} />
+            </div>
+
             {isExpanded && (
               <div className="p-5 sm:p-6 bg-stone-50 border-t border-stone-200 grid gap-6 md:grid-cols-[1fr_260px] text-sm text-stone-700">
                 <div>
@@ -91,9 +99,10 @@ export const OrdersTab: React.FC<Props> = ({ orders, isLoading }) => {
                           ) : (
                             <span className="font-medium">{item.title ?? `Book #${item.bookId}`}</span>
                           )}
-                          <span className="block text-xs text-stone-500">
-                            {item.author}
-                            {item.format ? ` · ${item.format === 'hardcover' ? 'Hardcover' : 'Paperback'}` : ''} · Qty {item.quantity}
+                          <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-stone-500">
+                            {item.author && <span>{item.author}</span>}
+                            <FormatBadge format={item.format} />
+                            <span>Qty {item.quantity}</span>
                           </span>
                         </span>
                         <span className="whitespace-nowrap">{formatPrice(cents(item.unitPrice) * item.quantity)}</span>
@@ -116,7 +125,7 @@ export const OrdersTab: React.FC<Props> = ({ orders, isLoading }) => {
                   {order.address && (
                     <div>
                       <p className="text-xs font-bold text-stone-900 uppercase tracking-wider">Ship to</p>
-                      <p className="mt-1">{order.address.street}<br />{order.address.city}, {order.address.state} {order.address.zip}</p>
+                      <p className="mt-1">{order.address.recipientName && <>{order.address.recipientName}<br /></>}{order.address.street}<br />{order.address.city}, {order.address.state} {order.address.zip}</p>
                     </div>
                   )}
                   {order.payment?.cardLast4 && (
@@ -126,12 +135,6 @@ export const OrdersTab: React.FC<Props> = ({ orders, isLoading }) => {
                         <span className="capitalize">{order.payment.cardBrand}</span> ending {order.payment.cardLast4}
                         {order.payment.status === 'refunded' && <span className="ml-1 text-stone-500">(test charge refunded)</span>}
                       </p>
-                    </div>
-                  )}
-                  {order.trackingNumber && (
-                    <div>
-                      <p className="text-xs font-bold text-stone-900 uppercase tracking-wider">Tracking</p>
-                      <p className="mt-1 font-mono">{order.trackingNumber}</p>
                     </div>
                   )}
                   {order.note && (

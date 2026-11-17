@@ -7,6 +7,7 @@
 
 import React, { Suspense, useState } from 'react';
 import Link from 'next/link';
+import { BrandMark } from '@/components/brand-mark';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { BookOpen, Search, ShoppingCart, User } from 'lucide-react';
 import { useCart } from '@/app/context/CartContext';
@@ -111,7 +112,7 @@ export const Header: React.FC = () => {
       <div className="max-w-7xl mx-auto grid grid-cols-[auto_1fr] items-center gap-x-6 gap-y-2 px-4 py-3 sm:px-6 md:grid-cols-[auto_1fr_auto] lg:px-8">
         {/* Brand */}
         <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight text-stone-900">
-          <span className="text-2xl" aria-hidden>📚</span>
+          <BrandMark size={34} />
           <span className="text-lg font-bold font-serif">Book Worms</span>
         </Link>
 

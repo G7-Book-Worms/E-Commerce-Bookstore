@@ -7,7 +7,7 @@
 import { and, eq } from 'drizzle-orm';
 import type Stripe from 'stripe';
 import { db } from '../../../db';
-import { cartItems, carts, orderItems, orders, payments, users } from '../../../db/schema';
+import { addresses, cartItems, carts, orderItems, orders, payments, users } from '../../../db/schema';
 import { CartService } from '../cart/cart-service';
 import { UsersRepository } from '../users/users-repository';
 import { recordDiscountUse } from '../discounts/discounts-repository';
@@ -215,7 +215,9 @@ export async function getOrderSummary(userId: number, orderId: number) {
   const [items, [payment], address, [user]] = await Promise.all([
     db.select().from(orderItems).where(eq(orderItems.orderId, orderId)),
     db.select().from(payments).where(eq(payments.orderId, orderId)).limit(1),
-    usersRepo.findAddressByIdAndUser(order.shippingAddressId, userId),
+    // By id only: the order is already proven to be this user's, and an address the customer has
+    // since removed from their account is detached (user_id NULL) but still the one it shipped to.
+    db.select().from(addresses).where(eq(addresses.addressId, order.shippingAddressId)).limit(1).then((r) => r[0] ?? null),
     db.select({ email: users.email }).from(users).where(eq(users.userId, userId)).limit(1),
   ]);
   const { loadBooks } = await import('../books/catalog-repository');
@@ -242,6 +244,11 @@ async function sendOrderConfirmation(userId: number, orderId: number) {
     await sendEmail(orderConfirmationEmail(user.email, {
       orderId,
       firstName: user.firstName,
+      email: user.email,
+      shipTo: summary.address
+        ? { recipientName: summary.address.recipientName, phone: summary.address.phone, street: summary.address.street, city: summary.address.city, state: summary.address.state, zip: summary.address.zip, country: summary.address.country }
+        : null,
+      paidWith: summary.payment?.cardLast4 ? `${summary.payment.cardBrand ?? 'Card'} ending ${summary.payment.cardLast4}` : null,
       lines: summary.items.map((i) => ({
         title: i.title,
         format: FORMAT_LABEL[i.format],

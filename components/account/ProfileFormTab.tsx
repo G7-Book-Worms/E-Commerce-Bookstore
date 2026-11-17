@@ -17,6 +17,9 @@ export const ProfileFormTab: React.FC<Props> = ({ profile, onProfileUpdated }) =
     phone: profile.phone || '',
   });
 
+  // Changing the email takes the current password: it's where sign-in codes and resets go
+  const [currentPassword, setCurrentPassword] = useState('');
+  const emailChanging = formData.email.trim().toLowerCase() !== (profile.email || '').toLowerCase();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -37,11 +40,16 @@ export const ProfileFormTab: React.FC<Props> = ({ profile, onProfileUpdated }) =
 
     try {
       setIsSubmitting(true);
-      const updated = await updateUserProfile(formData);
+      if (emailChanging && !currentPassword) {
+        setErrorMsg('Enter your current password to change your email address.');
+        return;
+      }
+      const updated = await updateUserProfile(emailChanging ? { ...formData, currentPassword } : formData);
+      setCurrentPassword('');
       onProfileUpdated(updated);
       setSuccessMsg('Your personal details have been updated successfully.');
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to update personal details.');
+    } catch (err: unknown) {
+      setErrorMsg((err as Error).message || 'Failed to update personal details.');
     } finally {
       setIsSubmitting(false);
     }
@@ -106,6 +114,21 @@ export const ProfileFormTab: React.FC<Props> = ({ profile, onProfileUpdated }) =
             required
           />
         </div>
+
+        {emailChanging && (
+          <div className="space-y-1.5 rounded-md border border-amber-200 bg-amber-50 p-3">
+            <label htmlFor="profile-current-password" className="block text-xs font-semibold uppercase tracking-wider text-stone-700">Current password</label>
+            <input
+              id="profile-current-password"
+              type="password"
+              autoComplete="current-password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              className="h-10 w-full rounded-md border border-stone-200 bg-white px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
+            />
+            <p className="text-xs text-stone-600">Needed to change your email, since sign-in codes and password resets go there. We&apos;ll let your current address know.</p>
+          </div>
+        )}
 
         <div className="space-y-1.5">
           <label htmlFor="profile-phone" className="block text-xs font-semibold uppercase tracking-wider text-stone-700">Phone Number</label>

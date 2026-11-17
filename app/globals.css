@@ -129,3 +129,32 @@
     @apply font-sans;
   }
 }
+/* Toasts (components/toast.tsx). A repeated toast shakes; --shake grows with each repeat. */
+@keyframes bw-toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes bw-toast-shake {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(calc(-1 * var(--shake, 6px))); }
+  30% { transform: translateX(var(--shake, 6px)); }
+  45% { transform: translateX(calc(-0.75 * var(--shake, 6px))); }
+  60% { transform: translateX(calc(0.75 * var(--shake, 6px))); }
+  75% { transform: translateX(calc(-0.4 * var(--shake, 6px))); }
+  90% { transform: translateX(calc(0.4 * var(--shake, 6px))); }
+}
+@keyframes bw-toast-grow {
+  0%, 100% { transform: scale(1); }
+  35% { transform: scale(1.12); }
+}
+@keyframes bw-toast-pulse {
+  0%, 100% { box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); }
+  40% { box-shadow: 0 0 0 4px rgb(220 38 38 / 0.45); }
+}
+.bw-toast-in { animation: bw-toast-in 160ms ease-out; }
+.bw-toast-shake { animation: bw-toast-shake 420ms ease-in-out; }
+.bw-toast-grow { animation: bw-toast-grow 420ms ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .bw-toast-in, .bw-toast-grow { animation: none; }
+  .bw-toast-shake { animation: bw-toast-pulse 500ms ease-out; }
+}

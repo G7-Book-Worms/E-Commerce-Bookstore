@@ -8,12 +8,12 @@ const csp = [
   "default-src 'self'",
   // Next.js needs inline scripts for hydration; dev mode also needs eval. Vercel's preview
   // toolbar loads from vercel.live on preview deployments.
-  `script-src 'self' 'unsafe-inline'${isProd ? "" : " 'unsafe-eval'"} https://vercel.live`,
+  `script-src 'self' 'unsafe-inline'${isProd ? "" : " 'unsafe-eval'"} https://vercel.live https://challenges.cloudflare.com`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://cdn.shopify.com https://vercel.live https://vercel.com",
   "font-src 'self' data: https://vercel.live",
-  "connect-src 'self' https://vercel.live wss://ws-us3.pusher.com",
-  "frame-src https://vercel.live",
+  "connect-src 'self' https://vercel.live wss://ws-us3.pusher.com https://challenges.cloudflare.com",
+  "frame-src https://vercel.live https://challenges.cloudflare.com",
   "frame-ancestors 'none'",
   "form-action 'self' https://checkout.stripe.com",
   "base-uri 'self'",
@@ -36,7 +36,16 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      // API responses are per-request and some carry the signed-in user's own data, so they
+      // must never be stored by a shared cache (pentest finding L-4). no-store is the safe
+      // default for every API route; the catalogue is served through RSC, not these handlers.
+      {
+        source: "/api/:path*",
+        headers: [{ key: "Cache-Control", value: "private, no-store" }],
+      },
+    ];
   },
   experimental: {
     agentUpgrade: "security",

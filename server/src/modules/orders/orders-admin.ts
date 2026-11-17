@@ -9,6 +9,9 @@ import { changeStock } from '../inventory/inventory-service';
 import { syncBookTotals } from '../books/book-totals';
 import { sendEmail } from '../email/mailer';
 import { orderStatusEmail } from '../email/templates';
+import { sendText, textBody, textingAvailable } from '../mfa/twilio-messaging';
+import { shipmentView } from './carriers';
+import { isCarrier, normalizeTrackingNumber, validateTrackingNumber, type Carrier } from './carriers';
 
 export const ORDER_STATUSES = ['pending', 'transit', 'arrived', 'cancelled'] as const;
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
@@ -29,7 +32,13 @@ export const NEXT_STATUSES: Record<OrderStatus, OrderStatus[]> = {
 export type OrderSort = 'date' | 'customer' | 'total' | 'status';
 export const PAGE_SIZE = 25;
 
-const customerName = sql<string>`COALESCE(CONCAT(${users.firstName}, ' ', ${users.lastName}), 'Deleted account')`;
+// Guest orders have no account: their name comes from the order's shipping address (the guest's
+// email if the address has no name). "Deleted account" is only for an account that is gone.
+const customerName = sql<string>`CASE
+  WHEN ${orders.userId} IS NULL THEN COALESCE(NULLIF(TRIM(${addresses.recipientName}), ''), ${orders.guestEmail}, 'Guest')
+  ELSE COALESCE(CONCAT(${users.firstName}, ' ', ${users.lastName}), 'Deleted account')
+END`;
+const customerEmail = sql<string | null>`COALESCE(${users.email}, ${orders.guestEmail})`;
 
 export async function listOrders(opts: {
   q?: string;
@@ -47,7 +56,7 @@ export async function listOrders(opts: {
   if (opts.q) {
     const q = opts.q.replace(/^#/, '');
     const like = `%${q}%`;
-    conds.push(sql`(${orders.orderId} = ${Number(q) || 0} OR ${users.email} LIKE ${like} OR CONCAT(${users.firstName}, ' ', ${users.lastName}) LIKE ${like})`);
+    conds.push(sql`(${orders.orderId} = ${Number(q) || 0} OR ${users.email} LIKE ${like} OR CONCAT(${users.firstName}, ' ', ${users.lastName}) LIKE ${like} OR ${orders.guestEmail} LIKE ${like} OR ${addresses.recipientName} LIKE ${like})`);
   }
   const dir = opts.dir === 'asc' ? asc : desc;
   const orderBy =
@@ -67,19 +76,22 @@ export async function listOrders(opts: {
         totalCents: orders.priceCents,
         userId: orders.userId,
         customerName,
-        email: users.email,
+        isGuest: sql<number>`${orders.userId} IS NULL`,
+        email: customerEmail,
         itemCount: sql<number>`(SELECT COALESCE(SUM(oi.quantity), 0) FROM order_items oi WHERE oi.order_id = ${orders.orderId})`,
         paymentStatus: sql<string | null>`(SELECT p.status FROM payments p WHERE p.order_id = ${orders.orderId} ORDER BY p.payment_id DESC LIMIT 1)`,
       })
       .from(orders)
       .leftJoin(users, eq(users.userId, orders.userId))
+      .leftJoin(addresses, eq(addresses.addressId, orders.shippingAddressId))
       .where(where)
       .orderBy(...orderBy)
       .limit(PAGE_SIZE)
       .offset((page - 1) * PAGE_SIZE),
-    db.select({ total: sql<number>`COUNT(*)` }).from(orders).leftJoin(users, eq(users.userId, orders.userId)).where(where),
+    db.select({ total: sql<number>`COUNT(*)` }).from(orders).leftJoin(users, eq(users.userId, orders.userId))
+      .leftJoin(addresses, eq(addresses.addressId, orders.shippingAddressId)).where(where),
   ]);
-  return { rows: rows.map((r) => ({ ...r, itemCount: Number(r.itemCount) })), total: Number(total), page, pageSize: PAGE_SIZE };
+  return { rows: rows.map((r) => ({ ...r, isGuest: !!Number(r.isGuest), itemCount: Number(r.itemCount) })), total: Number(total), page, pageSize: PAGE_SIZE };
 }
 
 export async function getOrderDetail(orderId: number) {
@@ -120,15 +132,28 @@ export async function getOrderDetail(orderId: number) {
 export async function updateOrderStatus(
   staffId: number,
   orderId: number,
-  input: { status: OrderStatus; trackingNumber?: string | null; note?: string | null }
+  input: { status: OrderStatus; carrier?: string | null; trackingNumber?: string | null; note?: string | null }
 ) {
   const [order] = await db.select().from(orders).where(eq(orders.orderId, orderId));
   if (!order) throw new NotFoundError('Order not found');
   const from = order.status as OrderStatus;
+
+  // Carrier and number live in their own columns. A blank number leaves both alone, so a
+  // status change that says nothing about shipping keeps whatever was already recorded.
+  let tracking = order.trackingNumber;
+  let carrier: Carrier | null = order.carrier;
+  if (input.trackingNumber != null && normalizeTrackingNumber(input.trackingNumber) !== '') {
+    const check = validateTrackingNumber(input.carrier, input.trackingNumber);
+    if (!check.ok) throw new BadRequestError(check.error ?? 'That tracking number does not look right');
+    tracking = check.value;
+    carrier = isCarrier(input.carrier) ? input.carrier : null;
+  }
+
   if (from === input.status) {
     // Same status: only the tracking number / note change
     await db.update(orders).set({
-      trackingNumber: input.trackingNumber ?? order.trackingNumber,
+      carrier,
+      trackingNumber: tracking,
       note: input.note ?? order.note,
     }).where(eq(orders.orderId, orderId));
     return { from, to: from, emailed: false };
@@ -141,7 +166,8 @@ export async function updateOrderStatus(
   await db.transaction(async (tx) => {
     await tx.update(orders).set({
       status: input.status,
-      trackingNumber: input.trackingNumber ?? order.trackingNumber,
+      carrier,
+      trackingNumber: tracking,
       note: input.note ?? order.note,
     }).where(eq(orders.orderId, orderId));
     if (input.status === 'cancelled') {
@@ -158,10 +184,66 @@ export async function updateOrderStatus(
 
   let emailed = false;
   if (order.userId) {
-    const [u] = await db.select({ email: users.email, firstName: users.firstName }).from(users).where(eq(users.userId, order.userId));
-    if (u) emailed = await sendEmail(orderStatusEmail(u.email, u.firstName, orderId, input.status, input.trackingNumber ?? order.trackingNumber));
+    const [u] = await db.select({ email: users.email, firstName: users.firstName, phone: users.mfaPhone, texts: users.smsOrderUpdates }).from(users).where(eq(users.userId, order.userId));
+    if (u) emailed = await sendEmail(orderStatusEmail(u.email, u.firstName, orderId, input.status, carrier, tracking));
+    // Only customers who asked for order texts, to the phone they verified, and only once an
+    // approved texting number is configured
+    if (u?.texts && u.phone && textingAvailable()) {
+      await sendText(u.phone, textBody(orderStatusText(orderId, input.status, carrier, tracking), true));
+    }
+  } else if (order.guestEmail) {
+    // Guest orders: no account to point at, so the email carries the signed order link
+    const [a] = await db.select({ name: addresses.recipientName }).from(addresses).where(eq(addresses.addressId, order.shippingAddressId));
+    const firstName = a?.name?.trim().split(/\s+/)[0] || 'there';
+    const { guestOrderLink } = await import('../checkout/guest-checkout-service');
+    emailed = await sendEmail(orderStatusEmail(order.guestEmail, firstName, orderId, input.status, carrier, tracking, guestOrderLink(orderId)));
   }
   return { from, to: input.status, emailed };
+}
+
+/** The order-update text: short, with the carrier's tracking link when there is one. */
+export function orderStatusText(orderId: number, status: string, carrier?: string | null, tracking?: string | null): string {
+  const shipment = shipmentView(carrier, tracking);
+  switch (status) {
+    case 'transit':
+      return `order #${orderId} has shipped${shipment?.carrierLabel ? ` with ${shipment.carrierLabel}` : ''}.${shipment?.trackingUrl ? ` Track it: ${shipment.trackingUrl}` : ''}`;
+    case 'arrived':
+      return `order #${orderId} was marked delivered.`;
+    case 'cancelled':
+      return `order #${orderId} was cancelled. Details are in your email.`;
+    default:
+      return `order #${orderId} was updated.`;
+  }
+}
+
+/** The most orders one bulk action may touch. Also enforced by the API route's schema. */
+export const BULK_LIMIT = 50;
+
+/**
+ * Applies one status change to several orders (the bulk action bar on the orders list).
+ *
+ * Orders are handled one at a time and independently: an order that can't make the move
+ * (already delivered, already cancelled, no longer there) is reported as skipped with the
+ * reason instead of failing the whole batch. Nothing here bypasses `updateOrderStatus`, so
+ * cancelling still restocks and still emails the customer.
+ */
+export async function bulkUpdateOrderStatus(staffId: number, orderIds: number[], status: OrderStatus) {
+  const unique = [...new Set(orderIds)];
+  if (unique.length === 0) throw new BadRequestError('Pick at least one order');
+  if (unique.length > BULK_LIMIT) throw new BadRequestError(`Too many orders at once (limit ${BULK_LIMIT})`);
+
+  const updated: number[] = [];
+  const skipped: { orderId: number; reason: string }[] = [];
+  for (const orderId of unique) {
+    try {
+      const result = await updateOrderStatus(staffId, orderId, { status });
+      if (result.from === result.to) skipped.push({ orderId, reason: `Already ${STATUS_LABELS[status]}` });
+      else updated.push(orderId);
+    } catch (err) {
+      skipped.push({ orderId, reason: err instanceof Error ? err.message : 'Could not be updated' });
+    }
+  }
+  return { status, updated, skipped };
 }
 
 /** Revenue and order counts per day for the dashboard chart (placed orders, excluding cancelled). */

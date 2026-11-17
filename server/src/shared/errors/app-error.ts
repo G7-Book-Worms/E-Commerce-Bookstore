@@ -2,6 +2,7 @@ export class AppError extends Error {
   constructor(
     public message: string,
     public statusCode: number = 500,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- pre-existing loose type, kept to avoid behaviour changes
     public details?: any
   ) {
     super(message);
@@ -11,6 +12,7 @@ export class AppError extends Error {
 }
 
 export class BadRequestError extends AppError {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- pre-existing loose type, kept to avoid behaviour changes
   constructor(message: string = 'Bad request', details?: any) {
     super(message, 400, details);
   }

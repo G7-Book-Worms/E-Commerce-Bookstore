@@ -1,12 +1,12 @@
 // Database-backed rate limits and sign-in lockout (SCRUM-213). Stored in MySQL so the limits hold
 // across Vercel's serverless instances (in-memory counters would reset on every cold start).
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '../../../db';
 import { rateLimits } from '../../../db/schema';
 import { AppError } from '../errors/app-error';
 
 export class TooManyRequestsError extends AppError {
-  constructor(message = 'Too many attempts. Please wait a few minutes and try again.') {
+  constructor(message = 'Too many attempts. Please wait a few minutes, then try again.') {
     super(message, 429);
   }
 }
@@ -43,7 +43,9 @@ export async function assertNotLocked(key: string): Promise<void> {
     .where(eq(rateLimits.rateKey, key));
   if (row?.lockedUntil && Number(row.stillLocked) === 1) {
     throw new TooManyRequestsError(
-      'Too many failed sign-in attempts. This account is locked for 15 minutes. Use "Forgot password?" if you need to reset it.'
+      // One message for every lock (wrong passwords, or an owner's "Lock My Account"), and for
+      // emails with no account too, so it never tells anyone which emails have accounts
+      'Account temporarily locked. For your security, sign-in is paused after too many failed attempts. Try again later, or reset your password with "Forgot Password?" to regain access right away.'
     );
   }
 }
@@ -74,3 +76,25 @@ export async function recordFailure(key: string): Promise<boolean> {
 export async function clearFailures(key: string): Promise<void> {
   await db.delete(rateLimits).where(eq(rateLimits.rateKey, key));
 }
+
+/**
+ * When the latest active lock among `keys` ends, or null when none of them is locked.
+ * Used to show staff that an account's sign-in is locked.
+ */
+export async function activeLockUntil(keys: string[]): Promise<Date | null> {
+  if (keys.length === 0) return null;
+  const rows = await db
+    .select({ lockedUntil: rateLimits.lockedUntil })
+    .from(rateLimits)
+    .where(and(inArray(rateLimits.rateKey, keys), sql`${rateLimits.lockedUntil} > CURRENT_TIMESTAMP`));
+  const ends = rows.map((r) => r.lockedUntil).filter((d): d is Date => !!d).map((d) => new Date(d));
+  return ends.length ? new Date(Math.max(...ends.map((d) => d.getTime()))) : null;
+}
+
+/** Ends a sign-in lock early (an administrator's "Unlock sign-in"): forgets the lock and the failures. */
+export async function clearLocks(keys: string[]): Promise<void> {
+  if (keys.length === 0) return;
+  await db.delete(rateLimits).where(inArray(rateLimits.rateKey, keys));
+}
+
+export { signInLockKeys } from './lock-keys';
