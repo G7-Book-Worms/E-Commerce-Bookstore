@@ -5,7 +5,7 @@ import { getBookForEdit, listCategories } from '@/server/src/modules/books/books
 import { PageHeader, Panel } from '@/components/staff/ui';
 import { BookForm } from '@/components/staff/book-form';
 
-export const metadata = { title: 'Edit book' };
+export const metadata = { title: 'Edit Book' };
 
 async function Content({ params }: { params: Promise<{ id: string }> }) {
   await requireStaffPage('inventory.manage');

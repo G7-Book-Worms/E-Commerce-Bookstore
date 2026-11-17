@@ -275,7 +275,7 @@ export default function CartPage() {
                   id="code"
                   value={codeInput}
                   onChange={(e) => setCodeInput(e.target.value)}
-                  placeholder="e.g. BOOKWORMS10"
+                  placeholder="BOOKWORMS10"
                   autoComplete="off"
                   className="h-9 min-w-0 flex-1 rounded-md border px-3 text-sm uppercase"
                 />

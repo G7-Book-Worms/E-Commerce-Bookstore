@@ -213,7 +213,7 @@ function RegisterForm() {
   return (
     <>
       <div className="space-y-1 mb-6 text-left">
-        <h2 className="text-2xl font-bold tracking-tight text-neutral-900 font-serif">Create an Account</h2>
+        <h1 className="text-2xl font-bold tracking-tight text-neutral-900 font-serif">Create an Account</h1>
         <p className="text-sm text-neutral-500">
           Already have an account?{' '}
           <Link

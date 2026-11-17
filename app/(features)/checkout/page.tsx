@@ -391,7 +391,7 @@ function Checkout() {
           {/* Review items */}
           <section className="rounded-xl border bg-white p-5">
             <div className="mb-4 flex items-baseline justify-between">
-              <h2 className="font-serif text-xl font-bold">{choosingHow ? "Your items" : `${isGuestCheckout ? "3." : "2."} Review items`}</h2>
+              <h2 className="font-serif text-xl font-bold">{choosingHow ? "Your Items" : `${isGuestCheckout ? "3." : "2."} Review items`}</h2>
               {!isGuestCheckout && <Link href="/cart" className="-my-3 inline-block py-3 text-sm underline">Edit Cart</Link>}
             </div>
             <ul className="divide-y text-sm">
@@ -506,7 +506,7 @@ function CheckoutChoice({ onGuest }: { onGuest: () => void }) {
           <Link href={REGISTER_HREF} className={option}>
             <span className={icon}><UserPlus className="size-5" aria-hidden /></span>
             <span className="min-w-0 flex-1">
-              <span className="block font-semibold">Create an account</span>
+              <span className="block font-semibold">Create Account</span>
               <span className="block text-sm text-muted-foreground">Takes a minute. Track your orders and check out faster next time.</span>
             </span>
             <ChevronRight className="size-4 shrink-0 text-stone-400" aria-hidden />

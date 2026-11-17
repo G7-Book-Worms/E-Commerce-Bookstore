@@ -20,12 +20,12 @@ import { Header } from '../components/header/Header';
 import { Footer } from '../components/footer/Footer';
 import { DemoStrip } from '../components/demo-notice';
 
-export const metadata = { title: 'Page not found | Book Worms', robots: { index: false, follow: false } };
+export const metadata = { title: 'Page Not Found | Book Worms', robots: { index: false, follow: false } };
 
 const SHELVES = [
   { href: '/product-catalog/all?section=bestseller', label: 'Bestsellers' },
-  { href: '/product-catalog/all?section=new-release', label: 'New releases' },
-  { href: '/product-catalog/all?onSale=true', label: 'On sale' },
+  { href: '/product-catalog/all?section=new-release', label: 'New Releases' },
+  { href: '/product-catalog/all?onSale=true', label: 'On Sale' },
 ];
 
 export default function NotFound() {

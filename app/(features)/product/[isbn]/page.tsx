@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: { params: Params }) {
   return { title: book ? `${book.title} by ${book.author} | Book Worms` : "Book not found | Book Worms" };
 }
 
-// /product/[isbn]: the book from the database (SCRUM-181), plus "You may like": books by the same
+// /product/[isbn]: the book from the database (SCRUM-181), plus "You May Like": books by the same
 // author, in the same genre, sharing tags, or bought in the same orders (recommendations.ts)
 export default function ProductPage({ params }: { params: Params }) {
   return (
@@ -47,7 +47,7 @@ async function Product({ params }: { params: Params }) {
       </nav>
       <ProductView book={book} />
       <BookSection
-        title="You may like"
+        title="You May Like"
         books={suggestions.map((s) => s.book)}
         captions={captions}
         href={book.category ? `/product-catalog/all?genre=${book.category.slug}` : "/product-catalog/all"}

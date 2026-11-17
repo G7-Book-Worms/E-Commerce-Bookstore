@@ -6,7 +6,7 @@ import { StaffPasswordForm } from './password-form';
 import { TwoStepSettings } from '@/components/auth/two-step-settings';
 import { PasskeySettings } from '@/components/auth/passkey-settings';
 
-export const metadata = { title: 'Password & sign-in' };
+export const metadata = { title: 'Password & Sign-In' };
 
 async function Content() {
   const staff = await getStaffSession();
