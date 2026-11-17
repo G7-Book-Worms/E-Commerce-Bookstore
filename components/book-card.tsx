@@ -9,6 +9,8 @@ import { BookCover } from "@/components/book-cover";
 import { StarRating } from "@/components/star-rating";
 import { defaultCartFormat, formatPrice, stockLabel, type CatalogBook } from "@/lib/catalog";
 import { useCart, type CartFormat } from "@/app/context/CartContext";
+import { QuantityInput } from "@/components/cart/quantity-input";
+import { MAX_PER_LINE, limitMessage } from "@/lib/quantity";
 
 // Kept as the name other files import. Same shape as a book from GET /api/books
 export type Book = CatalogBook;
@@ -40,8 +42,8 @@ export function CartStepper({
   title: string;
   className?: string;
   /**
-   * The book's other edition, when it has copies: once this edition's stock runs out, the tile
-   * says so and points to the product page, where the other edition can be added.
+   * The book's other edition, when it has copies: the "that's every copy" toast offers it
+   * (a link to the product page, where the other edition can be added).
    */
   other?: { label: string; href: string } | null;
 }) {
@@ -50,65 +52,74 @@ export function CartStepper({
   // Show the asked-for number straight away; the server's answer replaces it a moment later
   const [pending, setPending] = useState<number | null>(null);
   const shown = pending ?? quantity;
+  const label = format === "hardcover" ? "Hardcover" : "Paperback";
+  const limit = Math.min(MAX_PER_LINE, max);
+  const atMax = shown >= limit;
+  const toastKey = `qty:${bookId}:${format}`;
 
-  async function change(to: number) {
-    if (busy) return;
+  async function change(to: number): Promise<boolean> {
+    if (busy) return false;
+    // Going down but still above what's left (stock fell since it was added): go to the most allowed
+    if (to > limit && to < shown && limit > 0) to = limit;
+    if (to > limit) {
+      // One toast per book and edition: pressing + again shakes it instead of stacking more
+      const offer = other && limit === max ? { href: other.href, linkText: `Add a ${other.label}` } : {};
+      showToast(limit > 0 ? limitMessage(limit, label) : `This ${label.toLowerCase()} edition is out of stock.`, { tone: "warn", key: toastKey, ...offer });
+      return false;
+    }
     setBusy(true);
     setPending(to);
     const error = await setCartQuantity(bookId, format, to);
     setPending(null);
     setBusy(false);
-    if (error) showToast(error);
-    else if (to === 0) showToast(`Removed “${title}” from your cart`, { href: '/cart', linkText: 'View cart' });
+    if (error) showToast(error, { tone: "warn", key: toastKey });
+    else if (to === 0) showToast(`Removed “${title}” from your cart`, { href: '/cart', linkText: 'View Cart' });
+    return !error;
   }
 
-  const label = format === "hardcover" ? "Hardcover" : "Paperback";
-  const atMax = shown >= max;
-
   return (
-    <div className={className}>
     <div
-      className={`group/stepper flex w-full items-center justify-between gap-1 rounded-md border border-stone-300 bg-white px-1`}
+      className={`group/stepper flex w-full items-center justify-between gap-1 rounded-md border border-stone-300 bg-white px-1 ${className}`}
       // One label for the whole control, so a screen reader announces what the buttons belong to
       role="group"
-      aria-label={`Copies of ${title} in your cart`}
+      aria-label={`${label} copies of ${title} in your cart`}
     >
       <Button
         variant="ghost"
         size="icon-sm"
         className="shrink-0 opacity-0 transition-opacity group-hover/stepper:opacity-100 group-focus-within/stepper:opacity-100 focus-visible:opacity-100 max-md:opacity-100"
         disabled={busy}
-        aria-label={shown <= 1 ? `Remove ${title} from your cart` : `One fewer copy of ${title}`}
+        aria-label={shown <= 1 ? `Remove ${title} from your cart` : `One fewer ${label.toLowerCase()} copy of ${title}`}
         onClick={() => change(shown - 1)}
       >
         <Minus aria-hidden />
       </Button>
-      <span className="min-w-0 flex-1 truncate text-center text-sm font-medium tabular-nums" aria-live="polite">
-        {shown} {label} in Cart
+      <span className="flex min-w-0 flex-1 items-center justify-center gap-0.5 text-sm font-medium">
+        <QuantityInput
+          quantity={shown}
+          stock={max}
+          edition={label}
+          title={title}
+          disabled={busy}
+          toastKey={toastKey}
+          onCommit={(q) => change(q)}
+          className="h-7 w-9"
+        />
+        {/* The edition, small enough to fit a narrow tile next to the number */}
+        <span className="truncate text-xs text-stone-600" title={`${label} in your cart`}>{label}</span>
       </span>
+      {/* At the limit the + stays clickable (aria-disabled) so it can explain why nothing happened */}
       <Button
         variant="ghost"
         size="icon-sm"
-        className="shrink-0 opacity-0 transition-opacity group-hover/stepper:opacity-100 group-focus-within/stepper:opacity-100 focus-visible:opacity-100 max-md:opacity-100 disabled:opacity-40"
-        disabled={busy || shown >= max}
+        className="shrink-0 opacity-0 transition-opacity group-hover/stepper:opacity-100 group-focus-within/stepper:opacity-100 focus-visible:opacity-100 max-md:opacity-100 aria-disabled:opacity-40"
+        disabled={busy}
+        aria-disabled={atMax || undefined}
         aria-label={atMax ? `No more ${label.toLowerCase()} copies of ${title} in stock` : `One more ${label.toLowerCase()} copy of ${title}`}
         onClick={() => change(shown + 1)}
       >
         <Plus aria-hidden />
       </Button>
-    </div>
-    {/* Why the + stopped: the tile's stock counts both editions, but this line is one edition */}
-    {atMax && (
-      <p className="mt-1 text-center text-xs text-stone-600">
-        That&apos;s every {label.toLowerCase()} copy in stock.
-        {other && (
-          <>
-            {" "}
-            <Link href={other.href} className="font-medium underline underline-offset-2 hover:text-stone-900">Add a {other.label.toLowerCase()}</Link>
-          </>
-        )}
-      </p>
-    )}
     </div>
   );
 }

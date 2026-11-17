@@ -65,6 +65,7 @@ export const ACTION_INFO: Readonly<Record<string, ActionInfo>> = {
   'security.new_sign_in_alert': { category: 'security', label: 'New sign-in alert emailed to the account owner' },
   'security.lockout_alert': { category: 'security', label: 'Account lockout alert emailed to the account owner' },
   'security.unlocked_by_staff': { category: 'security', label: 'Sign-in lock ended early by an administrator (owner notified)' },
+  'security.relocked_by_owner': { category: 'security', label: 'Owner locked their account again after an unexpected unlock (ticket opened)' },
 
   // --- Orders & payments ------------------------------------------------------------------------
   'checkout.started': { category: 'orders', label: 'Customer started checkout' },
@@ -86,6 +87,7 @@ export const ACTION_INFO: Readonly<Record<string, ActionInfo>> = {
 
   // --- Customers --------------------------------------------------------------------------------
   'auth.register': { category: 'customers', label: 'New customer account created' },
+  'auth.register_existing_email': { category: 'security', label: 'Sign-up tried with an email that already has an account (owner emailed)' },
   'customer.updated': { category: 'customers', label: "Staff edited a customer's details" },
   'customer.signin_unlocked': { category: 'security', label: "Administrator unlocked a customer's sign-in" },
   'account.updated_by_staff': { category: 'customers', label: 'Account details changed by staff (customer notified)' },

@@ -6,6 +6,8 @@
 // person (fingerprint, face or PIN) and proved it holds the key. Customer passkeys only open
 // customer accounts and staff passkeys only the staff portal.
 import { NextRequest } from 'next/server';
+import { assertNotLocked } from '@/server/src/shared/security/rate-limit';
+import { relockKey } from '@/server/src/shared/security/lock-keys';
 import { z } from 'zod';
 import type { AuthenticationResponseJSON } from '@simplewebauthn/server';
 import { createApiHandler } from '@/server/src/server';
@@ -35,6 +37,9 @@ export const POST = createApiHandler(async (req: NextRequest) => {
   const { response } = signInSchema.parse(body);
   const who = await verifySignIn(kind, response as unknown as AuthenticationResponseJSON, req.cookies.get(PASSKEY_COOKIE)?.value, req.url, ip);
   const how = { method: 'passkey', passkey: who.passkeyName };
+  // A passkey skips the password, so a wrong-password lock doesn't apply; the owner's
+  // "Lock My Account" does (it says sign-in is locked, and an intruder may have added a passkey)
+  await assertNotLocked(relockKey(who.kind, who.id));
 
   if (who.kind === 'staff') {
     const { token, mustChangePassword } = await completeStaffSignIn(who.id, ip, how);

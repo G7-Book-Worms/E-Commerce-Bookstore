@@ -16,6 +16,9 @@ import { useCart } from "@/app/context/CartContext";
 import { useAuth } from "@/app/context/auth-context";
 import { formatPrice, stockLabel } from "@/lib/catalog";
 import { loadDiscountCode, saveDiscountCode, type CartData, type CartLine } from "@/lib/cart-types";
+import { QuantityInput } from "@/components/cart/quantity-input";
+import { showToast } from "@/components/toast";
+import { MAX_PER_LINE, limitMessage } from "@/lib/quantity";
 
 export default function CartPage() {
   // SCRUM-208: a guest's cart lives in this browser, so it is priced by the guest quote endpoint
@@ -91,24 +94,52 @@ export default function CartPage() {
       .finally(() => setIsLoading(false));
   }, [callCart, authLoading]);
 
-  const mutate = async (line: CartLine, init: RequestInit) => {
+  /** Sends one cart change; false when it failed (the error banner says why). */
+  const mutate = async (line: CartLine, init: RequestInit): Promise<boolean> => {
     setBusyLine(line.cartItemId);
     setError(null);
     try {
       await callCart(code, init);
+      return true;
     } catch (err) {
       setError((err as Error).message);
+      return false;
     } finally {
       setBusyLine(null);
     }
   };
 
+  const edition = (line: CartLine) => (line.format === "hardcover" ? "Hardcover" : "Paperback");
+  const lineKey = (line: CartLine) => `qty:${line.bookId}:${line.format}`;
+
+  /** Sets a line to an exact quantity (typed in, or + / −). 0 removes it. */
+  const setQuantity = async (line: CartLine, quantity: number): Promise<boolean> => {
+    if (quantity <= 0) return (await removeLine(line)) !== false;
+    const max = Math.min(MAX_PER_LINE, line.stock);
+    if (quantity > max) {
+      // Going down but still above what's left (stock fell since it was added): go to the most allowed
+      if (quantity < line.quantity && max > 0) quantity = max;
+      else {
+        // Shown as a toast that shakes harder each time instead of stacking up
+        showToast(max > 0 ? limitMessage(max, edition(line)) : "This edition is out of stock. Remove it to check out.", { tone: "warn", key: lineKey(line) });
+        return false;
+      }
+    }
+    // A guest's cart is local, so this is a state change, not a request.
+    if (isGuest) {
+      setGuestQuantity(line.bookId, line.format, quantity);
+      return true;
+    }
+    return mutate(line, { method: "PATCH", body: JSON.stringify({ bookId: line.bookId, format: line.format, quantity }) });
+  };
+
   const changeQuantity = (line: CartLine, amount: number) => {
     const quantity = line.quantity + amount;
-    if (quantity < 1 || quantity > line.stock) return;
-    // A guest's cart is local, so this is a state change, not a request.
-    if (isGuest) return setGuestQuantity(line.bookId, line.format, quantity);
-    mutate(line, { method: "PATCH", body: JSON.stringify({ bookId: line.bookId, format: line.format, quantity }) });
+    if (quantity < 1) {
+      showToast("1 copy is the minimum. Use Remove to take it out of your cart.", { tone: "warn", key: lineKey(line) });
+      return;
+    }
+    void setQuantity(line, quantity);
   };
 
   const removeLine = (line: CartLine) => {
@@ -207,11 +238,21 @@ export default function CartPage() {
                     </p>
                     <div className="mt-auto flex items-center gap-3 pt-2">
                       <div className="flex items-center rounded-md border">
-                        <Button variant="ghost" size="icon-sm" onClick={() => changeQuantity(line, -1)} disabled={busy || line.quantity <= 1} aria-label={`Fewer copies of ${line.title}`}>
+                        {/* At the limits the buttons stay clickable (aria-disabled) and explain why
+                            nothing changed, instead of silently doing nothing */}
+                        <Button variant="ghost" size="icon-sm" onClick={() => changeQuantity(line, -1)} disabled={busy} aria-disabled={line.quantity <= 1 || undefined} className="aria-disabled:opacity-40" aria-label={`Fewer copies of ${line.title}`}>
                           <Minus />
                         </Button>
-                        <span className="w-8 text-center tabular-nums">{line.quantity}</span>
-                        <Button variant="ghost" size="icon-sm" onClick={() => changeQuantity(line, 1)} disabled={busy || line.quantity >= line.stock} aria-label={`More copies of ${line.title}`}>
+                        <QuantityInput
+                          quantity={line.quantity}
+                          stock={line.stock}
+                          edition={edition(line)}
+                          title={line.title}
+                          disabled={busy}
+                          toastKey={lineKey(line)}
+                          onCommit={(q) => setQuantity(line, q)}
+                        />
+                        <Button variant="ghost" size="icon-sm" onClick={() => changeQuantity(line, 1)} disabled={busy} aria-disabled={line.quantity >= Math.min(MAX_PER_LINE, line.stock) || undefined} className="aria-disabled:opacity-40" aria-label={`More copies of ${line.title}`}>
                           <Plus />
                         </Button>
                       </div>

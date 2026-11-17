@@ -275,7 +275,7 @@ export async function updateStaff(
         mustChangePassword: true,
         tokenVersion: sql`${admin.tokenVersion} + 1`,
       }).where(eq(admin.adminId, targetId));
-      await clearFailures(`staff-login:email:${target.email}`);
+      await clearLocks(signInLockKeys('staff', targetId, target.email));
       await sendEmail(temporaryPasswordEmail(target.email, target.firstName, 'staff'));
       return { email: target.email, password };
     }

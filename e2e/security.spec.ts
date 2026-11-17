@@ -26,6 +26,22 @@ test('sign-up only creates the account once the emailed code is entered', async 
   await expect(page).not.toHaveURL(/\/user-register/, { timeout: 20_000 });
 });
 
+test('sign-up with an email that already has an account looks the same and creates nothing', async ({ page }) => {
+  await page.goto('/user-register');
+  await page.fill('#firstName', 'Ada');
+  await page.fill('#lastName', 'Copy');
+  await page.fill('#email', 'ada.lovelace@example.com');
+  const password = strongPassword();
+  await page.fill('#password', password);
+  await page.fill('#confirmPassword', password);
+  await page.getByRole('button', { name: /create account/i }).click();
+  // Same screen as a brand-new address: nothing says the account exists
+  await expect(page.getByRole('heading', { name: /confirm your email/i })).toBeVisible();
+  await page.getByLabel(/confirmation code/i).fill('123456');
+  await page.getByRole('button', { name: /confirm and create account/i }).click();
+  await expect(page.getByRole('alert').filter({ hasText: /isn.t right/i })).toBeVisible();
+});
+
 test('a customer adds a passkey and signs in with it', async ({ page, context }) => {
   const cdp = await context.newCDPSession(page);
   await cdp.send('WebAuthn.enable');

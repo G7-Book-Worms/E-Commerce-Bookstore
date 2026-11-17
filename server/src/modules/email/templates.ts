@@ -20,13 +20,16 @@ const DISCLAIMER =
 /** Where a customer can reach a person: replying works too, since replies go to the support inbox. */
 const SUPPORT_LINK = () => `${SITE()}/#contact`;
 
-function layout(title: string, bodyHtml: string, bodyText: string): Pick<Email, 'html' | 'text'> {
+/** A red "SECURITY ALERT" label shown above the heading of security emails. */
+const SECURITY_BADGE = `<p style="margin:0 0 10px"><span style="display:inline-block;background:#b91c1c;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;padding:4px 8px;border-radius:4px">&#9888; Security Alert</span></p>`;
+
+function layout(title: string, bodyHtml: string, bodyText: string, opts: { security?: boolean } = {}): Pick<Email, 'html' | 'text'> {
   const html = `<!doctype html><html><body style="margin:0;background:#f5f5f4;font-family:Georgia,serif;color:#1c1917">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px 12px">
 <table role="presentation" width="100%" style="max-width:560px;background:#ffffff;border:1px solid #e7e5e4;border-radius:8px" cellpadding="0" cellspacing="0">
 <tr><td style="padding:20px 28px;border-bottom:3px solid #1c1917"><a href="${SITE()}" style="font-size:22px;font-weight:bold;color:#1c1917;text-decoration:none">Book Worms</a></td></tr>
 <tr><td style="padding:28px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.55">
-<h1 style="font-family:Georgia,serif;font-size:21px;margin:0 0 16px">${escapeHtml(title)}</h1>
+${opts.security ? SECURITY_BADGE : ''}<h1 style="font-family:Georgia,serif;font-size:21px;margin:0 0 16px">${escapeHtml(title)}</h1>
 ${bodyHtml}
 </td></tr>
 <tr><td style="padding:16px 28px;background:#fef3c7;border-top:1px solid #fde68a;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.5;color:#78350f">
@@ -34,12 +37,12 @@ ${bodyHtml}
 </td></tr></table>
 <p style="font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#78716c;margin-top:12px">This is an automated message from Book Worms. Need help? Reply to this email or <a href="${SUPPORT_LINK()}" style="color:#57534e">contact support</a>.</p>
 </td></tr></table></body></html>`;
-  const text = `${title}\n\n${bodyText}\n\nNeed help? Reply to this email or contact support: ${SUPPORT_LINK()}\n\n---\nCLASS PROJECT NOTICE: ${DISCLAIMER}\n`;
+  const text = `${opts.security ? 'SECURITY ALERT: ' : ''}${title}\n\n${bodyText}\n\nNeed help? Reply to this email or contact support: ${SUPPORT_LINK()}\n\n---\nCLASS PROJECT NOTICE: ${DISCLAIMER}\n`;
   return { html, text };
 }
 
 const button = (href: string, label: string) =>
-  `<p style="margin:24px 0"><a href="${href}" style="background:#1c1917;color:#ffffff;padding:11px 20px;border-radius:6px;text-decoration:none;font-weight:bold">${escapeHtml(label)}</a></p>`;
+  `<p style="margin:24px 0"><a href="${escapeHtml(href)}" style="background:#1c1917;color:#ffffff;padding:11px 20px;border-radius:6px;text-decoration:none;font-weight:bold">${escapeHtml(label)}</a></p>`;
 
 /** "Key: value" rows, e.g. the time and IP address of a security event. */
 function factsTable(facts: [string, string][]) {
@@ -69,6 +72,27 @@ export function verifyEmailCodeEmail(to: string, firstName: string, code: string
 <p>This code expires in 15 minutes. Book Worms staff will never ask you for it.</p>
 <p style="font-size:13px;color:#57534e">Didn't sign up? You can safely ignore this email. No account is created without this code.</p>${demo}`,
       `Hello ${firstName},\n\nYour Book Worms verification code is ${code}. Enter it on the sign-up page to finish creating your account. It expires in 15 minutes.\n\nDidn't sign up? You can safely ignore this email. No account is created without this code.${forAddress ? `\n(Demo address ${forAddress}: its code comes to this shared support inbox.)` : ''}`
+    ),
+  };
+}
+
+/**
+ * Someone tried to sign up with an address that already has an account. The sign-up page looks
+ * the same either way; only this email (to the real owner) says the account exists.
+ */
+export function accountAlreadyExistsEmail(to: string, forAddress?: string): Email {
+  const demo = forAddress ? `<p style="font-size:13px;color:#57534e">Sent for demo address <strong>${escapeHtml(forAddress)}</strong>, which has no real inbox.</p>` : '';
+  return {
+    to,
+    subject: 'You Already Have a Book Worms Account',
+    ...layout(
+      'You Already Have an Account',
+      `<p>Hello,</p>
+<p>Someone, hopefully you, tried to create a new Book Worms account with this email address. An account with this address already exists, so no new account was created.</p>
+${button(`${SITE()}/user-login`, 'Sign In')}
+<p>Forgot your password? <a href="${SITE()}/forgot-password" style="color:#1c1917">Reset it here</a>.</p>
+<p style="font-size:13px;color:#57534e">Didn't try to sign up? You can safely ignore this email. Your account has not changed.</p>${demo}`,
+      `Hello,\n\nSomeone, hopefully you, tried to create a new Book Worms account with this email address. An account with this address already exists, so no new account was created.\n\nSign in: ${SITE()}/user-login\nForgot your password? ${SITE()}/forgot-password\n\nDidn't try to sign up? You can safely ignore this email. Your account has not changed.`
     ),
   };
 }
@@ -196,7 +220,7 @@ export function orderStatusEmail(
   const trackingHtml = shipment
     ? `<p style="margin:0 0 4px">${escapeHtml(trackingText)}</p>` +
       (shipment.trackingUrl
-        ? `<p style="margin:0"><a href="${shipment.trackingUrl}" style="color:#1c1917">Track your package on the ${escapeHtml(shipment.carrierLabel ?? 'carrier')} website</a></p>`
+        ? `<p style="margin:0"><a href="${escapeHtml(shipment.trackingUrl)}" style="color:#1c1917">Track your package on the ${escapeHtml(shipment.carrierLabel ?? 'carrier')} website</a></p>`
         : '')
     : '';
 
@@ -214,7 +238,7 @@ export function orderStatusEmail(
 export function passwordChangedEmail(to: string, firstName: string): Email {
   return {
     to,
-    subject: 'Security Alert: Your Password Was Changed',
+    subject: 'Security Alert: Password Changed',
     ...layout(
       'Your Password Was Changed',
       `<p>Hello ${escapeHtml(firstName)},</p>
@@ -222,7 +246,8 @@ export function passwordChangedEmail(to: string, firstName: string): Email {
 ${factsTable([['When', whenText()]]).html}
 <p><strong>If this was you,</strong> no action is needed.</p>
 <p><strong>If this wasn't you,</strong> reset your password immediately and reply to this email so our support team can secure your account.</p>${button(`${SITE()}/forgot-password`, 'Reset Your Password')}`,
-      `Hello ${firstName},\n\nThe password for your Book Worms account was just changed, and all other devices were signed out.\nWhen: ${whenText()}\n\nIf this was you, no action is needed.\nIf this wasn't you, reset your password immediately (${SITE()}/forgot-password) and reply to this email.`
+      `Hello ${firstName},\n\nThe password for your Book Worms account was just changed, and all other devices were signed out.\nWhen: ${whenText()}\n\nIf this was you, no action is needed.\nIf this wasn't you, reset your password immediately (${SITE()}/forgot-password) and reply to this email.`,
+      { security: true }
     ),
   };
 }
@@ -261,14 +286,15 @@ export function temporaryPasswordEmail(to: string, firstName: string, portal: 'c
   const where = portal === 'staff' ? `${SITE()}/staff-login` : `${SITE()}/user-login`;
   return {
     to,
-    subject: 'Security Alert: Your Password Was Reset by Book Worms Support',
+    subject: 'Security Alert: Password Reset by Support',
     ...layout(
       'Your Password Was Reset by Our Support Team',
       `<p>Hello ${escapeHtml(firstName)},</p>
 <p>A member of the Book Worms team set a temporary password on your account. For your security, it is shared with you directly and is never sent by email.</p>
 <p>You will be asked to choose a new password the next time you sign in.</p>${button(where, 'Sign In')}
 <p style="font-size:13px;color:#57534e">Didn't request this? Reply to this email or <a href="${SUPPORT_LINK()}" style="color:#57534e">contact support</a> right away.</p>`,
-      `Hello ${firstName},\n\nA member of the Book Worms team set a temporary password on your account. It is shared with you directly and is never sent by email. You will be asked to choose a new password the next time you sign in: ${where}\n\nDidn't request this? Reply to this email right away.`
+      `Hello ${firstName},\n\nA member of the Book Worms team set a temporary password on your account. It is shared with you directly and is never sent by email. You will be asked to choose a new password the next time you sign in: ${where}\n\nDidn't request this? Reply to this email right away.`,
+      { security: true }
     ),
   };
 }
@@ -431,37 +457,65 @@ export function whenText(d = new Date()) {
 
 /**
  * A security alert: something happened to the account that its owner should know about.
- * `title` is title case and doubles as the subject ("Security Alert: <title>"); `facts` are
- * short "label: value" lines (time, IP address, what changed). `byStaff` means the Book Worms
- * team made the change, so "wasn't you" becomes "didn't request this".
+ * `subject` is short ("Account Locked": inboxes cut long subjects off), `title` is the heading
+ * inside the email and can say more. `facts` are short "label: value" lines (time, IP address,
+ * what changed). `byStaff` means the Book Worms team made the change, so "wasn't you" becomes
+ * "didn't request this". `ifYou` replaces the default "If this was you" line; `extra` adds a
+ * block at the end (HTML and text).
  */
 export function securityAlertEmail(
   to: string,
   firstName: string,
-  alert: { title: string; body: string; facts: [string, string][]; byStaff?: boolean; noActionIfYou?: boolean },
+  alert: {
+    subject: string;
+    title: string;
+    body: string;
+    facts: [string, string][];
+    byStaff?: boolean;
+    ifYou?: string;
+    action?: { href: string; label: string };
+    extra?: { html: string; text: string };
+  },
   portal: 'customer' | 'staff'
 ): Email {
   const resetUrl = portal === 'staff' ? `${SITE()}/staff-login` : `${SITE()}/forgot-password`;
-  const ifYou = alert.byStaff
-    ? 'If you asked our support team for this change, no action is needed.'
-    : 'If this was you, no action is needed.';
+  const ifYou = alert.ifYou ?? (alert.byStaff ? 'If you asked our support team for this change, no action is needed.' : 'If this was you, no action is needed.');
   const ifNot = alert.byStaff
     ? 'If you did not request this change, reply to this email or contact support immediately so we can secure your account.'
     : portal === 'staff'
       ? 'If this wasn\'t you, change your password from the staff portal immediately and notify an administrator.'
       : 'If this wasn\'t you, reset your password immediately and reply to this email so our support team can help secure your account.';
+  const lead = (t: string) => {
+    const i = t.indexOf(',');
+    return `<strong>${escapeHtml(t.slice(0, i + 1))}</strong>${escapeHtml(t.slice(i + 1))}`;
+  };
+  const action = alert.action ?? (alert.byStaff
+    ? { href: SUPPORT_LINK(), label: 'Contact Support' }
+    : { href: resetUrl, label: portal === 'staff' ? 'Open the Staff Portal' : 'Reset Your Password' });
   const facts = factsTable(alert.facts);
   return {
     to,
-    subject: `Security Alert: ${alert.title}`,
+    subject: `Security Alert: ${alert.subject}`,
     ...layout(
       alert.title,
       `<p>Hello ${escapeHtml(firstName)},</p><p>${escapeHtml(alert.body)}</p>${facts.html}
-${alert.noActionIfYou === false ? '' : `<p><strong>${escapeHtml(ifYou.split(',')[0])},</strong>${escapeHtml(ifYou.slice(ifYou.indexOf(',') + 1))}</p>`}
-<p style="background:#fef2f2;border:1px solid #fecaca;padding:10px 12px;border-radius:6px"><strong>${escapeHtml(ifNot.split(',')[0])},</strong>${escapeHtml(ifNot.slice(ifNot.indexOf(',') + 1))}</p>
-${alert.byStaff ? button(SUPPORT_LINK(), 'Contact Support') : button(resetUrl, portal === 'staff' ? 'Open the Staff Portal' : 'Reset Your Password')}`,
-      `Hello ${firstName},\n\n${alert.body}\n\n${facts.text}\n\n${alert.noActionIfYou === false ? '' : `${ifYou}\n`}${ifNot}\n${alert.byStaff ? SUPPORT_LINK() : resetUrl}`
+<p>${lead(ifYou)}</p>
+${alert.extra ? alert.extra.html : `<p style="background:#fef2f2;border:1px solid #fecaca;padding:10px 12px;border-radius:6px">${lead(ifNot)}</p>`}
+${button(action.href, action.label)}`,
+      `Hello ${firstName},\n\n${alert.body}\n\n${facts.text}\n\n${ifYou}\n${alert.extra ? alert.extra.text : ifNot}\n${action.label}: ${action.href}`,
+      { security: true }
     ),
+  };
+}
+
+/** The red "this wasn't you" box with a link, for alerts that offer an undo (e.g. lock again). */
+export function undoBox(text: string, href: string, label: string): { html: string; text: string } {
+  const i = text.indexOf('?');
+  return {
+    html: `<div style="background:#fef2f2;border:1px solid #fecaca;padding:12px;border-radius:6px;margin:16px 0">
+<p style="margin:0 0 10px"><strong>${escapeHtml(text.slice(0, i + 1))}</strong>${escapeHtml(text.slice(i + 1))}</p>
+<a href="${escapeHtml(href)}" style="display:inline-block;background:#b91c1c;color:#ffffff;padding:9px 16px;border-radius:6px;text-decoration:none;font-weight:bold">${escapeHtml(label)}</a></div>`,
+    text: `${text}\n${label}: ${href}`,
   };
 }
 
@@ -473,7 +527,7 @@ export function emailChangedConfirmationEmail(to: string, firstName: string, byS
   const who = byStaff ? 'by the Book Worms support team' : 'from your account settings';
   return {
     to,
-    subject: 'Your Book Worms Sign-In Email Has Been Updated',
+    subject: 'Sign-In Email Updated',
     ...layout(
       'Your Sign-In Email Has Been Updated',
       `<p>Hello ${escapeHtml(firstName)},</p>
@@ -491,7 +545,7 @@ export function accountUpdatedByStaffEmail(to: string, firstName: string, change
   const list = changes.map((c) => `<li>${escapeHtml(c)}</li>`).join('');
   return {
     to,
-    subject: 'Your Book Worms Account Details Were Updated',
+    subject: 'Account Details Updated',
     ...layout(
       'Your Account Details Were Updated',
       `<p>Hello ${escapeHtml(firstName)},</p>

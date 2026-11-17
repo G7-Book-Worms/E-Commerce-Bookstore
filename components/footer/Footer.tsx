@@ -2,7 +2,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import Link from 'next/link';
 import { BrandMark } from '@/components/brand-mark';
 import { SamePageLink } from '@/components/same-page-link';
 import { useTurnstile } from '@/components/turnstile';

@@ -43,7 +43,9 @@ export async function assertNotLocked(key: string): Promise<void> {
     .where(eq(rateLimits.rateKey, key));
   if (row?.lockedUntil && Number(row.stillLocked) === 1) {
     throw new TooManyRequestsError(
-      'Account temporarily locked: too many failed sign-in attempts. For your security, sign-in is locked for 15 minutes. To regain access sooner, reset your password with "Forgot Password?"'
+      // One message for every lock (wrong passwords, or an owner's "Lock My Account"), and for
+      // emails with no account too, so it never tells anyone which emails have accounts
+      'Account temporarily locked. For your security, sign-in is paused after too many failed attempts. Try again later, or reset your password with "Forgot Password?" to regain access right away.'
     );
   }
 }

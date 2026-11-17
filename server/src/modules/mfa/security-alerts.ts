@@ -11,7 +11,9 @@ import { sendText, textBody, textingAvailable } from './twilio-messaging';
 import { logActivity } from '../activity/activity-log';
 import { sendEmail } from '../email/mailer';
 import { inBackground } from '../../shared/utils/in-background';
-import { emailChangedConfirmationEmail, securityAlertEmail, whenText } from '../email/templates';
+import { emailChangedConfirmationEmail, securityAlertEmail, undoBox, whenText } from '../email/templates';
+import { siteUrl } from '../../shared/utils/site-url';
+import { signRelockToken } from '../auth/relock-token';
 
 export type AlertActor = { kind: 'customer' | 'staff'; id: number; email: string; firstName: string };
 
@@ -31,7 +33,7 @@ function send(actor: AlertActor, action: string, alert: Parameters<typeof securi
           ? await db.select({ phone: users.mfaPhone }).from(users).where(eq(users.userId, actor.id))
           : await db.select({ phone: admin.mfaPhone }).from(admin).where(eq(admin.adminId, actor.id));
         if (row?.phone) {
-          texted = await sendText(row.phone, textBody(`Security alert: ${alert.title}. Details are in your email. Not you? Change your password now.`));
+          texted = await sendText(row.phone, textBody(`Security alert: ${alert.subject}. Details are in your email.`));
         }
       }
       await logActivity(actorType(actor.kind), actor.id, action, { ...details, emailed, ...(texted !== undefined ? { texted } : {}) }, ip ?? null);
@@ -57,6 +59,7 @@ export async function alertIfNewSignIn(actor: AlertActor, ip: string | null) {
     ]);
     if (Number(before?.n ?? 0) === 0 || Number(fromHere?.n ?? 0) > 0) return;
     await send(actor, 'security.new_sign_in_alert', {
+      subject: 'New Sign-In',
       title: 'New Sign-In to Your Account',
       body: actor.kind === 'staff'
         ? 'Your Book Worms staff account was just signed in to from a network it has not used before.'
@@ -71,8 +74,12 @@ export async function alertIfNewSignIn(actor: AlertActor, ip: string | null) {
 /** Too many wrong passwords: sign-in is locked for 15 minutes. */
 export function alertLockout(actor: AlertActor, ip: string | null) {
   return send(actor, 'security.lockout_alert', {
+    subject: 'Account Locked',
     title: 'Account Locked After Multiple Failed Sign-In Attempts',
-    body: 'We detected multiple failed sign-in attempts on your account, so sign-in has been locked for 15 minutes to protect it. If these attempts were yours, wait 15 minutes and try again, or reset your password.',
+    body: 'We detected multiple failed sign-in attempts on your account, so we locked sign-in for 15 minutes to protect it.',
+    ifYou: actor.kind === 'staff'
+      ? 'If this was you, no action is needed. Your account unlocks automatically after 15 minutes. To sign in sooner, ask an administrator to unlock it.'
+      : 'If this was you, no action is needed. Your account unlocks automatically after 15 minutes. To sign in sooner, reset your password, which ends the lock right away, or contact support.',
     facts: [['When', when()], ['IP address', ip ?? 'Unknown']],
   }, {}, ip);
 }
@@ -85,6 +92,7 @@ export function alertMfaChanged(actor: AlertActor, from: keyof typeof METHOD_LAB
   const action = to === 'none' ? 'security.mfa_disabled' : from === 'none' ? 'security.mfa_enabled' : 'security.mfa_method_changed';
   const title = to === 'none' ? 'Two-Step Verification Was Turned Off' : from === 'none' ? 'Two-Step Verification Was Turned On' : 'Your Two-Step Verification Method Was Changed';
   return send(actor, action, {
+    subject: to === 'none' ? 'Two-Step Verification Off' : from === 'none' ? 'Two-Step Verification On' : 'Two-Step Verification Changed',
     title,
     body: to === 'none'
       ? 'Two-step verification was turned off for your account. Signing in now requires only your password.'
@@ -104,6 +112,7 @@ export function alertEmailChanged(actor: AlertActor, newEmail: string, byStaff: 
     try { await sendEmail(emailChangedConfirmationEmail(newEmail, actor.firstName, byStaff)); } catch (err) { console.error('[security-alert] new-address email failed', err); }
   });
   return send(actor, 'security.email_changed', {
+    subject: 'Email Address Changed',
     title: 'Your Account Email Address Was Changed',
     body: byStaff
       ? 'A member of the Book Worms support team changed the email address on your account. Sign-in codes, password reset links, and order updates now go to the new address.'
@@ -115,17 +124,27 @@ export function alertEmailChanged(actor: AlertActor, newEmail: string, byStaff: 
 
 /** An administrator ended a sign-in lockout early. */
 export function alertUnlockedByStaff(actor: AlertActor) {
+  const site = siteUrl();
+  const relock = `${site}/lock-account?token=${encodeURIComponent(signRelockToken(actor.kind, actor.id))}`;
   return send(actor, 'security.unlocked_by_staff', {
-    title: 'Your Account Was Unlocked by Book Worms Support',
-    body: 'A member of the Book Worms support team removed the temporary sign-in lock on your account. You can sign in again now.',
-    facts: [['When', when()], ['Changed by', 'Book Worms support']],
-    byStaff: true,
+    subject: 'Account Unlocked',
+    title: 'Your Account Has Been Unlocked',
+    body: 'Book Worms Support has unlocked your account, so you can sign in again right away.',
+    facts: [['When', when()], ['Unlocked by', 'Book Worms Support']],
+    ifYou: 'If you asked us to unlock your account, you are all set.',
+    action: { href: actor.kind === 'staff' ? `${site}/staff-login` : `${site}/user-login`, label: 'Sign In' },
+    extra: undoBox(
+      "Didn't ask us to unlock your account? Lock it again now. This signs you out everywhere, locks sign-in for 7 days, removes your passkeys, and opens a support ticket so our team can help you secure your account.",
+      relock,
+      'Lock My Account'
+    ),
   }, {}, null);
 }
 
 /** A passkey was added to, or removed from, the account. */
 export function alertPasskeyChanged(actor: AlertActor, change: 'added' | 'removed', name: string, ip: string | null) {
   return send(actor, change === 'added' ? 'security.passkey_added' : 'security.passkey_removed', {
+    subject: change === 'added' ? 'Passkey Added' : 'Passkey Removed',
     title: change === 'added' ? 'New Passkey Added to Your Account' : 'Passkey Removed from Your Account',
     body: change === 'added'
       ? 'The device below can now sign in to your Book Worms account with a fingerprint, face, or screen lock instead of your password.'

@@ -2,20 +2,22 @@ import { createHash, randomBytes } from 'node:crypto';
 import { and, eq, gt, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../../../db';
-import { admin, passwordResetTokens, users } from '../../../db/schema';
+import { admin, passwordResetTokens, rateLimits, users } from '../../../db/schema';
+import { relockVoidKey } from './relock-token';
 import { UsersRepository } from '../users/users-repository';
 import { User } from '../users/users-schema';
 import { loginInputSchema, registerInputSchema } from './auth-schema';
 import { burnHashTime, comparePassword, hashPassword, needsRehash } from '../../shared/utils/hash-utils';
 import { generateToken } from '../../shared/utils/token-util';
 import { BadRequestError, ConflictError, NotFoundError, UnauthorizedError } from '../../shared/errors/app-error';
-import { assertNotLocked, clearFailures, rateLimit, recordFailure } from '../../shared/security/rate-limit';
+import { assertNotLocked, clearFailures, clearLocks, rateLimit, recordFailure, signInLockKeys } from '../../shared/security/rate-limit';
 import { logActivity } from '../activity/activity-log';
+import { inBackground } from '../../shared/utils/in-background';
 import { sendEmail } from '../email/mailer';
 import { beginSecondStep, codeDestination, maskEmail, needsSecondStep, type SecondStep } from '../mfa/mfa-service';
 import { codeMatches, newCode, readPendingRegistration, signPendingRegistration, withCode, type PendingRegistration } from './email-verification';
 import { alertIfNewSignIn, alertLockout } from '../mfa/security-alerts';
-import { passwordChangedEmail, passwordResetEmail, verifyEmailCodeEmail, welcomeEmail } from '../email/templates';
+import { accountAlreadyExistsEmail, passwordChangedEmail, passwordResetEmail, verifyEmailCodeEmail, welcomeEmail } from '../email/templates';
 
 export type LoginInput = z.infer<typeof loginInputSchema>;
 export type RegisterInput = z.infer<typeof registerInputSchema>;
@@ -106,7 +108,6 @@ export class AuthService {
   async startRegistration(input: RegisterInput, ip: string): Promise<{ pendingToken: string; sentTo: string }> {
     await rateLimit(`register:ip:${ip}`, 5, 60 * 60);
     const email = input.email.trim().toLowerCase();
-    await this.assertEmailFree(email);
     // Two sign-ups started for the same address an hour can't flood its inbox
     await rateLimit(`register:email:${email}`, 5, 60 * 60);
 
@@ -118,6 +119,18 @@ export class AuthService {
       phone: input.phone || null,
       passwordHash: await hashPassword(input.password),
     }, code);
+
+    // An address that already has an account gets exactly the same answer on the page ("check
+    // your email for a code"), so sign-up can't be used to find out who has an account. The
+    // email itself tells the owner they already have one; no code is sent, so the sign-up can
+    // never be finished. (Recommended by OWASP's authentication and enumeration guidance.)
+    if (await this.emailTaken(email)) {
+      const dest = codeDestination(email);
+      await sendEmail(accountAlreadyExistsEmail(dest.to, dest.redirectedFor));
+      // In the background, so this path does no more waiting than a new sign-up
+      inBackground(() => logActivity('system', null, 'auth.register_existing_email', {}, ip));
+      return { pendingToken: signPendingRegistration(pending), sentTo: dest.redirectedFor ? 'the shared support inbox (demo address)' : maskEmail(email) };
+    }
     return { pendingToken: signPendingRegistration(pending), sentTo: await this.sendVerificationCode(pending, code) };
   }
 
@@ -162,6 +175,12 @@ export class AuthService {
     const fresh = withCode({
       firstName: pending.firstName, lastName: pending.lastName, email: pending.email, phone: pending.phone, passwordHash: pending.passwordHash,
     }, code);
+    // Same as the first step: an existing account's owner is told again, never sent a code
+    if (await this.emailTaken(pending.email)) {
+      const dest = codeDestination(pending.email);
+      await sendEmail(accountAlreadyExistsEmail(dest.to, dest.redirectedFor));
+      return { pendingToken: signPendingRegistration(fresh), sentTo: dest.redirectedFor ? 'the shared support inbox (demo address)' : maskEmail(pending.email) };
+    }
     return { pendingToken: signPendingRegistration(fresh), sentTo: await this.sendVerificationCode(fresh, code) };
   }
 
@@ -172,17 +191,23 @@ export class AuthService {
     return dest.redirectedFor ? 'the shared support inbox (demo address)' : maskEmail(p.email);
   }
 
+  /**
+   * Whether an email already belongs to a customer or a staff member. A staff member's email must
+   * not spawn a parallel customer account under their identity (pentest finding M-2); the two
+   * tables have separate uniqueness, so both are checked.
+   */
+  private async emailTaken(email: string): Promise<boolean> {
+    // Both lookups every time, so a taken and a free email take the same time
+    const [customer, [staff]] = await Promise.all([
+      this.usersRepo.findByEmail(email),
+      db.select({ id: admin.adminId }).from(admin).where(eq(admin.email, email)),
+    ]);
+    return !!customer || !!staff;
+  }
+
   private async assertEmailFree(email: string): Promise<void> {
-    const existingUser = await this.usersRepo.findByEmail(email);
-    if (existingUser) {
-      throw new ConflictError("We couldn't create an account with that email. If it's yours, try signing in.");
-    }
-    // A staff member's email must not spawn a parallel customer account under their identity
-    // (pentest finding M-2). The customer and staff tables have separate uniqueness, so this is
-    // checked explicitly. The message is the same as above so registration still can't be used
-    // to probe which emails are staff.
-    const [existingStaff] = await db.select({ id: admin.adminId }).from(admin).where(eq(admin.email, email));
-    if (existingStaff) {
+    // Only reached with a correct code, which an already-registered address never receives
+    if (await this.emailTaken(email)) {
       throw new ConflictError("We couldn't create an account with that email. If it's yours, try signing in.");
     }
   }
@@ -247,7 +272,11 @@ export class AuthService {
       tokenVersion: sql`${users.tokenVersion} + 1`,
       mustChangePassword: false,
     }).where(eq(users.userId, user.userId));
-    await clearFailures(`login:email:${user.email}`);
+    // A password reset ends any sign-in lock, both steps (our policy, stated in every lockout email)
+    await clearLocks(signInLockKeys('customer', user.userId, user.email));
+    // ...and voids any "Lock My Account" link sent before now (account-relock.ts)
+    await db.insert(rateLimits).values({ rateKey: relockVoidKey('customer', user.userId), hits: 0, windowStart: sql`CURRENT_TIMESTAMP` })
+      .onDuplicateKeyUpdate({ set: { windowStart: sql`CURRENT_TIMESTAMP` } });
     await logActivity('customer', user.userId, 'auth.password_reset', {}, ip);
     await sendEmail(passwordChangedEmail(user.email, user.firstName));
   }

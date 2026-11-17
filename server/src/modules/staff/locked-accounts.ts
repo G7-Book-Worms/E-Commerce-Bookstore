@@ -27,11 +27,12 @@ export async function listLockedAccounts(): Promise<LockedAccount[]> {
   for (const r of rows) {
     if (!r.until) continue;
     const until = new Date(r.until);
+    const later = (m: Map<number, Date>, k: number) => { const e = m.get(k); m.set(k, e && e > until ? e : until); };
     let m: RegExpMatchArray | null;
     if ((m = r.key.match(/^login:email:(.+)$/))) customerEmails.set(m[1], until);
     else if ((m = r.key.match(/^staff-login:email:(.+)$/))) staffEmails.set(m[1], until);
-    else if ((m = r.key.match(/^mfa:customer:(\d+)$/))) customerIds.set(Number(m[1]), until);
-    else if ((m = r.key.match(/^mfa:admin:(\d+)$/))) staffIds.set(Number(m[1]), until);
+    else if ((m = r.key.match(/^(?:mfa|relock):customer:(\d+)$/))) later(customerIds, Number(m[1]));
+    else if ((m = r.key.match(/^(?:mfa:admin|relock:staff):(\d+)$/))) later(staffIds, Number(m[1]));
   }
 
   const [customers, staff] = await Promise.all([
