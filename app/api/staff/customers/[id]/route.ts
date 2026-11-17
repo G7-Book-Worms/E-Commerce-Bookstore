@@ -7,6 +7,7 @@ import {
   CUSTOMER_ACTIONS,
   customerActionNeedsManage,
   customerActionNeedsStepUp,
+  canUnlockSignIn,
 } from '@/server/src/modules/staff/staff-guards';
 import { requireStepUp, stepUpPasswordSchema } from '@/server/src/modules/staff/step-up';
 import {
@@ -18,6 +19,8 @@ import {
   signOutCustomerEverywhere,
   unusablePasswordHash,
   updateCustomerDetails,
+  customerEmailAvailable,
+  unlockCustomerSignIn,
 } from '@/server/src/modules/users/customers-admin';
 
 const schema = z.object({
@@ -50,13 +53,30 @@ export const PATCH = staffApi('customers.view', async (req, { params, log, staff
   } else if (!can(staff.role, 'customers.edit')) {
     throw new ForbiddenError('Your role cannot change customer details');
   }
+  if (action === 'unlock-signin' && !canUnlockSignIn(staff.role)) throw new ForbiddenError('Only an administrator can unlock sign-in');
   if (customerActionNeedsStepUp(action)) await requireStepUp(staff.id, actorPassword, ip);
 
   switch (action) {
     case 'update': {
-      const result = await updateCustomerDetails(userId, detailsSchema.parse(body));
+      // A new email means sign-in codes and reset links go somewhere else, so changing it is a
+      // takeover risk: managers and up only, re-confirmed with their own password.
+      const result = await updateCustomerDetails(userId, detailsSchema.parse(body), async () => {
+        if (!can(staff.role, 'customers.manage')) throw new ForbiddenError('Only a manager can change a customer\'s email address');
+        await requireStepUp(staff.id, actorPassword, ip);
+      });
       await log('customer.updated', { userId, changed: result.changed });
       return HttpResponse.success(result, result.changed.length ? 'Details saved' : 'Nothing changed');
+    }
+    case 'check-email': {
+      // Asked before the password prompt, so a taken address is reported without asking for it
+      const { email } = z.object({ email: z.string().trim().email('Enter a valid email address').max(100).toLowerCase() }).parse(body);
+      const available = await customerEmailAvailable(userId, email);
+      return HttpResponse.success({ available }, available ? 'Available' : 'That email address is already in use by another account');
+    }
+    case 'unlock-signin': {
+      const { email, wasLocked } = await unlockCustomerSignIn(userId);
+      await log('customer.signin_unlocked', { userId, email, wasLocked });
+      return HttpResponse.success({}, wasLocked ? 'Sign-in unlocked. The customer has been notified by email.' : 'This account was not locked');
     }
     case 'send-reset-link': {
       const { email } = await sendCustomerResetLink(userId, ip);
@@ -85,9 +105,9 @@ export const PATCH = staffApi('customers.view', async (req, { params, log, staff
       return HttpResponse.success({}, 'Signed out of every device');
     }
     case 'delete': {
-      const { email } = await anonymiseCustomer(userId, await unusablePasswordHash());
-      // The previous email is recorded so the deletion can be traced; the row no longer holds it.
-      await log('customer.anonymised', { userId, previousEmail: email });
+      await anonymiseCustomer(userId, await unusablePasswordHash());
+      // No personal details in the audit entry: the account id ties it to the orders
+      await log('customer.anonymised', { userId });
       return HttpResponse.success({}, 'Account deleted: personal details removed, orders kept');
     }
     default: {

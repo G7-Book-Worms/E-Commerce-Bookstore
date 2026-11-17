@@ -12,6 +12,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { CheckCircle2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { FormatBadge } from "@/components/format-badge";
 import { useCart } from "@/app/context/CartContext";
 import { useAuth } from "@/app/context/auth-context";
 import { formatPrice } from "@/lib/catalog";
@@ -21,7 +22,7 @@ import { registerUser } from "@/lib/api/auth";
 type Summary = {
   order: { orderId: number; subtotalCents: number; discountCents: number; taxCents: number; priceCents: number; created: string };
   email?: string;
-  address: { street: string; city: string; state: string; zip: string } | null;
+  address: { recipientName?: string | null; street: string; city: string; state: string; zip: string } | null;
   payment: { status: string; cardBrand: string | null; cardLast4: string | null } | null;
   items: { orderItemId: number; title: string; format: string; quantity: number; unitPrice: string }[];
 };
@@ -63,15 +64,20 @@ function Success() {
           setGuestEmail(json.data.email ?? null);
           setViewToken(json.data.viewToken ?? null);
 
-          // The guest order view only returns what's safe to show behind a forwardable link,
-          // so the shipping street and email are not part of it.
-          const order = await fetch("/api/checkout/guest/order", {
+          // The order lookup needs the signed link and the email it was placed with, both of
+          // which the completion just handed back. If it fails, the order is still placed and
+          // the confirmation email has everything, so show what we can instead of crashing.
+          const orderRes = await fetch("/api/checkout/guest/order", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ token: json.data.viewToken }),
-          }).then((r) => r.json());
+            body: JSON.stringify({ token: json.data.viewToken, email: json.data.email }),
+          });
+          const order = await orderRes.json().catch(() => null);
+          if (!orderRes.ok || !order?.data) {
+            throw new Error(`Your order #${json.data.orderId} is placed and paid. We couldn't load its details here, but they're in your confirmation email.`);
+          }
           const d = order.data;
-          setSummary({ ...d, address: null, email: json.data.email ?? undefined });
+          setSummary({ ...d, address: d.shipTo ?? null, email: json.data.email ?? undefined });
           return;
         }
 
@@ -93,12 +99,12 @@ function Success() {
     })();
   }, [sessionId, isGuestOrder, refreshCart, clearGuestCart]);
 
-  if (!sessionId) return <p className="p-16 text-center">Missing checkout session. <Link href="/cart" className="underline">Back to cart</Link></p>;
+  if (!sessionId) return <p className="p-16 text-center">Missing checkout session. <Link href="/cart" className="underline">Back to Cart</Link></p>;
   if (error) {
     return (
       <div className="mx-auto max-w-xl px-4 py-16 text-center">
         <p className="text-lg font-medium text-red-700">{error}</p>
-        <Link href="/cart" className="mt-4 inline-block underline">Back to cart</Link>
+        <Link href="/cart" className="mt-4 inline-block underline">Back to Cart</Link>
       </div>
     );
   }
@@ -109,7 +115,7 @@ function Success() {
     <div className="mx-auto w-full max-w-2xl px-4 py-12">
       <div className="text-center">
         <CheckCircle2 className="mx-auto size-12 text-emerald-600" />
-        <h1 className="mt-3 font-serif text-3xl font-bold">Thank you for your order!</h1>
+        <h1 className="mt-3 font-serif text-3xl font-bold">Thank You for Your Order!</h1>
         <p className="mt-2 text-muted-foreground">
           Order #{order.orderId}{summary.email ? ` · confirmation for ${summary.email}` : ""}
         </p>
@@ -119,7 +125,11 @@ function Success() {
         <ul className="divide-y">
           {summary.items.map((i) => (
             <li key={i.orderItemId} className="flex justify-between gap-4 py-2">
-              <span>{i.title} <span className="text-muted-foreground">({i.format}) × {i.quantity}</span></span>
+              <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span>{i.title}</span>
+                <FormatBadge format={i.format} />
+                <span className="text-muted-foreground">× {i.quantity}</span>
+              </span>
               <span>{formatPrice(Math.round(Number(i.unitPrice) * 100) * i.quantity)}</span>
             </li>
           ))}
@@ -132,7 +142,7 @@ function Success() {
         </dl>
         <div className="mt-4 grid gap-4 border-t pt-4 sm:grid-cols-2">
           {summary.address && (
-            <div><p className="font-semibold">Shipping to</p><p>{summary.address.street}<br />{summary.address.city}, {summary.address.state} {summary.address.zip}</p></div>
+            <div><p className="font-semibold">Shipping to</p><p>{summary.address.recipientName && <>{summary.address.recipientName}<br /></>}{summary.address.street}<br />{summary.address.city}, {summary.address.state} {summary.address.zip}</p></div>
           )}
           {summary.payment?.cardLast4 && (
             <div>
@@ -153,18 +163,18 @@ function Success() {
               <Link href={`/checkout/guest-order?token=${encodeURIComponent(viewToken)}`} className="font-medium underline">
                 open it here
               </Link>
-              . The link works for this one order and expires in 30 days — please don&apos;t forward it.
+              . It asks for your email address before showing anything, and you can also look the order up any time from <strong>Find your order</strong> at the bottom of every page with order number #{order.orderId}.
             </p>
           )}
           <CreateAccountOffer email={guestEmail} />
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Link href="/product-catalog" className={buttonVariants()}>Keep shopping</Link>
+            <Link href="/product-catalog" className={buttonVariants()}>Keep Shopping</Link>
           </div>
         </>
       ) : (
         <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <Link href="/account?tab=orders" className={buttonVariants({ variant: "outline" })}>View order history</Link>
-          <Link href="/product-catalog" className={buttonVariants()}>Keep shopping</Link>
+          <Link href="/account?tab=orders" className={buttonVariants({ variant: "outline" })}>View Order History</Link>
+          <Link href="/product-catalog" className={buttonVariants()}>Keep Shopping</Link>
         </div>
       )}
     </div>
@@ -215,7 +225,7 @@ function CreateAccountOffer({ email }: { email: string | null }) {
 
   return (
     <div className="mt-6 rounded-xl border bg-white p-5">
-      <h2 className="font-serif text-lg font-bold">Want an account for next time?</h2>
+      <h2 className="font-serif text-lg font-bold">Want an Account for Next Time?</h2>
       <p className="mt-1 text-sm text-muted-foreground">
         We&apos;ll set one up for <strong>{email}</strong> so your next orders are saved and checkout is
         one click. Your cart and this order stay exactly as they are.
@@ -244,7 +254,7 @@ function CreateAccountOffer({ email }: { email: string | null }) {
             <input required type="password" minLength={8} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} className="h-9 rounded-md border px-3" />
           </label>
           <div className="flex gap-2 sm:col-span-2">
-            <Button type="submit" disabled={busy}>{busy ? "Creating…" : "Create account"}</Button>
+            <Button type="submit" disabled={busy}>{busy ? "Creating…" : "Create Account"}</Button>
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Not now</Button>
           </div>
         </form>

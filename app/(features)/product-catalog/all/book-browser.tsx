@@ -205,7 +205,7 @@ export function BookBrowser({ books, total, page, totalPages, query }: Props) {
         </div>
       ))}
       {chips.length > 0 && (
-        <Button variant="ghost" size="sm" className="self-start" onClick={clearAll}>Clear all filters</Button>
+        <Button variant="ghost" size="sm" className="self-start" onClick={clearAll}>Clear All Filters</Button>
       )}
     </div>
   );
@@ -267,7 +267,7 @@ export function BookBrowser({ books, total, page, totalPages, query }: Props) {
         {books.length === 0 ? (
           <EmptyState image="search" title="No books match">
             <p>Try removing a filter or searching for something else.</p>
-            {chips.length > 0 && <Button className="mt-4" variant="outline" onClick={clearAll}>Clear all filters</Button>}
+            {chips.length > 0 && <Button className="mt-4" variant="outline" onClick={clearAll}>Clear All Filters</Button>}
           </EmptyState>
         ) : (
           /* Fits as many 160px+ columns as the screen allows */

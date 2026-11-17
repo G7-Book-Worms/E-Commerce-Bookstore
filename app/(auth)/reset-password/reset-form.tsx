@@ -35,26 +35,26 @@ export function ResetPasswordForm() {
   if (!token) {
     return (
       <div className="space-y-3 text-left">
-        <h2 className="font-serif text-2xl font-bold">This link is incomplete</h2>
+        <h2 className="font-serif text-2xl font-bold">This Link Is Incomplete</h2>
         <p className="text-sm text-neutral-600">Open the link from your email again, or request a new one.</p>
-        <Link href="/forgot-password" className="text-sm font-medium underline underline-offset-4">Request a new link</Link>
+        <Link href="/forgot-password" className="text-sm font-medium underline underline-offset-4">Request a New Link</Link>
       </div>
     );
   }
 
   return (
     <div className="space-y-4 text-left">
-      <h2 className="font-serif text-2xl font-bold tracking-tight">Choose a new password</h2>
+      <h2 className="font-serif text-2xl font-bold tracking-tight">Choose a New Password</h2>
       {state?.ok ? (
         <div role="status" className="space-y-3">
           <p className="rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-900">{state.text} Every device that was signed in has been signed out.</p>
-          <Link href="/user-login" className="inline-flex h-10 items-center rounded-md bg-neutral-900 px-4 text-sm font-medium text-white">Sign in</Link>
+          <Link href="/user-login" className="inline-flex h-10 items-center rounded-md bg-neutral-900 px-4 text-sm font-medium text-white">Sign In</Link>
         </div>
       ) : (
         <form onSubmit={submit} className="space-y-4" noValidate>
           {state && (
             <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">
-              {state.text} {state.text.includes('expired') && <Link href="/forgot-password" className="underline">Request a new link</Link>}
+              {state.text} {state.text.includes('expired') && <Link href="/forgot-password" className="underline">Request a New Link</Link>}
             </p>
           )}
           <div className="space-y-1.5">

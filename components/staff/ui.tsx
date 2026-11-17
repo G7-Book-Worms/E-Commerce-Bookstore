@@ -47,6 +47,9 @@ const BADGE: Record<string, string> = {
   blue: 'bg-sky-100 text-sky-900',
   gray: 'bg-stone-100 text-stone-700',
   purple: 'bg-violet-100 text-violet-900',
+  indigo: 'bg-indigo-100 text-indigo-900',
+  pink: 'bg-pink-100 text-pink-900',
+  teal: 'bg-teal-100 text-teal-900',
 };
 export function Badge({ children, color = 'gray' }: { children: ReactNode; color?: keyof typeof BADGE }) {
   return <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap ${BADGE[color]}`}>{children}</span>;
@@ -91,7 +94,7 @@ export function EmptyState({ title, text, image = '/images/empty-states/tabby-ki
   return (
     <div className="flex flex-col items-center rounded-lg border border-dashed border-stone-300 bg-white px-4 py-10 text-center">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={image} alt="" width={160} height={120} className="mb-3 h-28 w-auto" />
+      <img src={image} alt="" width={160} height={120} className="mb-3 h-28 w-auto mix-blend-multiply" />
       <p className="font-medium text-stone-800">{title}</p>
       {text && <p className="mt-1 text-sm text-stone-500">{text}</p>}
     </div>

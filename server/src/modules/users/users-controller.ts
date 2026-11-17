@@ -1,3 +1,4 @@
+import { clientIp } from '../../shared/security/client-ip';
 import { clearAuthCookie } from '../../shared/utils/cookie-utils';
 import { NextRequest } from 'next/server';
 import { UsersService } from './users-service';
@@ -31,7 +32,7 @@ export class UsersController {
     const userId = UsersController.getAuthUserId(req);
     const body = await req.json();
     const validated = updateProfileSchema.parse(body);
-    const updated = await usersService.updateProfile(userId, validated);
+    const updated = await usersService.updateProfile(userId, validated, clientIp(req));
     return HttpResponse.success(updated, 'Profile updated successfully');
   }
 

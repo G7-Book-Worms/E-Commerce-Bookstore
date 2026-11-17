@@ -3,6 +3,7 @@
 import { Suspense } from 'react';
 import { connection } from 'next/server';
 import { HeroBanner } from '@/components/home/HeroBanner';
+import { AccountDeletedNotice } from '@/components/home/account-deleted-notice';
 import { PromoCards } from '@/components/home/PromoCards';
 import { GenreTiles } from '@/components/home/GenreTiles';
 import { BookSection } from '@/components/book-section';
@@ -46,6 +47,7 @@ function RowsSkeleton() {
 export default function HomePage() {
   return (
     <div className="max-w-7xl mx-auto w-full min-w-0 px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-10">
+      <Suspense fallback={null}><AccountDeletedNotice /></Suspense>
       <Suspense fallback={<div className="aspect-[8/3] rounded-2xl bg-stone-200 animate-pulse" />}>
         <Banner />
       </Suspense>

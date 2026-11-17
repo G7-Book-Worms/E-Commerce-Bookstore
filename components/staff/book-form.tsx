@@ -85,7 +85,7 @@ export function BookForm({ mode, bookId, isbn: isbnInit = '', categories, initia
           <label className="text-sm"><span className="mb-1 block font-medium">ISBN-13</span>
             <input required value={f.isbn} onChange={(e) => setF({ ...f, isbn: e.target.value })} className={`${inputCls} font-mono`} placeholder="978-0-00-000031-0" /></label>
         ) : (
-          <p className="text-sm"><span className="mb-1 block font-medium">ISBN-13</span><span className="font-mono">{isbnInit}</span> <Link className="ml-2 text-xs underline" href={`/product/${encodeURIComponent(isbnInit)}`}>View in store</Link></p>
+          <p className="text-sm"><span className="mb-1 block font-medium">ISBN-13</span><span className="font-mono">{isbnInit}</span> <Link className="ml-2 text-xs underline" href={`/product/${encodeURIComponent(isbnInit)}`}>View in Store</Link></p>
         )}
         <label className="text-sm"><span className="mb-1 block font-medium">Category</span>
           <select value={f.categoryId} onChange={(e) => setF({ ...f, categoryId: e.target.value })} className={inputCls}>
@@ -105,7 +105,7 @@ export function BookForm({ mode, bookId, isbn: isbnInit = '', categories, initia
       </div>
 
       <fieldset>
-        <legend className="mb-2 text-sm font-medium">Shelves and genres</legend>
+        <legend className="mb-2 text-sm font-medium">Shelves and Genres</legend>
         <div className="flex flex-wrap gap-2">
           {Object.entries(TAG_LABELS).map(([t, label]) => (
             <label key={t} className={`cursor-pointer rounded-full border px-3 py-1 text-sm ${f.tags.has(t) ? 'border-green-900 bg-green-900 text-white' : 'border-stone-300 bg-white'}`}>
@@ -138,8 +138,8 @@ export function BookForm({ mode, bookId, isbn: isbnInit = '', categories, initia
       )}
 
       <div className="flex flex-wrap gap-2">
-        <button className={btnPrimary} disabled={busy}>{busy ? 'Saving…' : mode === 'create' ? 'Add book' : 'Save changes'}</button>
-        <Link href="/admin/inventory" className={btnSecondary}>Back to inventory</Link>
+        <button className={btnPrimary} disabled={busy}>{busy ? 'Saving…' : mode === 'create' ? 'Add book' : 'Save Changes'}</button>
+        <Link href="/admin/inventory" className={btnSecondary}>Back to Inventory</Link>
       </div>
       {msg && <p role="status" className={`text-sm ${msg.ok ? 'text-green-800' : 'text-red-700'}`}>{msg.text}</p>}
     </form>

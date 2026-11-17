@@ -3,19 +3,19 @@
 Sources: *Project Desc & grading F26 v2* (spec + rubric) and *DemoCheckList v4* (the sheet the grader ticks during the demo).
 Rows follow the demo checklist order, so the demo can follow this file top to bottom.
 
-Status: **Met** = works on `main` · **This PR** = done in `final/1-data-catalog` · **Planned** = ticket scheduled · **Missing** = no ticket yet.
+Status as of the final audit (11/16, SCRUM-205): every one of the 24 checklist items is **Done**. Items added in Session 4 (PR #18) are live once it is merged to `main`.
 
 ## Grading weights
 
 | Part | Weight | How we cover it |
 |---|---|---|
 | Functionality (checklist below, about equal weight per item) | 30% | Sprints 136–138 |
-| UI/UX: responsive, color scheme, easy to use (mobile = bonus) | 20% | Every ticket checks phone widths; SCRUM-202 |
+| UI/UX: responsive, color scheme, easy to use (mobile = bonus) | 20% | SCRUM-202: every customer and staff page checked at iPhone width, no sideways scrolling, larger tap targets |
 | Demonstration (all members attend, preferably present their part; demo only, no plain presentation) | 15% | SCRUM-195; 15-minute demo (per the spec) |
 | Write-up (~10 pages, diagrams, workflow; one copy) | 10% | SCRUM-197 |
 | Peer review | 25% | Individual, confidential |
-| Bonus: hosted on cloud | extra | Aiven MySQL (done); Vercel deploy SCRUM-203 |
-| Bonus: extra functionality | extra | Star ratings, formats, activity log, Stripe test checkout |
+| Bonus: hosted on cloud | extra | Aiven MySQL + Vercel at bookwrms.store, with a preview deployment for every PR |
+| Bonus: extra functionality | extra | See "Extras built" below |
 
 ## Before the demo
 
@@ -27,7 +27,7 @@ Sign in once afterwards to confirm the cart is empty.
 
 | # | Checklist item (DemoCheckList v4) | Spec wording | Ticket(s) | Status | Demo step |
 |---|---|---|---|---|---|
-| 1 | Database / web server app / cloud | "database driven"; "extra grade for hosting on cloud" | SCRUM-174, 175, 203 | Done: Aiven MySQL + Vercel (bookwrms.store, live after the Session 3 merge) | Show Aiven console or schema diagram, then the live site |
+| 1 | Database / web server app / cloud | "database driven"; "extra grade for hosting on cloud" | SCRUM-174, 175, 203 | Done: Aiven MySQL + Vercel (bookwrms.store) | Show Aiven console or schema diagram, then the live site |
 | 2 | Show images (opening) | "intuitive UI/UX" | SCRUM-177 | Done | Homepage and catalog covers |
 | 3 | Log-in / modify user (by user) | "change account information (name etc.)" | Account page (merged), SCRUM-201 | Done | Sign in, edit name on /account |
 | 4 | User registration | "register for accounts" | SCRUM-172 | Done | Create Account in header |
@@ -54,16 +54,18 @@ Sign in once afterwards to confirm the cart is empty.
 
 ## Extras built (count toward "additional functionality")
 
-- Staff roles (employee / manager / administrator), activity log, inventory movement history, low-stock alerts by email
-- Emails: welcome, order confirmation, status updates, password reset links, staff replies to contact messages
-- Security: lockout, rate limits, sign out everywhere, CSRF and security headers (docs/security.md)
-- Contact Support inbox, class-project notice, Stripe auto-refund
+- **Shopping:** guest checkout with a verified order lookup, "You may like" recommendations, hardcover/paperback formats, star ratings, sale badges, address suggestions, recipient name and phone on addresses
+- **Accounts and security:** two-step sign-in (email code, authenticator app, or text via Twilio Verify; required for staff), passkeys (Face ID / Touch ID / Windows Hello), Cloudflare Turnstile bot check, security alert emails, lockout and rate limits, sign out everywhere, CSRF protection and security headers (docs/security.md)
+- **Privacy:** download a copy of your data, delete your account (orders kept anonymously)
+- **Staff portal:** roles (employee / manager / administrator / owner) with password re-confirmation for destructive actions, an activity log grouped by category (Security, Orders, Inventory…), inventory movement history, low-stock alerts, a support inbox with tickets, and @bookwrms.store work mailboxes created and removed with staff accounts (Migadu)
+- **Email:** welcome, order confirmation with ship-to details, status updates, password reset links, staff replies, all sent from our own domain
+- **Engineering:** GitHub Actions CI (typecheck, lint, 239 unit tests, build, browser end-to-end tests against MySQL and a fake Stripe), a preview deployment per PR, two nondestructive penetration tests with fixes
+- **Payments:** Stripe test mode only (live keys refused) with automatic refunds
 
-## Not required (cut first if time runs short)
+## Known gaps (accepted)
 
-- Star ratings and rating filter, hardcover/paperback formats, activity log, product-page summary dropdown (Notion stories; nice extras that count toward "additional functionality")
-- Real B&N catalog import (stretch, SCRUM-175)
-- CI pipeline (optional, SCRUM-194)
+- Order and security-alert **texts** need a carrier-registered sender (A2P 10DLC or a verified toll-free number); sign-in codes by text work through Twilio Verify. See the final report notes.
+- The database connection doesn't verify Aiven's certificate yet (SCRUM-193: needs the CA certificate from the Aiven console as `DB_CA_CERT`).
 
 ## Report (due 11/30)
 

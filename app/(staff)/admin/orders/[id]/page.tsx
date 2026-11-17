@@ -5,6 +5,7 @@ import { requireStaffPage } from '@/server/src/modules/staff/staff-page';
 import { getOrderDetail, NEXT_STATUSES, type OrderStatus } from '@/server/src/modules/orders/orders-admin';
 import { shipmentView } from '@/server/src/modules/orders/carriers';
 import { can } from '@/lib/staff-permissions';
+import { describeAction } from '@/lib/activity-categories';
 import { Badge, ORDER_STATUS_BADGE, PageHeader, Panel, dateTime, money } from '@/components/staff/ui';
 import { OrderStatusForm } from './status-form';
 
@@ -58,7 +59,7 @@ async function Content({ params }: { params: Promise<{ id: string }> }) {
                 {history.map((h) => (
                   <li key={h.activityId} className="flex flex-wrap gap-x-3">
                     <span className="w-44 shrink-0 text-stone-500">{dateTime(h.created)}</span>
-                    <span className="font-mono text-xs leading-5">{h.action}</span>
+                    <span className="leading-5">{describeAction(h.action).label} <code className="font-mono text-[11px] text-stone-400">{h.action}</code></span>
                     <span className="text-xs leading-5 text-stone-500">{h.actorType}</span>
                   </li>
                 ))}
@@ -67,7 +68,7 @@ async function Content({ params }: { params: Promise<{ id: string }> }) {
           </Panel>
         </div>
         <div className="space-y-6">
-          <Panel title="Update status">
+          <Panel title="Update Status">
             {can(staff.role, 'orders.update') ? (
               <OrderStatusForm orderId={order.orderId} status={status} next={NEXT_STATUSES[status]} carrier={order.carrier} trackingNumber={order.trackingNumber} />
             ) : <p className="text-sm text-stone-500">Your role can view orders but not change them.</p>}
@@ -78,13 +79,20 @@ async function Content({ params }: { params: Promise<{ id: string }> }) {
                 <p className="font-medium">{customer.firstName} {customer.lastName}</p>
                 <p className="text-stone-600">{customer.email}</p>
                 {customer.phone && <p className="text-stone-600">{customer.phone}</p>}
-                {can(staff.role, 'customers.view') && <Link href={`/admin/customers/${customer.userId}`} className="text-xs underline">View customer</Link>}
+                {can(staff.role, 'customers.view') && <Link href={`/admin/customers/${customer.userId}`} className="text-xs underline">View Customer</Link>}
+              </div>
+            ) : order.userId == null ? (
+              <div className="space-y-1 text-sm">
+                <p className="font-medium">{address?.recipientName || 'Guest'} <span className="ml-1 rounded bg-stone-100 px-1.5 py-0.5 text-[11px] font-medium text-stone-600">Guest</span></p>
+                {order.guestEmail && <p className="text-stone-600">{order.guestEmail}</p>}
+                {address?.phone && <p className="text-stone-600">{address.phone}</p>}
+                <p className="text-xs text-stone-500">Checked out without an account.</p>
               </div>
             ) : <p className="text-sm text-stone-500">Account deleted</p>}
           </Panel>
-          <Panel title="Ship to">
+          <Panel title="Ship To">
             {address ? (
-              <address className="text-sm not-italic text-stone-700">{address.street}<br />{address.city}, {address.state} {address.zip}<br />{address.country}</address>
+              <address className="text-sm not-italic text-stone-700">{address.recipientName && <><strong className="font-semibold text-stone-900">{address.recipientName}</strong><br /></>}{address.street}<br />{address.city}, {address.state} {address.zip}<br />{address.country}{address.phone && <><br />{address.phone}</>}</address>
             ) : <p className="text-sm text-stone-500">No address</p>}
             {shipment && (
               <p className="mt-2 text-xs text-stone-500">

@@ -46,7 +46,7 @@ async function Results({ searchParams }: { searchParams: SearchParams }) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-16 text-center">
         <p className="text-lg">{message}</p>
-        <Link href="/product-catalog/all" className="mt-4 inline-block underline">Clear filters</Link>
+        <Link href="/product-catalog/all" className="mt-4 inline-block underline">Clear Filters</Link>
       </div>
     );
   }

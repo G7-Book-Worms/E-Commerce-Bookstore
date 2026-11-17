@@ -10,6 +10,7 @@ import React, {
 } from 'react';
 import { useRouter } from 'next/navigation';
 import { fetchCurrentSession, logoutUser, UserSession } from '@/lib/api/auth';
+import { forgetGuestChoice } from '@/lib/checkout-choice';
 
 export type { UserSession };
 
@@ -34,12 +35,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const setUser = useCallback((newUser: UserSession | null) => {
+    // Signing in or out: an earlier "Continue as Guest" no longer applies (lib/checkout-choice.ts)
+    forgetGuestChoice();
     setUserState(newUser);
   }, []);
 
   const refreshSession = useCallback(async () => {
     try {
       const session = await fetchCurrentSession();
+      if (session) forgetGuestChoice();
       setUserState(session);
     } catch {
       setUserState(null);

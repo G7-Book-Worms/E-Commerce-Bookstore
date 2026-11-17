@@ -40,6 +40,7 @@ export class OrdersRepository {
     itemsData: Omit<NewOrderItem, 'orderItemId' | 'orderId' | 'unitTotal'>[]
   ): Promise<Order> {
     return db.transaction(async (tx) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- driver result shape isn't typed by drizzle
       const [orderResult]: any = await tx.insert(orders).values(orderData);
       const insertedOrderId = orderResult.insertId;
 
@@ -54,6 +55,7 @@ export class OrdersRepository {
 
         // Take the ordered copies out of inventory in the same transaction
         for (const item of itemsData) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- driver result shape isn't typed by drizzle
           const [res]: any = await tx
             .update(books)
             .set({ stock: sql`${books.stock} - ${item.quantity}` })

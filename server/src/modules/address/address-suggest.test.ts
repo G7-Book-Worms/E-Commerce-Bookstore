@@ -65,12 +65,36 @@ test('a result with no street is not offered', () => {
   assert.equal(toSuggestion(omit(AMPHITHEATRE, 'housenumber', 'street')), null);
 });
 
-test('a result with no postcode is not offered', () => {
-  assert.equal(toSuggestion(omit(AMPHITHEATRE, 'postcode')), null);
+test('a house number with no street name is not offered', () => {
+  assert.equal(toSuggestion(omit(AMPHITHEATRE, 'street')), null);
 });
 
-test('a result with no city, town or village is not offered', () => {
-  assert.equal(toSuggestion(omit(AMPHITHEATRE, 'city')), null);
+test('a city-level match (no street) is not offered', () => {
+  assert.equal(toSuggestion({ city: 'Mountain View', state_code: 'CA', country_code: 'us' }), null);
+});
+
+// Partial typing mostly matches streets that Geoapify can't pin to one number or postcode yet.
+test('a street with no postcode is still offered while typing, with what is known', () => {
+  const s = toSuggestion(omit(AMPHITHEATRE, 'housenumber', 'postcode'))!;
+  assert.equal(s.street, 'Amphitheatre Parkway');
+  assert.equal(s.zip, '');
+  assert.equal(s.city, 'Mountain View');
+  assert.equal(s.label, 'Amphitheatre Parkway, Mountain View, CA');
+  assert.equal(s.needsNumber, true);
+});
+
+test('a street with no city is still offered, labelled without a dangling comma', () => {
+  const s = toSuggestion(omit(AMPHITHEATRE, 'city'))!;
+  assert.equal(s.city, '');
+  assert.equal(s.label, '1600 Amphitheatre Parkway, CA 94043');
+});
+
+test('a bare street with nothing else is labelled with just the street', () => {
+  assert.equal(toSuggestion({ street: 'Main Street' })!.label, 'Main Street');
+});
+
+test('a full address does not ask for a house number', () => {
+  assert.equal(toSuggestion(AMPHITHEATRE)!.needsNumber, undefined);
 });
 
 test('a town stands in for a missing city', () => {
@@ -78,7 +102,9 @@ test('a town stands in for a missing city', () => {
 });
 
 test('a street with no house number is still usable', () => {
-  assert.equal(toSuggestion(omit(AMPHITHEATRE, 'housenumber'))!.street, 'Amphitheatre Parkway');
+  const s = toSuggestion(omit(AMPHITHEATRE, 'housenumber'))!;
+  assert.equal(s.street, 'Amphitheatre Parkway');
+  assert.equal(s.needsNumber, true);
 });
 
 test('the full state name is used when there is no state code', () => {
@@ -100,9 +126,15 @@ test('points of interest at the same address collapse to one suggestion', () => 
 
 test('unusable results are dropped and the list is capped', () => {
   const many = Array.from({ length: 12 }, (_, i) => ({ ...AMPHITHEATRE, housenumber: String(100 + i) }));
-  const out = toSuggestions([{ city: 'Nowhere' }, ...many]);
+  const out = toSuggestions([{ city: 'Nowhere' }, { housenumber: '12' }, ...many]);
   assert.equal(out.length, MAX_SUGGESTIONS);
   assert.equal(out[0].street, '100 Amphitheatre Parkway');
+});
+
+test('partial matches in different towns are kept apart, duplicates are not', () => {
+  const partial = omit(AMPHITHEATRE, 'housenumber', 'postcode');
+  const elsewhere = { ...partial, city: 'Palo Alto' };
+  assert.equal(toSuggestions([partial, { ...partial }, elsewhere]).length, 2);
 });
 
 // --- suggestAddresses: every failure path returns [] and never leaks the key -----------------

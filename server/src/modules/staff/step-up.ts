@@ -18,7 +18,7 @@ import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../../../db';
 import { admin } from '../../../db/schema';
-import { UnauthorizedError } from '../../shared/errors/app-error';
+import { UnauthorizedError, ForbiddenError } from '../../shared/errors/app-error';
 import { comparePassword } from '../../shared/utils/hash-utils';
 import { rateLimit } from '../../shared/security/rate-limit';
 import { logActivity } from '../activity/activity-log';
@@ -49,7 +49,9 @@ const WRONG = 'That password is not correct. The action was not carried out.';
  */
 export async function requireStepUp(actorId: number, password: unknown, ip?: string | null): Promise<void> {
   const parsed = stepUpPasswordSchema.safeParse(password);
-  if (!parsed.success) throw new UnauthorizedError(parsed.error.issues[0]?.message ?? WRONG);
+  // 403, not 401: the staff session is fine, only the confirmation failed. (The portal treats any
+  // 401 as "session expired" and goes back to sign-in, which threw people out of the dialog.)
+  if (!parsed.success) throw new ForbiddenError(parsed.error.issues[0]?.message ?? WRONG);
 
   // Counted before the comparison, so a wrong guess costs an attempt even if the request
   // then fails for another reason. Throws 429 once the window is used up.
@@ -65,6 +67,6 @@ export async function requireStepUp(actorId: number, password: unknown, ip?: str
   if (!(await comparePassword(parsed.data, account.passwordHash))) {
     // The attempt is recorded; the password itself is not part of the details.
     await logActivity('admin', actorId, 'staff.step_up_failed', {}, ip);
-    throw new UnauthorizedError(WRONG);
+    throw new ForbiddenError(WRONG);
   }
 }

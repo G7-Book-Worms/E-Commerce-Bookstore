@@ -1,9 +1,9 @@
 // Client helper for the staff portal's API calls: JSON in, { ok, data, message } out.
-export async function staffFetch<T = Record<string, unknown>>(url: string, method: string, body?: unknown) {
+export async function staffFetch<T = Record<string, unknown>>(url: string, method: string, body?: unknown, headers: Record<string, string> = {}) {
   try {
     const res = await fetch(url, {
       method,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...headers },
       credentials: 'same-origin',
       body: body === undefined ? undefined : JSON.stringify(body),
     });

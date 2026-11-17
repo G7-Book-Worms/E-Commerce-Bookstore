@@ -53,11 +53,12 @@ export function canActOn(actor: ActorRef, target: TargetRef): boolean {
   return canManage(actor.role, target.role);
 }
 
-export const STAFF_ACTIONS = ['set-role', 'deactivate', 'activate', 'temp-password', 'sign-out', 'delete'] as const;
+export const STAFF_ACTIONS = ['set-role', 'deactivate', 'activate', 'temp-password', 'sign-out', 'delete', 'unlock-signin'] as const;
 export type StaffAction = (typeof STAFF_ACTIONS)[number];
 
 export const CUSTOMER_ACTIONS = [
-  'update', 'send-reset-link', 'force-reset', 'temp-password', 'sign-out', 'deactivate', 'activate', 'delete',
+  'update', 'check-email', 'send-reset-link', 'force-reset', 'temp-password', 'sign-out', 'deactivate', 'activate', 'delete',
+  'unlock-signin',
 ] as const;
 export type CustomerAction = (typeof CUSTOMER_ACTIONS)[number];
 
@@ -71,14 +72,19 @@ export function staffActionNeedsStepUp(
   roleBefore?: string | null,
   roleAfter?: string | null
 ): boolean {
-  if (action === 'deactivate' || action === 'delete' || action === 'temp-password') return true;
+  if (action === 'deactivate' || action === 'delete' || action === 'temp-password' || action === 'unlock-signin') return true;
   if (action === 'set-role') return isDemotion(roleBefore, roleAfter);
   return false;
 }
 
 /** The same rule for customer accounts. Editing contact details and sending a reset link do not ask. */
 export function customerActionNeedsStepUp(action: CustomerAction): boolean {
-  return action === 'deactivate' || action === 'delete' || action === 'temp-password' || action === 'force-reset';
+  return action === 'deactivate' || action === 'delete' || action === 'temp-password' || action === 'force-reset' || action === 'unlock-signin';
+}
+
+/** Ending a sign-in lockout early is for administrators (and the owner) only. */
+export function canUnlockSignIn(role: string | undefined | null): boolean {
+  return role === 'admin' || role === 'owner';
 }
 
 /** Actions an employee (customers.edit but not customers.manage) is allowed to take on a customer. */

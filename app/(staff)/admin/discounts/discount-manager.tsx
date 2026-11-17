@@ -125,7 +125,7 @@ export function DiscountManager({ rows }: { rows: Discount[] }) {
           </label>
         </div>
         <div className="mt-4 flex gap-2">
-          <button className={btnPrimary} disabled={busy}>{busy ? 'Saving…' : editing ? 'Save changes' : 'Create code'}</button>
+          <button className={btnPrimary} disabled={busy}>{busy ? 'Saving…' : editing ? 'Save Changes' : 'Create code'}</button>
           {editing && <button type="button" className={btnSecondary} onClick={() => { setEditing(null); setForm(empty); }}>Cancel edit</button>}
         </div>
         {msg && <p role="status" className={`mt-2 text-sm ${msg.ok ? 'text-green-800' : 'text-red-700'}`}>{msg.text}</p>}

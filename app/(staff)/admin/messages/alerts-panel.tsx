@@ -67,7 +67,7 @@ export function AlertsPanel({ rows, canEdit }: { rows: AlertRow[]; canEdit: bool
               </div>
               {a.subjectType === 'book' && a.subjectId !== null && (
                 <Link href={`/admin/books/${a.subjectId}`} className="shrink-0 text-xs text-green-900 underline underline-offset-2">
-                  Open book
+                  Open Book
                 </Link>
               )}
               <span className="shrink-0 text-xs text-stone-500">{dateTime(a.created)}</span>

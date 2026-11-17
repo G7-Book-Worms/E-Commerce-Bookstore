@@ -10,7 +10,7 @@ export function SignOutButton() {
       }}
       className="text-xs text-green-100 underline underline-offset-2 hover:text-white"
     >
-      Sign out
+      Sign Out
     </button>
   );
 }

@@ -11,6 +11,8 @@ import { generateToken, type StaffRole } from '../../shared/utils/token-util';
 import { BadRequestError, UnauthorizedError } from '../../shared/errors/app-error';
 import { assertNotLocked, clearFailures, rateLimit, recordFailure } from '../../shared/security/rate-limit';
 import { logActivity } from '../activity/activity-log';
+import { beginSecondStep } from '../mfa/mfa-service';
+import { alertIfNewSignIn, alertLockout } from '../mfa/security-alerts';
 import { newPasswordSchema } from '../../../../lib/password-policy';
 
 export const staffLoginSchema = z.object({
@@ -31,7 +33,7 @@ export function staffToken(a: { adminId: number; email: string; adminRole: strin
   return generateToken({ id: a.adminId, email: a.email, role: a.adminRole as StaffRole, tv: a.tokenVersion }, 'staff');
 }
 
-const GENERIC = 'Invalid email, password or employee ID';
+const GENERIC = 'Incorrect email address, password, or employee ID.';
 
 export async function staffLogin(input: z.infer<typeof staffLoginSchema>, ip: string) {
   await rateLimit(`staff-login:ip:${ip}`, 20, 15 * 60);
@@ -48,16 +50,27 @@ export async function staffLogin(input: z.infer<typeof staffLoginSchema>, ip: st
   if (!passwordOk || (account.employeeId ?? '').toUpperCase() !== input.employeeId) {
     const locked = await recordFailure(lockKey);
     await logActivity('admin', account.adminId, locked ? 'staff.locked_out' : 'staff.login_failed', {}, ip);
+    if (locked) await alertLockout({ kind: 'staff', id: account.adminId, email: account.email, firstName: account.firstName }, ip);
     throw new UnauthorizedError(GENERIC);
   }
   if (!account.isActive) throw new UnauthorizedError('This staff account has been deactivated');
 
   await clearFailures(lockKey);
-  await db.update(admin).set({
-    lastLogin: new Date(),
-    ...(needsRehash(account.passwordHash) ? { passwordHash: await hashPassword(input.password) } : {}),
-  }).where(eq(admin.adminId, account.adminId));
-  await logActivity('admin', account.adminId, 'staff.login', {}, ip);
+  if (needsRehash(account.passwordHash)) {
+    await db.update(admin).set({ passwordHash: await hashPassword(input.password) }).where(eq(admin.adminId, account.adminId));
+  }
+  // Two-step sign-in is required for every staff account: the session is only issued by
+  // completeStaffSignIn once the code is checked (POST /api/mfa/verify)
+  return { mfa: await beginSecondStep('staff', account.adminId, false, ip) };
+}
+
+/** The last step of a staff sign-in, after the second step passed. */
+export async function completeStaffSignIn(adminId: number, ip: string, how: Record<string, unknown> = {}) {
+  const [account] = await db.select().from(admin).where(eq(admin.adminId, adminId));
+  if (!account || !account.isActive) throw new UnauthorizedError('This staff account has been deactivated');
+  await db.update(admin).set({ lastLogin: new Date() }).where(eq(admin.adminId, adminId));
+  await alertIfNewSignIn({ kind: 'staff', id: adminId, email: account.email, firstName: account.firstName }, ip);
+  await logActivity('admin', adminId, 'staff.login', { method: account.mfaMethod, ...how }, ip);
   return { token: staffToken(account), mustChangePassword: account.mustChangePassword };
 }
 

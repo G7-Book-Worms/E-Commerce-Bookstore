@@ -2,22 +2,32 @@
 'use client';
 
 import React, { useState } from 'react';
-import Link from 'next/link';
+import { BrandMark } from '@/components/brand-mark';
+import { SamePageLink } from '@/components/same-page-link';
+import { useTurnstile } from '@/components/turnstile';
 
 export const Footer: React.FC = () => {
   const [formData, setFormData] = useState({ name: '', email: '', message: '' });
   const [status, setStatus] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // The footer is on every page: only load the bot check once someone starts on the form
+  const [touched, setTouched] = useState(false);
+  const human = useTurnstile('contact', touched);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setTouched(true);
+    if (!(await human.waitUntilReady())) {
+      setStatus("The security check didn't finish. Refresh the page and try again.");
+      return;
+    }
     setIsSubmitting(true);
     setStatus(null);
 
     try {
       const res = await fetch('/api/contact', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...human.headers() },
         body: JSON.stringify(formData),
       });
       const data = await res.json();
@@ -31,6 +41,7 @@ export const Footer: React.FC = () => {
       setStatus('Failed to dispatch message.');
     } finally {
       setIsSubmitting(false);
+      human.reset();
     }
   };
 
@@ -40,7 +51,7 @@ export const Footer: React.FC = () => {
         {/* Support & Brand Details */}
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <span className="text-xl">📚</span>
+            <BrandMark size={28} />
             <span className="font-serif font-bold text-lg text-stone-900 tracking-tight">Book Worms</span>
           </div>
           <p className="text-xs text-stone-500 max-w-sm leading-relaxed">
@@ -53,7 +64,7 @@ export const Footer: React.FC = () => {
         </div>
 
         {/* Contact Form Card */}
-        <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-2xs">
+        <div id="contact" className="scroll-mt-24 rounded-lg border border-stone-200 bg-white p-5 shadow-2xs">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-stone-900 mb-1">
             Contact Support
           </h3>
@@ -61,7 +72,7 @@ export const Footer: React.FC = () => {
 
           {status && <p className="text-xs text-stone-900 font-medium mb-3">{status}</p>}
 
-          <form onSubmit={handleSubmit} className="space-y-3">
+          <form onSubmit={handleSubmit} onFocus={() => setTouched(true)} className="space-y-3">
             {/* Spam trap: hidden from people, bots fill it in (the server rejects those) */}
             <div aria-hidden="true" className="hidden">
               <label>Leave this empty <input type="text" name="website" tabIndex={-1} autoComplete="off" defaultValue="" /></label>
@@ -97,6 +108,7 @@ export const Footer: React.FC = () => {
               onChange={(e) => setFormData({ ...formData, message: e.target.value })}
               className="w-full rounded-md border border-stone-200 bg-white p-2.5 text-xs placeholder:text-stone-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-stone-900"
             />
+            {human.widget}
             <button
               type="submit"
               disabled={isSubmitting}
@@ -112,11 +124,12 @@ export const Footer: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 flex flex-wrap items-center justify-between gap-4 text-xs text-stone-400">
         <p>© 2026 Book Worms Bookstore. All rights reserved.</p>
         <div className="flex flex-wrap gap-x-2">
-          <Link href="/about" className="inline-flex min-h-8 items-center px-1 hover:text-stone-900 transition">About</Link>
-          <Link href="/about#shipping" className="inline-flex min-h-8 items-center px-1 hover:text-stone-900 transition">Shipping</Link>
-          <Link href="/about#privacy" className="inline-flex min-h-8 items-center px-1 hover:text-stone-900 transition">Privacy</Link>
-          <Link href="/about#terms" className="inline-flex min-h-8 items-center px-1 hover:text-stone-900 transition">Terms</Link>
-          <Link href="/staff-login" className="inline-flex min-h-8 items-center px-1 hover:text-stone-900 transition">Staff sign in</Link>
+          <SamePageLink href="/checkout/guest-order" className="inline-flex min-h-8 items-center px-1 hover:text-stone-900 transition">Find Your Order</SamePageLink>
+          <SamePageLink href="/about" className="inline-flex min-h-8 items-center px-1 hover:text-stone-900 transition">About</SamePageLink>
+          <SamePageLink href="/about#shipping" className="inline-flex min-h-8 items-center px-1 hover:text-stone-900 transition">Shipping</SamePageLink>
+          <SamePageLink href="/about#privacy" className="inline-flex min-h-8 items-center px-1 hover:text-stone-900 transition">Privacy</SamePageLink>
+          <SamePageLink href="/about#terms" className="inline-flex min-h-8 items-center px-1 hover:text-stone-900 transition">Terms</SamePageLink>
+          <SamePageLink href="/staff-login" className="inline-flex min-h-8 items-center px-1 hover:text-stone-900 transition">Staff Sign-In</SamePageLink>
         </div>
       </div>
     </footer>

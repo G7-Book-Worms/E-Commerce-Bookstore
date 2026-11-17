@@ -1,12 +1,15 @@
 import { newPasswordSchema } from '../../../../lib/password-policy';
 import { z } from 'zod';
+import { phoneSchema, recipientNameSchema } from '../../../../lib/address-rules';
 
 // SCRUM-94: Profile update validation
 export const updateProfileSchema = z.object({
   firstName: z.string().min(1, 'First name is required').max(50).optional(),
   lastName: z.string().min(1, 'Last name is required').max(50).optional(),
   phone: z.string().min(7, 'Invalid phone number format').max(20).optional(),
-  email: z.string().email('Invalid email address').max(100).optional(),
+  email: z.string().trim().toLowerCase().email('Enter a valid email address').max(100).optional(),
+  // Required only when the email changes: the email is where sign-in codes and resets go
+  currentPassword: z.string().max(200).optional(),
 });
 
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
@@ -27,6 +30,8 @@ export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 
 // SCRUM-101 & SCRUM-102: Address DTOs
 export const createAddressSchema = z.object({
+  recipientName: recipientNameSchema,
+  phone: phoneSchema.optional(),
   street: z.string().min(3).max(100),
   city: z.string().min(2).max(100),
   state: z.string().min(2).max(100),

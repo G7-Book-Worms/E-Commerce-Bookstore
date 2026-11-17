@@ -11,12 +11,14 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { BookCover } from "@/components/book-cover";
 import { OrderSummary } from "@/components/cart/order-summary";
 import { EmptyState } from "@/components/empty-state";
+import { FormatBadge } from "@/components/format-badge";
 import { useCart } from "@/app/context/CartContext";
 import { useAuth } from "@/app/context/auth-context";
 import { formatPrice, stockLabel } from "@/lib/catalog";
 import { loadDiscountCode, saveDiscountCode, type CartData, type CartLine } from "@/lib/cart-types";
-
-const LABEL = { hardcover: "Hardcover", paperback: "Paperback" } as const;
+import { QuantityInput } from "@/components/cart/quantity-input";
+import { showToast } from "@/components/toast";
+import { MAX_PER_LINE, limitMessage } from "@/lib/quantity";
 
 export default function CartPage() {
   // SCRUM-208: a guest's cart lives in this browser, so it is priced by the guest quote endpoint
@@ -92,24 +94,52 @@ export default function CartPage() {
       .finally(() => setIsLoading(false));
   }, [callCart, authLoading]);
 
-  const mutate = async (line: CartLine, init: RequestInit) => {
+  /** Sends one cart change; false when it failed (the error banner says why). */
+  const mutate = async (line: CartLine, init: RequestInit): Promise<boolean> => {
     setBusyLine(line.cartItemId);
     setError(null);
     try {
       await callCart(code, init);
+      return true;
     } catch (err) {
       setError((err as Error).message);
+      return false;
     } finally {
       setBusyLine(null);
     }
   };
 
+  const edition = (line: CartLine) => (line.format === "hardcover" ? "Hardcover" : "Paperback");
+  const lineKey = (line: CartLine) => `qty:${line.bookId}:${line.format}`;
+
+  /** Sets a line to an exact quantity (typed in, or + / −). 0 removes it. */
+  const setQuantity = async (line: CartLine, quantity: number): Promise<boolean> => {
+    if (quantity <= 0) return (await removeLine(line)) !== false;
+    const max = Math.min(MAX_PER_LINE, line.stock);
+    if (quantity > max) {
+      // Going down but still above what's left (stock fell since it was added): go to the most allowed
+      if (quantity < line.quantity && max > 0) quantity = max;
+      else {
+        // Shown as a toast that shakes harder each time instead of stacking up
+        showToast(max > 0 ? limitMessage(max, edition(line)) : "This edition is out of stock. Remove it to check out.", { tone: "warn", key: lineKey(line) });
+        return false;
+      }
+    }
+    // A guest's cart is local, so this is a state change, not a request.
+    if (isGuest) {
+      setGuestQuantity(line.bookId, line.format, quantity);
+      return true;
+    }
+    return mutate(line, { method: "PATCH", body: JSON.stringify({ bookId: line.bookId, format: line.format, quantity }) });
+  };
+
   const changeQuantity = (line: CartLine, amount: number) => {
     const quantity = line.quantity + amount;
-    if (quantity < 1 || quantity > line.stock) return;
-    // A guest's cart is local, so this is a state change, not a request.
-    if (isGuest) return setGuestQuantity(line.bookId, line.format, quantity);
-    mutate(line, { method: "PATCH", body: JSON.stringify({ bookId: line.bookId, format: line.format, quantity }) });
+    if (quantity < 1) {
+      showToast("1 copy is the minimum. Use Remove to take it out of your cart.", { tone: "warn", key: lineKey(line) });
+      return;
+    }
+    void setQuantity(line, quantity);
   };
 
   const removeLine = (line: CartLine) => {
@@ -158,14 +188,14 @@ export default function CartPage() {
         <EmptyState image="signIn" title="Sign in to see your cart">
           <p>Your cart is saved to your account, so it follows you to any device.</p>
           <div className="mt-5 flex flex-wrap justify-center gap-3">
-            <Link href={`/user-login?callbackUrl=${encodeURIComponent("/cart")}`} className={buttonVariants()}>Sign in</Link>
-            <Link href="/user-register" className={buttonVariants({ variant: "outline" })}>Create an account</Link>
+            <Link href={`/user-login?callbackUrl=${encodeURIComponent("/cart")}`} className={buttonVariants()}>Sign In</Link>
+            <Link href={`/user-register?callbackUrl=${encodeURIComponent("/cart")}`} className={buttonVariants({ variant: "outline" })}>Create an account</Link>
           </div>
         </EmptyState>
       ) : lines.length === 0 ? (
         <EmptyState image="cart" title="Your cart is empty">
           <p>This pup is waiting for you to find a good book.</p>
-          <Link href="/product-catalog" className={`${buttonVariants()} mt-5`}>Browse books</Link>
+          <Link href="/product-catalog" className={`${buttonVariants()} mt-5`}>Browse Books</Link>
         </EmptyState>
       ) : (
         <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
@@ -181,7 +211,8 @@ export default function CartPage() {
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="min-w-0">
                         <Link href={`/product/${encodeURIComponent(line.isbn)}`} className="font-medium leading-tight hover:underline">{line.title}</Link>
-                        <p className="text-sm text-muted-foreground">{line.author} · {LABEL[line.format]}</p>
+                        <p className="text-sm text-muted-foreground">{line.author}</p>
+                        <FormatBadge format={line.format} className="mt-1.5" />
                       </div>
                       <p className="font-semibold">{formatPrice(line.lineTotalCents)}</p>
                     </div>
@@ -199,15 +230,29 @@ export default function CartPage() {
                       <span className="text-muted-foreground"> each</span>
                     </p>
                     <p className={`text-xs ${line.quantity > line.stock ? "font-medium text-red-700" : "text-muted-foreground"}`}>
-                      {line.quantity > line.stock ? `Only ${line.stock} left. Lower the quantity to check out.` : stockLabel(line.stock)}
+                      {line.quantity > line.stock
+                        ? line.stock <= 0
+                          ? "Out of stock now. Remove it to check out."
+                          : `Only ${line.stock} left. Lower the quantity to check out.`
+                        : stockLabel(line.stock)}
                     </p>
                     <div className="mt-auto flex items-center gap-3 pt-2">
                       <div className="flex items-center rounded-md border">
-                        <Button variant="ghost" size="icon-sm" onClick={() => changeQuantity(line, -1)} disabled={busy || line.quantity <= 1} aria-label={`Fewer copies of ${line.title}`}>
+                        {/* At the limits the buttons stay clickable (aria-disabled) and explain why
+                            nothing changed, instead of silently doing nothing */}
+                        <Button variant="ghost" size="icon-sm" onClick={() => changeQuantity(line, -1)} disabled={busy} aria-disabled={line.quantity <= 1 || undefined} className="aria-disabled:opacity-40" aria-label={`Fewer copies of ${line.title}`}>
                           <Minus />
                         </Button>
-                        <span className="w-8 text-center tabular-nums">{line.quantity}</span>
-                        <Button variant="ghost" size="icon-sm" onClick={() => changeQuantity(line, 1)} disabled={busy || line.quantity >= line.stock} aria-label={`More copies of ${line.title}`}>
+                        <QuantityInput
+                          quantity={line.quantity}
+                          stock={line.stock}
+                          edition={edition(line)}
+                          title={line.title}
+                          disabled={busy}
+                          toastKey={lineKey(line)}
+                          onCommit={(q) => setQuantity(line, q)}
+                        />
+                        <Button variant="ghost" size="icon-sm" onClick={() => changeQuantity(line, 1)} disabled={busy} aria-disabled={line.quantity >= Math.min(MAX_PER_LINE, line.stock) || undefined} className="aria-disabled:opacity-40" aria-label={`More copies of ${line.title}`}>
                           <Plus />
                         </Button>
                       </div>
@@ -248,13 +293,26 @@ export default function CartPage() {
             {cart && (
               <OrderSummary cart={cart}>
                 {blocked ? (
-                  <Button className="mt-5 w-full" size="lg" disabled>Checkout</Button>
+                  <>
+                    <Button className="mt-5 w-full" size="lg" disabled>Checkout</Button>
+                    <p role="status" className="mt-2 text-center text-xs font-medium text-red-700">
+                      {lines.filter((l) => l.quantity > l.stock).length === 1
+                        ? "One book in your cart has fewer copies left than you've added. Lower its quantity or remove it to check out."
+                        : "Some books in your cart have fewer copies left than you've added. Lower their quantities or remove them to check out."}
+                    </p>
+                  </>
                 ) : (
                   <Link href="/checkout" className={buttonVariants({ size: "lg", className: "mt-5 w-full" })}>
                     Checkout
                   </Link>
                 )}
-                <Link href="/product-catalog" className="mt-3 block text-center text-sm underline">Continue shopping</Link>
+                {/* Signed out: checkout opens with a choice of signing in, creating an account or continuing as a guest */}
+                {isGuest && !blocked && (
+                  <p className="mt-2 text-center text-xs text-muted-foreground">
+                    Next, sign in, create an account or check out as a guest.
+                  </p>
+                )}
+                <Link href="/product-catalog" className="mt-1 block py-3 text-center text-sm underline">Continue Shopping</Link>
               </OrderSummary>
             )}
           </div>

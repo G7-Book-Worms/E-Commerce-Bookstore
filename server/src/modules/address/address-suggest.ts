@@ -15,6 +15,12 @@ export interface AddressSuggestion {
   state: string;
   zip: string;
   country: string;
+  /**
+   * True when the match is a street without a house number (common while the shopper is still
+   * typing, e.g. "Amphitheatre Pa"). Picking it fills in what is known and the shopper adds the
+   * number. Left out when the result has a number.
+   */
+  needsNumber?: true;
 }
 
 export const MIN_QUERY_LENGTH = 3;
@@ -61,10 +67,14 @@ function countryName(code: string | undefined, name: string | undefined): string
 }
 
 /**
- * One Geoapify result -> a suggestion that drops straight into an address form, or null when it
- * is not a usable shipping address. A suggestion needs a street, a city and a postcode; anything
- * vaguer (a city, a region, a road with no number in a town Geoapify can't name) would leave the
- * shopper filling in the hard part themselves while looking like it had done it for them.
+ * One Geoapify result -> a suggestion for an address form, or null when it has no street.
+ *
+ * Suggestions have to show up while the shopper is still typing, and partial text mostly matches
+ * streets that have no house number yet, or long roads Geoapify can't pin to one postcode. Those
+ * are still useful: picking one fills in the street and whatever else is known (the form only
+ * overwrites fields the suggestion has), and the shopper adds the rest. A result with no street
+ * at all (a city, a county, a state) is dropped, because it wouldn't fill in the street field the
+ * shopper is typing in.
  */
 export function toSuggestion(raw: unknown): AddressSuggestion | null {
   const parsed = geoapifyResultSchema.safeParse(raw);
@@ -74,20 +84,23 @@ export function toSuggestion(raw: unknown): AddressSuggestion | null {
   const street = [r.housenumber, r.street].filter((p) => p && p.trim()).join(' ').trim();
   const city = (r.city ?? r.town ?? r.village ?? '').trim();
   const zip = (r.postcode ?? '').trim();
-  if (!street || !city || !zip) return null;
+  if (!r.street?.trim() || !street) return null;
 
   // Shipping forms use the two-letter state; fall back to the full name where there is no code.
   const state = (r.state_code ? r.state_code.toUpperCase() : (r.state ?? '')).trim();
   const country = countryName(r.country_code, r.country);
 
-  return {
-    label: `${street}, ${city}${state ? `, ${state}` : ''} ${zip}`,
+  const place = [city, [state, zip].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+  const suggestion: AddressSuggestion = {
+    label: place ? `${street}, ${place}` : street,
     street,
     city,
     state,
     zip,
     country,
   };
+  if (!r.housenumber?.trim()) suggestion.needsNumber = true;
+  return suggestion;
 }
 
 /**

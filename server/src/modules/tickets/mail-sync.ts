@@ -147,7 +147,7 @@ async function runSync(creds: { user: string; pass: string }): Promise<SyncResul
         {
           uid: true,
           envelope: true,
-          headers: ['in-reply-to', 'references', 'auto-submitted', 'precedence', 'x-autoreply', 'list-id'],
+          headers: ['in-reply-to', 'references', 'auto-submitted', 'precedence', 'x-autoreply', 'list-id', 'x-bookworms-secret'],
           bodyParts: ['text'],
         },
         { uid: true }
@@ -189,7 +189,7 @@ async function runSync(creds: { user: string; pass: string }): Promise<SyncResul
   return { status: 'ok', ...counts };
 }
 
-type Outcome = 'new-ticket' | 'threaded' | 'duplicate';
+type Outcome = 'new-ticket' | 'threaded' | 'duplicate' | 'withheld';
 
 /** Threads one fetched message. Everything it reads from the mail is untrusted text. */
 async function handleMessage(
@@ -207,6 +207,11 @@ async function handleMessage(
   const subject = (envelope.subject ?? '').trim().slice(0, 200) || '(no subject)';
   const sender = envelope.from?.[0] ?? {};
   const fromEmail = (sender.address ?? '').trim().toLowerCase().slice(0, 100);
+
+  // Sign-in codes for the demo staff accounts land in this inbox (see mfa-service.ts). Every
+  // staff role can read the portal's mailbox, so importing them would let one staff member
+  // complete another's sign-in. They are never stored, by header or by sender and subject.
+  if (headers['x-bookworms-secret'] || (isOwnNoReply(fromEmail) && /sign-in code/i.test(subject))) return 'withheld';
   const fromName = senderDisplayName(sender.name, fromEmail);
 
   // A message with no Message-ID gets a deterministic one derived from the mailbox position,
@@ -258,6 +263,11 @@ async function handleMessage(
     machine,
   });
   return stored ? 'new-ticket' : 'duplicate';
+}
+
+function isOwnNoReply(fromEmail: string): boolean {
+  const own = (process.env.NOREPLY_EMAIL || 'no-reply@bookwrms.store').toLowerCase();
+  return fromEmail === own;
 }
 
 /** Only ever the message, never the error object, which can carry protocol data. */

@@ -20,11 +20,14 @@ interface StaffRow {
   lastName: string;
   email: string;
   employeeId: string | null;
+  workMailbox?: string | null;
   role: StaffRole;
   isActive: boolean;
   mustChangePassword: boolean;
   lastLogin: string | null;
   created: string;
+  /** Set while the account is locked out after failed sign-in attempts */
+  lockedUntil?: string | null;
 }
 
 const DELETED_DOMAIN = '@deleted.invalid';
@@ -39,18 +42,28 @@ export function StaffManager({
   actionableIds,
   assignable,
   nextEmployeeId,
+  mailboxDomain,
+  canUnlock = false,
 }: {
   rows: StaffRow[];
   meId: number;
   actionableIds: number[];
   assignable: StaffRole[];
   nextEmployeeId: string;
+  /** Set when work mailboxes can be created (Migadu configured), e.g. "bookwrms.store" */
+  mailboxDomain: string | null;
+  /** Administrators and the owner may end a sign-in lockout early */
+  canUnlock?: boolean;
 }) {
   const router = useRouter();
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', employeeId: nextEmployeeId,
     role: (assignable[0] ?? 'employee') as StaffRole,
   });
+  // Work mailbox: their staff email becomes local@domain, and the mailbox invitation goes to inviteEmail
+  const [mailbox, setMailbox] = useState({ on: !!mailboxDomain, localPart: '', edited: false, inviteEmail: '' });
+  const suggested = `${form.firstName}.${form.lastName}`.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9.-]+/g, '').replace(/^\.+|\.+$/g, '');
+  const localPart = mailbox.edited ? mailbox.localPart : suggested;
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [temp, setTemp] = useState<{ password: string; who: string } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -100,12 +113,17 @@ export function StaffManager({
   async function create(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
-    const res = await staffFetch<{ password: string }>('/api/staff/accounts', 'POST', form);
+    const withMailbox = !!mailboxDomain && mailbox.on;
+    const body = withMailbox
+      ? { ...form, email: `${localPart}@${mailboxDomain}`, mailbox: { localPart, inviteEmail: mailbox.inviteEmail } }
+      : form;
+    const res = await staffFetch<{ password: string }>('/api/staff/accounts', 'POST', body);
     setBusy(false);
     setMsg({ ok: res.ok, text: res.message });
     if (res.ok && res.data) {
       setTemp({ password: res.data.password, who: `${form.firstName} ${form.lastName} (${form.employeeId})` });
       setForm({ firstName: '', lastName: '', email: '', employeeId: '', role: (assignable[0] ?? 'employee') as StaffRole });
+      setMailbox({ on: !!mailboxDomain, localPart: '', edited: false, inviteEmail: '' });
       router.refresh();
     }
   }
@@ -171,6 +189,7 @@ export function StaffManager({
                         ? <Badge color="gray">Deleted</Badge>
                         : r.isActive ? <Badge color="green">Active</Badge> : <Badge color="red">Deactivated</Badge>}
                       {r.mustChangePassword && !deleted && <Badge color="amber">Temp password</Badge>}
+                      {r.lockedUntil && !deleted && <Badge color="red">Locked</Badge>}
                     </div>
                   </td>
                   <td className="py-2 text-xs text-stone-600">{dateTime(r.lastLogin)}</td>
@@ -178,6 +197,22 @@ export function StaffManager({
                   <td className="py-2">
                     {actionable && (
                       <div className="flex flex-wrap justify-end gap-2">
+                        {r.lockedUntil && canUnlock && (
+                          <button
+                            type="button"
+                            disabled={busy}
+                            className={btnSecondary}
+                            onClick={() => confirmThen(
+                              r,
+                              { action: 'unlock-signin' },
+                              `Unlock Sign-In for ${who(r)}`,
+                              `Their account is locked after too many failed sign-in attempts. Unlocking lets them try again now instead of waiting. They will be notified by email.`,
+                              'Unlock Sign-In',
+                            )}
+                          >
+                            Unlock Sign-In
+                          </button>
+                        )}
                         <button
                           type="button"
                           disabled={busy}
@@ -220,7 +255,7 @@ export function StaffManager({
                             r,
                             { action: 'delete' },
                             `Delete ${who(r)}`,
-                            `Their name, email and employee ID are replaced with placeholders, the account drops to Employee and is disabled, and they are signed out. What they did stays in the activity log and on the orders and tickets they handled. This cannot be undone.`,
+                            `Their name, email and employee ID are replaced with placeholders, the account drops to Employee and is disabled, and they are signed out.${r.workMailbox ? ` Their mailbox ${r.email} is deleted, with everything in it.` : ''} What they did stays in the activity log and on the orders and tickets they handled. This cannot be undone.`,
                             'Delete account',
                           )}
                         >
@@ -240,18 +275,47 @@ export function StaffManager({
         <p className="text-sm text-stone-500">Your role cannot create staff accounts.</p>
       ) : (
         <form onSubmit={create} className="rounded-lg border border-stone-200 bg-stone-50 p-4">
-          <h2 className="mb-3 text-sm font-semibold">Add a staff member</h2>
+          <h2 className="mb-3 text-sm font-semibold">Add a Staff Member</h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <label className="text-sm"><span className="mb-1 block font-medium">First name</span><input required value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} className={inputCls} /></label>
             <label className="text-sm"><span className="mb-1 block font-medium">Last name</span><input required value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} className={inputCls} /></label>
-            <label className="text-sm"><span className="mb-1 block font-medium">Work email</span><input required type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className={inputCls} /></label>
+            {mailboxDomain && mailbox.on ? (
+              <>
+                <label className="text-sm">
+                  <span className="mb-1 block font-medium">Work mailbox</span>
+                  <span className="flex items-center gap-1">
+                    <input
+                      required
+                      value={localPart}
+                      onChange={(e) => setMailbox({ ...mailbox, edited: true, localPart: e.target.value.toLowerCase() })}
+                      className={`${inputCls} font-mono`}
+                      aria-describedby="mailbox-domain"
+                    />
+                    <span id="mailbox-domain" className="whitespace-nowrap text-xs text-stone-500">@{mailboxDomain}</span>
+                  </span>
+                </label>
+                <label className="text-sm">
+                  <span className="mb-1 block font-medium">Their personal email</span>
+                  <input required type="email" value={mailbox.inviteEmail} onChange={(e) => setMailbox({ ...mailbox, inviteEmail: e.target.value })} className={inputCls} />
+                  <span className="mt-1 block text-xs text-stone-500">The mailbox invitation goes here; they choose the mailbox password themselves.</span>
+                </label>
+              </>
+            ) : (
+              <label className="text-sm"><span className="mb-1 block font-medium">Work email</span><input required type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className={inputCls} /></label>
+            )}
             <label className="text-sm"><span className="mb-1 block font-medium">Employee ID</span><input required value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value.toUpperCase() })} className={`${inputCls} font-mono`} placeholder="BW-1005" /></label>
             <label className="text-sm"><span className="mb-1 block font-medium">Role</span>
               <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as StaffRole })} className={inputCls}>
                 {assignable.map((x) => <option key={x} value={x}>{ROLE_LABELS[x]}</option>)}
               </select></label>
           </div>
-          <button className={`${btnPrimary} mt-4`} disabled={busy}>{busy ? 'Creating…' : 'Create account'}</button>
+          {mailboxDomain && (
+            <label className="mt-3 flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={mailbox.on} onChange={(e) => setMailbox({ ...mailbox, on: e.target.checked })} />
+              Give them a @{mailboxDomain} mailbox (removed automatically if their account is deleted)
+            </label>
+          )}
+          <button className={`${btnPrimary} mt-4`} disabled={busy}>{busy ? 'Creating…' : 'Create Account'}</button>
           <p className="mt-2 text-xs text-stone-500">They get a one-time temporary password (shown here once) and must choose their own at first sign-in.</p>
         </form>
       )}

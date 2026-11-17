@@ -2,8 +2,8 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import { requireStaffPage } from '@/server/src/modules/staff/staff-page';
-import { getCustomer } from '@/server/src/modules/users/customers-admin';
-import { isAnonymised } from '@/server/src/modules/staff/staff-guards';
+import { customerSignInLock, getCustomer } from '@/server/src/modules/users/customers-admin';
+import { canUnlockSignIn, isAnonymised } from '@/server/src/modules/staff/staff-guards';
 import { can } from '@/lib/staff-permissions';
 import { Badge, ORDER_STATUS_BADGE, PageHeader, Panel, dateOnly, dateTime, money } from '@/components/staff/ui';
 import { CustomerActions } from './customer-actions';
@@ -24,13 +24,14 @@ async function Content({ params }: { params: Promise<{ id: string }> }) {
   const canEdit = can(staff.role, 'customers.edit');
   const canManage = can(staff.role, 'customers.manage');
   const anonymised = isAnonymised(user.email);
+  const lockedUntil = anonymised ? null : await customerSignInLock(id).catch(() => null);
   return (
     <>
       <Link href="/admin/customers" className="mb-3 inline-block text-sm text-stone-500 underline-offset-2 hover:underline">← All customers</Link>
       <PageHeader
         title={`${user.firstName} ${user.lastName}`}
         description={anonymised ? `Deleted account · joined ${dateOnly(user.created)}` : `${user.email} · joined ${dateOnly(user.created)}`}
-        actions={<div className="flex gap-1">{anonymised ? <Badge color="gray">Deleted</Badge> : user.isActive ? <Badge color="green">Active</Badge> : <Badge color="red">Deactivated</Badge>}{user.mustChangePassword && <Badge color="amber">Must reset</Badge>}</div>}
+        actions={<div className="flex gap-1">{anonymised ? <Badge color="gray">Deleted</Badge> : user.isActive ? <Badge color="green">Active</Badge> : <Badge color="red">Deactivated</Badge>}{user.mustChangePassword && <Badge color="amber">Must reset</Badge>}{lockedUntil && <Badge color="red">Sign-In Locked</Badge>}</div>}
       />
       <div className="grid gap-6 xl:grid-cols-3">
         <Panel title={`Orders (${orders.length})`} className="xl:col-span-2">
@@ -48,14 +49,14 @@ async function Content({ params }: { params: Promise<{ id: string }> }) {
           )}
         </Panel>
         <div className="space-y-6">
-          <Panel title="Account actions">
+          <Panel title="Account Actions">
             {canEdit
-              ? <CustomerActions userId={user.userId} isActive={user.isActive} name={user.firstName} canManage={canManage} anonymised={anonymised} />
+              ? <CustomerActions userId={user.userId} isActive={user.isActive} name={user.firstName} canManage={canManage} anonymised={anonymised} lockedUntil={lockedUntil ? dateTime(lockedUntil) : null} canUnlock={canUnlockSignIn(staff.role)} />
               : <p className="text-sm text-stone-500">View only.</p>}
           </Panel>
           <Panel title="Details">
             {canEdit && !anonymised ? (
-              <CustomerDetailsForm userId={user.userId} initial={{ firstName: user.firstName, lastName: user.lastName, email: user.email, phone: user.phone }} />
+              <CustomerDetailsForm userId={user.userId} initial={{ firstName: user.firstName, lastName: user.lastName, email: user.email, phone: user.phone }} canChangeEmail={canManage} />
             ) : (
               <><p className="text-sm">{user.email}</p><p className="text-sm text-stone-600">{user.phone ?? 'No phone'}</p></>
             )}
@@ -64,7 +65,7 @@ async function Content({ params }: { params: Promise<{ id: string }> }) {
             {addresses.length === 0 ? <p className="text-sm text-stone-500">None saved.</p> : (
               <ul className="space-y-2 text-sm">
                 {addresses.map((a) => (
-                  <li key={a.addressId}>{a.street}, {a.city}, {a.state} {a.zip} {a.isDefault && <Badge>Default</Badge>}</li>
+                  <li key={a.addressId}>{a.recipientName ? `${a.recipientName}, ` : ''}{a.street}, {a.city}, {a.state} {a.zip} {a.isDefault && <Badge>Default</Badge>}</li>
                 ))}
               </ul>
             )}

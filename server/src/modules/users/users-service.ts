@@ -1,3 +1,4 @@
+import { alertEmailChanged } from '../mfa/security-alerts';
 import { UsersRepository } from './users-repository';
 import {
   UpdateProfileInput,
@@ -18,6 +19,16 @@ import {
   NotFoundError,
   UnauthorizedError,
 } from '../../shared/errors/app-error';
+
+/** MySQL refused a delete because another row still points at this one (errno 1451). */
+function isStillReferencedError(error: unknown): boolean {
+  let current = error as { code?: string; errno?: number; cause?: unknown } | undefined;
+  for (let depth = 0; current && depth < 5; depth++) {
+    if (current.code === 'ER_ROW_IS_REFERENCED_2' || current.code === 'ER_ROW_IS_REFERENCED' || current.errno === 1451) return true;
+    current = current.cause as typeof current;
+  }
+  return false;
+}
 
 export class UsersService {
   constructor(private usersRepo = new UsersRepository()) {}
@@ -46,20 +57,32 @@ export class UsersService {
   /**
    * SCRUM-94 & SCRUM-95: Update profile with email uniqueness check
    */
-  async updateProfile(userId: number, input: UpdateProfileInput) {
+  async updateProfile(userId: number, input: UpdateProfileInput, ip?: string | null) {
     const user = await this.usersRepo.findById(userId);
     if (!user) {
       throw new NotFoundError('User not found');
     }
 
-    if (input.email && input.email !== user.email) {
-      const emailInUse = await this.usersRepo.isEmailTakenByOtherUser(input.email, userId);
+    const { currentPassword, ...changes } = input;
+    const emailChanging = !!changes.email && changes.email !== user.email;
+    if (emailChanging) {
+      // The email is where sign-in codes and password resets go, so changing it takes the
+      // current password (a stolen session alone can't redirect the account), and the old
+      // address is told.
+      await rateLimit(`change-email:user:${userId}`, 10, 15 * 60);
+      if (!currentPassword || !(await comparePassword(currentPassword, user.passwordHash))) {
+        throw new UnauthorizedError('Enter your current password to change your email address');
+      }
+      const emailInUse = await this.usersRepo.isEmailTakenByOtherUser(changes.email!, userId);
       if (emailInUse) {
         throw new BadRequestError('Email address is already associated with another account');
       }
     }
 
-    const updated = await this.usersRepo.updateProfile(userId, input);
+    await this.usersRepo.updateProfile(userId, changes);
+    if (emailChanging) {
+      await alertEmailChanged({ kind: 'customer', id: userId, email: user.email, firstName: user.firstName }, changes.email!, false, ip ?? null);
+    }
     return this.getProfile(userId);
   }
 
@@ -122,7 +145,15 @@ export class UsersService {
     if (!existing) {
       throw new NotFoundError('Address not found or unauthorized');
     }
-    return this.usersRepo.deleteAddress(addressId, userId);
+    try {
+      return await this.usersRepo.deleteAddress(addressId, userId);
+    } catch (err) {
+      if (!isStillReferencedError(err)) throw err;
+      // Past orders keep a link to the address they shipped to, so the row can't be dropped.
+      // Detach it from the account instead: it disappears from the customer's saved addresses
+      // and from checkout, and their order history still shows where each order went.
+      return await this.usersRepo.detachAddress(addressId, userId);
+    }
   }
 
   /**

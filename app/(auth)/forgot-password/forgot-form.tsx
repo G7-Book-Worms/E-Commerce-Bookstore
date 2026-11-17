@@ -2,19 +2,22 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { useTurnstile } from '@/components/turnstile';
 
 export function ForgotPasswordForm() {
   const [email, setEmail] = useState('');
   const [state, setState] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const human = useTurnstile('forgot_password');
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (!(await human.waitUntilReady())) return setState({ ok: false, text: "The security check didn't finish. Refresh the page and try again." });
     setBusy(true);
     try {
       const res = await fetch('/api/auth/forgot-password', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...human.headers() },
         body: JSON.stringify({ email }),
       });
       const json = await res.json().catch(() => null);
@@ -23,12 +26,13 @@ export function ForgotPasswordForm() {
       setState({ ok: false, text: 'Network error. Try again.' });
     } finally {
       setBusy(false);
+      human.reset();
     }
   }
 
   return (
     <div className="space-y-4 text-left">
-      <h2 className="text-2xl font-bold tracking-tight text-neutral-900 font-serif">Forgot your password?</h2>
+      <h2 className="text-2xl font-bold tracking-tight text-neutral-900 font-serif">Forgot Your Password?</h2>
       {state?.ok ? (
         <div role="status" className="rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-900">
           {state.text} Check your spam folder if it doesn&apos;t arrive in a few minutes.
@@ -43,6 +47,7 @@ export function ForgotPasswordForm() {
               <input id="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)}
                 className="h-10 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900" />
             </div>
+            {human.widget}
             <button type="submit" disabled={busy || !email} className="h-10 w-full rounded-md bg-neutral-900 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-60">
               {busy ? 'Sending…' : 'Email me a reset link'}
             </button>

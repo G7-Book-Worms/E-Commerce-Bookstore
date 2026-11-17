@@ -18,6 +18,7 @@ import { z } from 'zod';
 import type Stripe from 'stripe';
 import { db } from '../../../db';
 import { addresses, orderItems, orders, payments } from '../../../db/schema';
+import { phoneSchema, recipientNameSchema } from '../../../../lib/address-rules';
 import { guestCartSchema, priceGuestCart, assertGuestCartInStock } from '../cart/guest-cart';
 import { recordDiscountUse } from '../discounts/discounts-repository';
 import { syncBookTotals } from '../books/book-totals';
@@ -28,6 +29,7 @@ import { sendEmail } from '../email/mailer';
 import { guestOrderConfirmationEmail } from '../email/templates';
 import { signGuestOrderToken, verifyGuestOrderToken } from './guest-order-token';
 import { AppError, BadRequestError, ConflictError, NotFoundError } from '../../shared/errors/app-error';
+import { siteUrl } from '../../shared/utils/site-url';
 
 const dollars = (cents: number) => (cents / 100).toFixed(2);
 const FORMAT_LABEL = { hardcover: 'Hardcover', paperback: 'Paperback' } as const;
@@ -36,6 +38,8 @@ const FORMAT_LABEL = { hardcover: 'Hardcover', paperback: 'Paperback' } as const
 // Lengths match the addresses table (varchar(100) / varchar(20)) so an over-long value is a
 // clean 400 instead of a MySQL error.
 const guestAddressSchema = z.object({
+  recipientName: recipientNameSchema,
+  phone: phoneSchema.optional(),
   street: z.string().trim().min(1, 'Street is required').max(100, 'Street is too long'),
   city: z.string().trim().min(1, 'City is required').max(100, 'City is too long'),
   state: z.string().trim().min(1, 'State is required').max(100, 'State is too long'),
@@ -66,9 +70,6 @@ export const completeGuestCheckoutSchema = z.object({
   sessionId: z.string().startsWith('cs_', 'Invalid checkout session').max(255),
 });
 
-export const guestOrderTokenSchema = z.object({
-  token: z.string().min(20, 'This order link is invalid or has expired').max(1024),
-});
 
 export type StartGuestCheckoutInput = z.infer<typeof startGuestCheckoutSchema>;
 
@@ -90,6 +91,8 @@ export async function startGuestCheckout(input: StartGuestCheckoutInput, origin:
   const orderId = await db.transaction(async (tx) => {
     const [addressRes] = (await tx.insert(addresses).values({
       userId: null, // not tied to an account
+      recipientName: input.address.recipientName,
+      phone: input.address.phone ?? null,
       street: input.address.street,
       city: input.address.city,
       state: input.address.state,
@@ -278,38 +281,68 @@ export async function completeGuestCheckout(sessionId: string) {
   return { orderId: order.orderId, alreadyProcessed: false, email, viewToken };
 }
 
-// --- 3. the signed "view your order" link ---------------------------------------------------
+// --- 3. looking a guest order up ------------------------------------------------------------
+
+export const guestOrderLookupSchema = z
+  .object({
+    // From the emailed link (the order id is read out of it, never from the URL)...
+    token: z.string().min(20).max(1024).optional(),
+    // ...or typed in from the confirmation email
+    orderId: z.coerce.number().int().positive().max(2_147_483_647).optional(),
+    email: z.string().trim().toLowerCase().min(3, 'Enter the email address you ordered with').max(100).email('Enter the email address you ordered with'),
+  })
+  .refine((v) => !!v.token || !!v.orderId, { message: 'Enter your order number', path: ['orderId'] });
+
+// Says where signed-in orders are, without saying whether this number belongs to one
+const NOT_FOUND = "We couldn't find a guest order with that order number and email address. Check both against your confirmation email. Ordered while signed in? It's in your account under Orders.";
 
 /**
- * One guest order, for the holder of a valid signed link. The order id comes out of the token,
- * never from the URL, so a link can only ever open the order it was signed for.
- *
- * It deliberately does NOT return the guest's email or street: a confirmation email can be
- * forwarded, so the page shows only enough to recognise the order (lines, totals, status, the
- * town it ships to and the card's last four digits).
+ * One guest order, for someone who proves they placed it: the order number (or the signed link
+ * from the confirmation email) AND the email address it was placed with. Either alone is not
+ * enough, so a forwarded link or a guessed order number shows nothing. Every miss gets the same
+ * answer, and the route rate-limits attempts per IP and per order.
  */
-export async function getGuestOrderByToken(token: string) {
-  const orderId = verifyGuestOrderToken(token);
+export async function lookUpGuestOrder(input: z.infer<typeof guestOrderLookupSchema>) {
+  let orderId: number;
+  if (input.token) {
+    try {
+      orderId = verifyGuestOrderToken(input.token);
+    } catch {
+      throw new NotFoundError(NOT_FOUND);
+    }
+  } else {
+    orderId = input.orderId!;
+  }
+  const [order] = await db.select().from(orders)
+    .where(and(eq(orders.orderId, orderId), isNull(orders.userId))).limit(1);
+  // An order still awaiting payment (or abandoned at Stripe) isn't an order yet
+  const [payment] = order ? await db.select().from(payments).where(eq(payments.orderId, order.orderId)).limit(1) : [];
+  const matches = !!order && !!order.guestEmail && order.guestEmail.toLowerCase() === input.email && !!payment && payment.status !== 'pending';
+  if (!matches) throw new NotFoundError(NOT_FOUND);
+  const view = await guestOrderView(order.orderId);
+  // Typed in by hand (order number + email): someone who merely knows a person's email could
+  // guess sequential order numbers, so the street and phone are only shown through the signed
+  // link from the confirmation email.
+  if (!input.token && view.shipTo) {
+    view.shipTo = { ...view.shipTo, street: '', phone: null, recipientName: view.shipTo.recipientName?.split(/\s+/)[0] ?? null };
+  }
+  return { ...view, fullAddress: !!input.token };
+}
 
-  const [order] = await db
-    .select()
-    .from(orders)
-    .where(and(eq(orders.orderId, orderId), isNull(orders.userId)))
-    .limit(1);
+/** Everything about one guest order that its owner may see (after the checks above). */
+async function guestOrderView(orderId: number) {
+  const [order] = await db.select().from(orders).where(eq(orders.orderId, orderId)).limit(1);
   if (!order) throw new NotFoundError('Order not found');
 
   const [items, [payment], [address]] = await Promise.all([
     db.select().from(orderItems).where(eq(orderItems.orderId, order.orderId)),
     db.select().from(payments).where(eq(payments.orderId, order.orderId)).limit(1),
-    db
-      .select({ city: addresses.city, state: addresses.state, zip: addresses.zip, country: addresses.country })
-      .from(addresses)
-      .where(eq(addresses.addressId, order.shippingAddressId))
-      .limit(1),
+    db.select().from(addresses).where(eq(addresses.addressId, order.shippingAddressId)).limit(1),
   ]);
 
   const { loadBooks } = await import('../books/catalog-repository');
   const catalog = await loadBooks([...new Set(items.map((i) => i.bookId))]);
+  const { shipmentView } = await import('../orders/carriers');
 
   return {
     order: {
@@ -317,16 +350,20 @@ export async function getGuestOrderByToken(token: string) {
       status: order.status,
       created: order.created,
       trackingNumber: order.trackingNumber,
+      carrier: order.carrier,
+      shipment: shipmentView(order.carrier, order.trackingNumber),
       subtotalCents: order.subtotalCents,
       discountCents: order.discountCents,
       taxCents: order.taxCents,
       priceCents: order.priceCents,
     },
+    email: order.guestEmail,
     payment: payment
       ? { status: payment.status, cardBrand: payment.cardBrand, cardLast4: payment.cardLast4 }
       : null,
-    // Town-level only, on purpose (see above)
-    shipTo: address ? { city: address.city, state: address.state, zip: address.zip, country: address.country } : null,
+    shipTo: address
+      ? { recipientName: address.recipientName, phone: address.phone, street: address.street, city: address.city, state: address.state, zip: address.zip, country: address.country }
+      : null,
     items: items.map((i) => {
       const b = catalog.find((x) => x.bookId === i.bookId);
       return {
@@ -342,14 +379,22 @@ export async function getGuestOrderByToken(token: string) {
   };
 }
 
+/** The signed link for a guest order, for its status emails. */
+export function guestOrderLink(orderId: number): string {
+  return `${siteUrl()}/checkout/guest-order?token=${encodeURIComponent(signGuestOrderToken(orderId))}`;
+}
+
 /** Confirmation email with the signed link. The token is never logged. */
 async function sendGuestOrderConfirmation(email: string, orderId: number, viewToken: string, refunded: boolean) {
   try {
-    const summary = await getGuestOrderByToken(viewToken);
+    const summary = await guestOrderView(orderId);
     await sendEmail(
       guestOrderConfirmationEmail(email, {
         orderId,
         viewToken,
+        shipTo: summary.shipTo,
+        email,
+        paidWith: summary.payment?.cardLast4 ? `${summary.payment.cardBrand ?? 'Card'} ending ${summary.payment.cardLast4}` : null,
         lines: summary.items.map((i) => ({
           title: i.title,
           format: FORMAT_LABEL[i.format],

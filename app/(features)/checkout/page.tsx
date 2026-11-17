@@ -8,20 +8,32 @@
 // POST /api/checkout/guest/quote, which answers with the same priced cart shape the signed-in
 // cart uses. They type an email and an address here and never create an account.
 
+import { useTurnstile } from "@/components/turnstile";
+import { forgetGuestChoice, loadGuestChoice, saveGuestChoice } from "@/lib/checkout-choice";
 import Link from "next/link";
-import { Suspense, useCallback, useEffect, useState } from "react";
-import { AddressAutocomplete } from "@/components/address-autocomplete";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { AddressAutocomplete, fillAddress } from "@/components/address-autocomplete";
+import { recipientLine } from "@/lib/address-rules";
 import { useSearchParams } from "next/navigation";
-import { Lock, Minus, Plus, Trash2 } from "lucide-react";
+import { ChevronRight, Lock, LogIn, Minus, Plus, ShoppingBag, Trash2, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { OrderSummary } from "@/components/cart/order-summary";
+import { FormatBadge } from "@/components/format-badge";
 import { formatPrice } from "@/lib/catalog";
 import { loadDiscountCode, type CartData } from "@/lib/cart-types";
 import { fetchUserAddresses, createUserAddress, type AddressItem } from "@/lib/api/user";
+import { DeleteAddressDialog } from "@/components/delete-address-dialog";
 import { useAuth } from "@/app/context/auth-context";
 import { useCart, type GuestCartLine } from "@/app/context/CartContext";
 
-const EMPTY = { street: "", city: "", state: "", zip: "", country: "United States" };
+const EMPTY = { recipientName: "", phone: "", street: "", city: "", state: "", zip: "", country: "United States" };
+// Everything but the phone number has to be filled in
+const REQUIRED: (keyof typeof EMPTY)[] = ["recipientName", "street", "city", "state", "zip", "country"];
+
+// Both bring the shopper back to checkout afterwards; the guest cart is merged into the account.
+const SIGN_IN_HREF = "/user-login?callbackUrl=%2Fcheckout";
+const REGISTER_HREF = "/user-register?callbackUrl=%2Fcheckout";
+
 const SKELETON = (
   <div className="mx-auto max-w-6xl p-8">
     <div className="h-96 animate-pulse rounded-xl bg-stone-200" />
@@ -45,6 +57,8 @@ function Checkout() {
   const [addresses, setAddresses] = useState<AddressItem[]>([]);
   const [addressId, setAddressId] = useState<number | null>(null);
   const [adding, setAdding] = useState(false);
+  // The saved address waiting on the "Delete this address?" dialog
+  const [deleting, setDeleting] = useState<AddressItem | null>(null);
   const [form, setForm] = useState(EMPTY);
   const [email, setEmail] = useState("");
   const [note, setNote] = useState("");
@@ -54,6 +68,41 @@ function Checkout() {
   const code = typeof window === "undefined" ? "" : loadDiscountCode();
 
   const isGuestCheckout = !authLoading && !user;
+  // Signed-out shoppers first choose: sign in, create an account, or continue as a guest.
+  // (The server render never shows this part: it waits for the auth check, so reading
+  // sessionStorage in the initializer can't cause a hydration mismatch.)
+  const [guestChosen, setGuestChosen] = useState(() => typeof window !== "undefined" && loadGuestChoice());
+  const choosingHow = isGuestCheckout && !guestChosen;
+  // Bot check for guests only, once they've chosen to check out as a guest (signed-in customers
+  // already passed one at sign-in)
+  const human = useTurnstile('guest_checkout', isGuestCheckout && !choosingHow);
+  // A new address for a signed-in shopper starts with their own name and phone filled in
+  const prefilled = useCallback(
+    () => ({ ...EMPTY, recipientName: user ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() : "", phone: user?.phone ?? "" }),
+    [user]
+  );
+  const emailRef = useRef<HTMLInputElement>(null);
+  const focusEmail = useRef(false);
+
+  // Signed in: an earlier "Continue as Guest" in this tab no longer applies (and after signing
+  // out, checkout should ask again rather than assume guest)
+  useEffect(() => {
+    if (user) forgetGuestChoice();
+  }, [user]);
+
+  // After "Continue as Guest", move focus to the first field of the form that just appeared.
+  useEffect(() => {
+    if (guestChosen && focusEmail.current) {
+      focusEmail.current = false;
+      emailRef.current?.focus();
+    }
+  }, [guestChosen]);
+
+  function continueAsGuest() {
+    saveGuestChoice();
+    focusEmail.current = true;
+    setGuestChosen(true);
+  }
 
   // --- load the cart (and, for a signed-in shopper, their saved addresses) ---
   const loadSignedIn = useCallback(async () => {
@@ -67,7 +116,8 @@ function Checkout() {
     const preferred = list.find((a) => a.isDefault) ?? list[0];
     setAddressId(preferred?.addressId ?? null);
     setAdding(list.length === 0);
-  }, [code]);
+    setForm(prefilled());
+  }, [code, prefilled]);
 
   // The guest cart holds only book ids, formats and quantities; the server prices it.
   // An empty cart needs no request: the render below shows the "cart is empty" message.
@@ -101,21 +151,40 @@ function Checkout() {
       setAddresses([...addresses, created]);
       setAddressId(created.addressId);
       setAdding(false);
-      setForm(EMPTY);
+      setForm(prefilled());
     } catch (err) {
       setError((err as Error).message);
     }
   }
 
+  // After a saved address is deleted: drop it, and if it was the chosen one fall back to the
+  // default (or the first left). With none left, open the new-address form.
+  function addressDeleted(id: number) {
+    const rest = addresses.filter((a) => a.addressId !== id);
+    setAddresses(rest);
+    setDeleting(null);
+    const next = addressId === id ? (rest.find((a) => a.isDefault) ?? rest[0])?.addressId ?? null : addressId;
+    setAddressId(next);
+    if (rest.length === 0) setAdding(true);
+    // The delete button went with the address, so put focus on the chosen address (or the form).
+    requestAnimationFrame(() => {
+      const target = next != null
+        ? document.querySelector<HTMLInputElement>(`input[name="address"][value="${next}"]`)
+        : document.querySelector<HTMLInputElement>("#checkout-address-form input");
+      target?.focus();
+    });
+  }
+
   async function pay() {
     setError(null);
     if (!isGuestCheckout && !addressId) return setError("Choose a shipping address");
+    if (isGuestCheckout && !(await human.waitUntilReady())) return setError("The security check didn't finish. Refresh the page and try again.");
     setPaying(true);
     try {
       const res = isGuestCheckout
         ? await fetch("/api/checkout/guest", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", ...human.headers() },
             body: JSON.stringify({
               email: email.trim(),
               address: form,
@@ -141,6 +210,7 @@ function Checkout() {
     } catch (err) {
       setError((err as Error).message);
       setPaying(false);
+      human.reset();
     }
   }
 
@@ -151,7 +221,7 @@ function Checkout() {
     return (
       <div className="mx-auto max-w-xl px-4 py-16 text-center">
         <p className="text-lg font-medium">Your cart is empty.</p>
-        <Link href="/product-catalog" className="mt-4 inline-block underline">Browse books</Link>
+        <Link href="/product-catalog" className="mt-4 inline-block underline">Browse Books</Link>
       </div>
     );
   }
@@ -160,18 +230,19 @@ function Checkout() {
     return (
       <div className="mx-auto max-w-xl px-4 py-16 text-center">
         <p className="text-lg font-medium">Your cart is empty.</p>
-        <Link href="/product-catalog" className="mt-4 inline-block underline">Browse books</Link>
+        <Link href="/product-catalog" className="mt-4 inline-block underline">Browse Books</Link>
       </div>
     );
   }
 
-  const field = (name: keyof typeof EMPTY, label: string, auto: string) => (
+  const field = (name: keyof typeof EMPTY, label: string, auto: string, optional = false) => (
     <label className="flex flex-col gap-1 text-sm">
-      <span className="font-medium">{label}</span>
+      <span className="font-medium">{label}{optional && <span className="font-normal text-muted-foreground"> (optional)</span>}</span>
       <input
-        required
+        required={!optional}
+        type={name === "phone" ? "tel" : "text"}
         autoComplete={auto}
-        maxLength={name === "zip" ? 20 : 100}
+        maxLength={name === "zip" || name === "phone" ? 20 : 100}
         value={form[name]}
         onChange={(e) => setForm({ ...form, [name]: e.target.value })}
         className="h-9 rounded-md border px-3"
@@ -179,14 +250,14 @@ function Checkout() {
     </label>
   );
 
-  // Street with address suggestions: picking one fills in every address field at once.
+  // Street with address suggestions: picking one fills in the address fields it knows.
   const streetField = () => (
     <AddressAutocomplete
       label="Street"
       required
       value={form.street}
       onChange={(street) => setForm((f) => ({ ...f, street }))}
-      onSelect={(a) => setForm({ street: a.street, city: a.city, state: a.state, zip: a.zip, country: a.country })}
+      onSelect={(a) => setForm((f) => fillAddress(f, a))}
     />
   );
 
@@ -194,8 +265,8 @@ function Checkout() {
   const guestReady =
     email.trim().length > 3 &&
     email.includes("@") &&
-    (Object.keys(EMPTY) as (keyof typeof EMPTY)[]).every((k) => form[k].trim() !== "");
-  const canPay = isGuestCheckout ? guestReady : !!addressId && !adding;
+    REQUIRED.every((k) => form[k].trim() !== "");
+  const canPay = choosingHow ? false : isGuestCheckout ? guestReady : !!addressId && !adding;
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-8 md:px-8">
@@ -209,16 +280,21 @@ function Checkout() {
       )}
       {error && <p role="alert" className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
 
-      {isGuestCheckout && (
-        <p className="mb-6 rounded-md border bg-stone-50 p-3 text-sm">
+      {isGuestCheckout && !choosingHow && (
+        <p className="mb-6 rounded-md border bg-white p-3 text-sm">
           You&apos;re checking out as a guest — no account needed. Already have one?{" "}
-          <Link href="/user-login?callbackUrl=%2Fcheckout" className="font-medium underline">Sign in</Link>{" "}
+          <Link href={SIGN_IN_HREF} className="font-medium underline">Sign In</Link>{" "}
+          or <Link href={REGISTER_HREF} className="font-medium underline">create one</Link>{" "}
           and the books in your cart come with you.
         </p>
       )}
 
       <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
         <div className="flex flex-col gap-6">
+          {choosingHow ? (
+            <CheckoutChoice onGuest={continueAsGuest} />
+          ) : (
+          <>
           {/* Guests: email first, since it's the only way they get their confirmation */}
           {isGuestCheckout && (
             <section className="rounded-xl border bg-white p-5">
@@ -226,6 +302,7 @@ function Checkout() {
               <label className="flex flex-col gap-1 text-sm">
                 <span className="font-medium">Email address</span>
                 <input
+                  ref={emailRef}
                   required
                   type="email"
                   autoComplete="email"
@@ -250,6 +327,8 @@ function Checkout() {
             </h2>
             {isGuestCheckout ? (
               <div className="grid gap-3 sm:grid-cols-2">
+                {field("recipientName", "Full name", "name")}
+                {field("phone", "Phone", "tel", true)}
                 <div className="sm:col-span-2">{streetField()}</div>
                 {field("city", "City", "address-level2")}
                 {field("state", "State", "address-level1")}
@@ -259,51 +338,71 @@ function Checkout() {
             ) : (
               <>
                 {addresses.length > 0 && (
-                  <div className="flex flex-col gap-2" role="radiogroup" aria-label="Shipping address">
+                  <div className="flex flex-col gap-2" role="group" aria-label="Saved shipping addresses">
                     {addresses.map((a) => (
-                      <label key={a.addressId} className={`flex cursor-pointer gap-3 rounded-lg border p-3 text-sm ${addressId === a.addressId ? "border-stone-900 bg-stone-50" : ""}`}>
-                        <input type="radio" name="address" checked={addressId === a.addressId} onChange={() => setAddressId(a.addressId)} />
-                        <span>
-                          {a.street}<br />{a.city}, {a.state} {a.zip}, {a.country}
-                          {a.isDefault && <span className="ml-2 text-xs text-muted-foreground">(default)</span>}
-                        </span>
-                      </label>
+                      <div key={a.addressId} className={`flex items-start gap-2 rounded-lg border text-sm ${addressId === a.addressId ? "border-stone-900 bg-stone-50" : ""}`}>
+                        <label className="flex min-w-0 flex-1 cursor-pointer gap-3 p-3">
+                          <input type="radio" name="address" value={a.addressId} checked={addressId === a.addressId} onChange={() => setAddressId(a.addressId)} />
+                          <span>
+                            {recipientLine(a) && <span className="font-medium">{recipientLine(a)}<br /></span>}
+                            {a.street}<br />{a.city}, {a.state} {a.zip}, {a.country}
+                            {a.isDefault && <span className="ml-2 text-xs text-muted-foreground">(default)</span>}
+                          </span>
+                        </label>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="m-1.5 shrink-0 text-stone-500 hover:bg-red-50 hover:text-red-700"
+                          aria-label={`Delete address ${a.street}, ${a.city}`}
+                          title="Delete this address"
+                          onClick={() => setDeleting(a)}
+                        >
+                          <Trash2 />
+                        </Button>
+                      </div>
                     ))}
                   </div>
                 )}
                 {adding ? (
-                  <form onSubmit={saveAddress} className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <form id="checkout-address-form" onSubmit={saveAddress} className="mt-4 grid gap-3 sm:grid-cols-2">
+                    {field("recipientName", "Full name", "name")}
+                    {field("phone", "Phone", "tel", true)}
                     <div className="sm:col-span-2">{streetField()}</div>
                     {field("city", "City", "address-level2")}
                     {field("state", "State", "address-level1")}
                     {field("zip", "ZIP code", "postal-code")}
                     {field("country", "Country", "country-name")}
                     <div className="flex gap-2 sm:col-span-2">
-                      <Button type="submit">Save address</Button>
+                      <Button type="submit">Save Address</Button>
                       {addresses.length > 0 && <Button type="button" variant="ghost" onClick={() => setAdding(false)}>Cancel</Button>}
                     </div>
                   </form>
                 ) : (
                   <Button variant="outline" size="sm" className="mt-3" onClick={() => setAdding(true)}>Add a new address</Button>
                 )}
+                <DeleteAddressDialog address={deleting} onCancel={() => setDeleting(null)} onDeleted={addressDeleted} />
               </>
             )}
           </section>
+          </>
+          )}
 
           {/* Review items */}
           <section className="rounded-xl border bg-white p-5">
             <div className="mb-4 flex items-baseline justify-between">
-              <h2 className="font-serif text-xl font-bold">{isGuestCheckout ? "3." : "2."} Review items</h2>
-              {!isGuestCheckout && <Link href="/cart" className="text-sm underline">Edit cart</Link>}
+              <h2 className="font-serif text-xl font-bold">{choosingHow ? "Your items" : `${isGuestCheckout ? "3." : "2."} Review items`}</h2>
+              {!isGuestCheckout && <Link href="/cart" className="-my-3 inline-block py-3 text-sm underline">Edit Cart</Link>}
             </div>
             <ul className="divide-y text-sm">
               {cart.items.map((l) => (
                 <li key={l.cartItemId} className="flex justify-between gap-4 py-2">
                   <span>
                     <span className="font-medium">{l.title}</span>
-                    <span className="block text-xs text-muted-foreground">
-                      {l.format === "hardcover" ? "Hardcover" : "Paperback"} · Qty {l.quantity}
-                      {l.onSale && <span className="ml-1 font-semibold text-red-700">· Sale price</span>}
+                    <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                      <FormatBadge format={l.format} />
+                      <span>Qty {l.quantity}</span>
+                      {l.onSale && <span className="font-semibold text-red-700">Sale price</span>}
                     </span>
                   </span>
                   <span className="flex items-center gap-3">
@@ -356,19 +455,74 @@ function Checkout() {
         {/* Pay */}
         <div className="lg:sticky lg:top-24 lg:self-start">
           <OrderSummary cart={cart}>
+            {isGuestCheckout && !choosingHow && <div className="mt-4">{human.widget}</div>}
             <Button className="mt-5 w-full" size="lg" onClick={pay} disabled={paying || !canPay}>
               <Lock /> {paying ? "Opening secure payment…" : `Pay ${formatPrice(cart.totals.totalCents)}`}
             </Button>
-            {isGuestCheckout && !guestReady && (
+            {choosingHow && (
+              <p className="mt-2 text-xs text-muted-foreground">Choose how you&apos;d like to check out to continue.</p>
+            )}
+            {isGuestCheckout && !choosingHow && !guestReady && (
               <p className="mt-2 text-xs text-muted-foreground">Add your email and shipping address to continue.</p>
             )}
-            <p className="mt-3 text-xs text-muted-foreground">
-              You&apos;ll pay on Stripe&apos;s secure page. This store runs in <b>test mode</b>: use card
-              4242 4242 4242 4242, any future date and any CVC. Test charges are refunded automatically.
-            </p>
+            <div role="note" className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-950">
+              <p className="font-semibold">Don&apos;t use a real card.</p>
+              <p className="mt-1">
+                Book Worms is a student project and Stripe runs in <b>test mode</b>: real cards are
+                declined and nothing is ever charged or shipped. Use card <b className="font-mono">4242 4242 4242 4242</b>,
+                any future date and any CVC. Test payments are refunded automatically.
+              </p>
+            </div>
           </OrderSummary>
         </div>
       </div>
     </div>
+  );
+}
+
+// First step for a shopper who isn't signed in. Real links for the account routes and a real
+// button for the guest option, which reveals the guest form in place.
+function CheckoutChoice({ onGuest }: { onGuest: () => void }) {
+  const option =
+    "group flex w-full items-center gap-4 rounded-lg border border-stone-200 bg-white p-4 text-left transition hover:border-stone-900 hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:ring-offset-2";
+  const icon =
+    "flex size-10 shrink-0 items-center justify-center rounded-full bg-stone-100 text-stone-700 group-hover:bg-stone-900 group-hover:text-white";
+  return (
+    <section aria-labelledby="checkout-choice-title" className="rounded-xl border bg-white p-5">
+      <h2 id="checkout-choice-title" className="font-serif text-xl font-bold">How Would You Like to Check Out?</h2>
+      <p className="mt-1 text-sm text-muted-foreground">The books in your cart come with you whichever you pick.</p>
+      <ul className="mt-4 flex flex-col gap-3">
+        <li>
+          <Link href={SIGN_IN_HREF} className={option}>
+            <span className={icon}><LogIn className="size-5" aria-hidden /></span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-semibold">Sign In</span>
+              <span className="block text-sm text-muted-foreground">Use your saved addresses and keep the order in your history.</span>
+            </span>
+            <ChevronRight className="size-4 shrink-0 text-stone-400" aria-hidden />
+          </Link>
+        </li>
+        <li>
+          <Link href={REGISTER_HREF} className={option}>
+            <span className={icon}><UserPlus className="size-5" aria-hidden /></span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-semibold">Create an account</span>
+              <span className="block text-sm text-muted-foreground">Takes a minute. Track your orders and check out faster next time.</span>
+            </span>
+            <ChevronRight className="size-4 shrink-0 text-stone-400" aria-hidden />
+          </Link>
+        </li>
+        <li>
+          <button type="button" onClick={onGuest} className={option}>
+            <span className={icon}><ShoppingBag className="size-5" aria-hidden /></span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-semibold">Continue as Guest</span>
+              <span className="block text-sm text-muted-foreground">No account needed. We email your confirmation and a link to the order.</span>
+            </span>
+            <ChevronRight className="size-4 shrink-0 text-stone-400" aria-hidden />
+          </button>
+        </li>
+      </ul>
+    </section>
   );
 }

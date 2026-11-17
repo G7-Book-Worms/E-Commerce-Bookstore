@@ -59,7 +59,7 @@ export function DemoDialog() {
         </div>
         <button ref={button} type="button" onClick={close}
           className="mt-6 h-11 w-full rounded-lg bg-stone-900 text-sm font-semibold text-white hover:bg-stone-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stone-900">
-          I understand, let me look around
+          I Understand, Let Me Look Around
         </button>
       </div>
     </div>

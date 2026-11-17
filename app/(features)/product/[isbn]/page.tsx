@@ -4,7 +4,8 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { ProductView } from "./product-view";
 import { BookSection } from "@/components/book-section";
-import { findCatalogBookByIsbn, parseCatalogQuery, searchBooks } from "@/server/src/modules/books/catalog-repository";
+import { findCatalogBookByIsbn } from "@/server/src/modules/books/catalog-repository";
+import { youMayLike } from "@/server/src/modules/books/recommendations";
 
 type Params = Promise<{ isbn: string }>;
 
@@ -14,7 +15,8 @@ export async function generateMetadata({ params }: { params: Params }) {
   return { title: book ? `${book.title} by ${book.author} | Book Worms` : "Book not found | Book Worms" };
 }
 
-// /product/[isbn]: the book from the database (SCRUM-181), plus more books in the same genre
+// /product/[isbn]: the book from the database (SCRUM-181), plus "You may like": books by the same
+// author, in the same genre, sharing tags, or bought in the same orders (recommendations.ts)
 export default function ProductPage({ params }: { params: Params }) {
   return (
     <div className="mx-auto w-full max-w-6xl min-w-0 px-4 py-8 md:px-8 flex flex-col gap-12">
@@ -31,10 +33,8 @@ async function Product({ params }: { params: Params }) {
   const book = await findCatalogBookByIsbn(isbn);
   if (!book) notFound();
 
-  const genre = book.category?.slug;
-  const related = genre
-    ? (await searchBooks(parseCatalogQuery({ genre, sort: "rating-desc", pageSize: "13" }))).books.filter((b) => b.bookId !== book.bookId).slice(0, 12)
-    : [];
+  const suggestions = await youMayLike(book);
+  const captions = Object.fromEntries(suggestions.map((s) => [s.book.bookId, s.reason]));
 
   return (
     <>
@@ -46,9 +46,12 @@ async function Product({ params }: { params: Params }) {
         {" / "}<span className="text-stone-700">{book.title}</span>
       </nav>
       <ProductView book={book} />
-      {book.category && (
-        <BookSection title={`More in ${book.category.name}`} books={related} href={`/product-catalog/all?genre=${book.category.slug}`} />
-      )}
+      <BookSection
+        title="You may like"
+        books={suggestions.map((s) => s.book)}
+        captions={captions}
+        href={book.category ? `/product-catalog/all?genre=${book.category.slug}` : "/product-catalog/all"}
+      />
     </>
   );
 }

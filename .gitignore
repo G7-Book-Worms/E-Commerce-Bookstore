@@ -51,3 +51,15 @@ shots/
 
 # stray screenshot output from a tool with an unset path variable
 undefined/
+
+# git bundles used to move branches between machines
+*.bundle
+
+# local notes and scratch output
+scratch/
+*.local.md
+
+# Playwright end-to-end test output
+/test-results/
+/playwright-report/
+/blob-report/

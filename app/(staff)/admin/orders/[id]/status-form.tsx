@@ -13,7 +13,7 @@ import {
   type Carrier,
 } from '@/server/src/modules/orders/carriers';
 
-const LABEL: Record<string, string> = { transit: 'Mark as shipped', arrived: 'Mark as delivered', cancelled: 'Cancel order' };
+const LABEL: Record<string, string> = { transit: 'Mark as Shipped', arrived: 'Mark as delivered', cancelled: 'Cancel order' };
 
 const PLACEHOLDER: Record<Carrier, string> = {
   ups: '1Z999AA10123456784',

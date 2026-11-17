@@ -1,6 +1,7 @@
 // components/account/SecurityTab.tsx
 'use client';
 
+import { logoutUser } from '@/lib/api/auth';
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { changeUserPassword } from '@/lib/api/user';
@@ -8,6 +9,9 @@ import { PasswordInput } from '@/components/ui/password-input';
 import { PasswordStrength } from '@/components/ui/password-strength';
 import { passwordProblems } from '@/lib/password-policy';
 import { useAuth } from '@/app/context/auth-context';
+import { TwoStepSettings } from '@/components/auth/two-step-settings';
+import { PasskeySettings } from '@/components/auth/passkey-settings';
+import { PrivacyCard } from './PrivacyCard';
 
 export const SecurityTab: React.FC = () => {
   const router = useRouter();
@@ -46,8 +50,8 @@ export const SecurityTab: React.FC = () => {
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
       setTimeout(() => { window.location.href = '/user-login?passwordChanged=1'; }, 1200);
       return;
-    } catch (err: any) {
-      setStatusMsg({ type: 'error', text: err.message || 'Failed to update password.' });
+    } catch (err: unknown) {
+      setStatusMsg({ type: 'error', text: (err as Error).message || 'Failed to update password.' });
     } finally {
       setIsUpdating(false);
     }
@@ -56,7 +60,7 @@ export const SecurityTab: React.FC = () => {
   const handleSignOut = async () => {
     try {
       setIsLoggingOut(true);
-      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+      await logoutUser();
       router.push('/');
       router.refresh();
     } catch {
@@ -135,6 +139,24 @@ export const SecurityTab: React.FC = () => {
             {isUpdating ? 'Saving...' : 'Update Password'}
           </button>
         </form>
+      </div>
+
+      {/* Two-step sign-in */}
+      <div className="bg-white border border-stone-200 rounded-xl p-6 shadow-xs space-y-3">
+        <h3 className="text-xl font-bold text-stone-900 tracking-tight">Two-step sign-in</h3>
+        <TwoStepSettings endpoint="/api/users/mfa" />
+      </div>
+
+      {/* Passkeys */}
+      <div className="bg-white border border-stone-200 rounded-xl p-6 shadow-xs space-y-3">
+        <h3 className="text-xl font-bold text-stone-900 tracking-tight">Passkeys</h3>
+        <PasskeySettings endpoint="/api/passkeys" />
+      </div>
+
+      {/* Your data (download / delete) */}
+      <div className="bg-white border border-stone-200 rounded-xl p-6 shadow-xs space-y-3">
+        <h3 className="text-xl font-bold text-stone-900 tracking-tight">Your Data</h3>
+        <PrivacyCard />
       </div>
 
       {/* Sign Out Card */}

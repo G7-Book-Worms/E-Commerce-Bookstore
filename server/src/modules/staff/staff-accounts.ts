@@ -5,6 +5,7 @@
 //
 // Guard rails: at least one active administrator always remains, and the single owner can never be
 // deleted, demoted or deactivated by anybody.
+import { deleteAllPasskeys } from '../passkeys/passkey-service';
 import { randomBytes } from 'node:crypto';
 import { and, asc, eq, ne, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
@@ -12,7 +13,8 @@ import { db } from '../../../db';
 import { admin } from '../../../db/schema';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../../shared/errors/app-error';
 import { hashPassword } from '../../shared/utils/hash-utils';
-import { clearFailures } from '../../shared/security/rate-limit';
+import { activeLockUntil, clearFailures, clearLocks, signInLockKeys } from '../../shared/security/rate-limit';
+import { alertUnlockedByStaff } from '../mfa/security-alerts';
 import { isDuplicateKeyError } from '../auth/auth-service';
 import { temporaryPassword } from './staff-auth';
 import { sendEmail } from '../email/mailer';
@@ -21,12 +23,14 @@ import { assignableRoles } from '../../../../lib/staff-permissions';
 import {
   ANONYMISED,
   STAFF_ACTIONS,
+  canUnlockSignIn,
   anonymisedEmail,
   canActOn,
   staffActionNeedsStepUp,
   type ActorRef,
 } from './staff-guards';
 import { requireStepUp, stepUpPasswordSchema } from './step-up';
+import { createWorkMailbox, deleteWorkMailbox, localPartProblem, mailDomain } from './staff-mailbox';
 
 // 'owner' is deliberately not assignable: there is exactly one owner and it is seeded, so no API
 // can create or promote one.
@@ -38,6 +42,12 @@ export const createStaffSchema = z.object({
   email: z.string().trim().email('Enter a valid email').max(100).toLowerCase(),
   employeeId: z.string().trim().toUpperCase().regex(/^BW-\d{4}$/, 'Employee IDs look like BW-1234'),
   role,
+  // Optional: make them a @bookwrms.store mailbox too. Its address becomes their staff email, and
+  // the mailbox invitation (where they choose the mailbox password) goes to inviteEmail.
+  mailbox: z.object({
+    localPart: z.string().trim().toLowerCase().max(40),
+    inviteEmail: z.string().trim().email('Enter their personal email for the mailbox invitation').max(100).toLowerCase(),
+  }).optional(),
 });
 
 export const updateStaffSchema = z.object({
@@ -48,7 +58,7 @@ export const updateStaffSchema = z.object({
 });
 
 export async function listStaff() {
-  return db
+  const rows = await db
     .select({
       adminId: admin.adminId,
       firstName: admin.firstName,
@@ -58,11 +68,15 @@ export async function listStaff() {
       role: admin.adminRole,
       isActive: admin.isActive,
       mustChangePassword: admin.mustChangePassword,
+      workMailbox: admin.workMailbox,
       lastLogin: admin.lastLogin,
       created: admin.created,
     })
     .from(admin)
     .orderBy(asc(admin.lastName));
+  // Which accounts are locked out of signing in right now (wrong passwords or codes)
+  const locks = await Promise.all(rows.map((r) => activeLockUntil(signInLockKeys('staff', r.adminId, r.email))));
+  return rows.map((r, i) => ({ ...r, lockedUntil: locks[i] }));
 }
 
 export async function nextEmployeeId(): Promise<string> {
@@ -78,21 +92,41 @@ export async function createStaff(actor: ActorRef, input: z.infer<typeof createS
     throw new ForbiddenError('Your role cannot create an account with that role');
   }
   const password = temporaryPassword();
+
+  // The mailbox first: if the provider refuses, nothing is saved. If saving the account then
+  // fails, the new mailbox is removed again so the two never drift apart.
+  let email = input.email;
+  let workMailbox: string | null = null;
+  if (input.mailbox) {
+    const problem = localPartProblem(input.mailbox.localPart);
+    if (problem) throw new BadRequestError(problem);
+    const [taken] = await db.select({ id: admin.adminId }).from(admin).where(eq(admin.email, `${input.mailbox.localPart}@${mailDomain()}`));
+    if (taken) throw new ConflictError('A staff account already uses that address. Pick another mailbox name.');
+    try {
+      email = await createWorkMailbox(input.mailbox.localPart, `${input.firstName} ${input.lastName}`, input.mailbox.inviteEmail);
+    } catch (err) {
+      throw new BadRequestError((err as Error).message);
+    }
+    workMailbox = input.mailbox.localPart;
+  }
+
   try {
     await db.insert(admin).values({
       firstName: input.firstName,
       lastName: input.lastName,
-      email: input.email,
+      email,
       employeeId: input.employeeId,
       adminRole: input.role,
       passwordHash: await hashPassword(password),
       mustChangePassword: true,
+      workMailbox,
     });
   } catch (err) {
+    if (workMailbox) await deleteWorkMailbox(workMailbox);
     if (isDuplicateKeyError(err)) throw new ConflictError('That email or employee ID is already used by another staff account');
     throw err;
   }
-  return { password };
+  return { password, email, mailboxCreated: !!workMailbox };
 }
 
 /**
@@ -124,8 +158,12 @@ async function unusablePasswordHash(): Promise<string> {
  * least privileged one so a scrubbed row can never carry authority, the account is disabled, the
  * password is replaced with one nobody knows, and the token version is bumped to kill any session.
  */
-async function anonymiseStaff(targetId: number, previousEmail: string) {
+async function anonymiseStaff(targetId: number, previousEmail: string, workMailbox: string | null) {
+  // Their work mailbox goes too. If the provider can't be reached, the name is kept so the
+  // activity log says which mailbox still needs removing by hand.
+  const mailboxRemoved = workMailbox ? await deleteWorkMailbox(workMailbox) : null;
   await db.update(admin).set({
+    workMailbox: workMailbox && !mailboxRemoved ? workMailbox : null,
     firstName: ANONYMISED.firstName,
     lastName: ANONYMISED.staffLastName,
     email: anonymisedEmail('staff', targetId),
@@ -135,8 +173,15 @@ async function anonymiseStaff(targetId: number, previousEmail: string) {
     isActive: false,
     mustChangePassword: false,
     tokenVersion: sql`${admin.tokenVersion} + 1`,
+    // Their phone and authenticator secret are personal data too
+    mfaMethod: 'email',
+    mfaPhone: null,
+    totpSecret: null,
+    totpLastStep: null,
   }).where(eq(admin.adminId, targetId));
+  await deleteAllPasskeys('staff', targetId);
   await clearFailures(`staff-login:email:${previousEmail}`);
+  return { mailbox: workMailbox ? `${workMailbox}@${mailDomain()}` : null, mailboxRemoved };
 }
 
 /**
@@ -192,6 +237,10 @@ export async function updateStaff(
     throw new BadRequestError('There must always be at least one active administrator');
   }
 
+  if (input.action === 'unlock-signin' && !canUnlockSignIn(actor.role)) {
+    throw new ForbiddenError('Only an administrator can unlock sign-in');
+  }
+
   if (staffActionNeedsStepUp(input.action, target.adminRole, input.role)) {
     await requireStepUp(actor.id, input.actorPassword, ip);
   }
@@ -208,9 +257,17 @@ export async function updateStaff(
     case 'sign-out':
       await db.update(admin).set({ tokenVersion: sql`${admin.tokenVersion} + 1` }).where(eq(admin.adminId, targetId));
       return { email: target.email };
-    case 'delete':
-      await anonymiseStaff(targetId, target.email);
-      return { email: target.email, before: target.adminRole };
+    case 'delete': {
+      const { mailbox, mailboxRemoved } = await anonymiseStaff(targetId, target.email, target.workMailbox);
+      return { email: target.email, before: target.adminRole, mailbox, mailboxRemoved };
+    }
+    case 'unlock-signin': {
+      const keys = signInLockKeys('staff', targetId, target.email);
+      const wasLocked = !!(await activeLockUntil(keys));
+      await clearLocks(keys);
+      if (wasLocked) await alertUnlockedByStaff({ kind: 'staff', id: targetId, email: target.email, firstName: target.firstName });
+      return { email: target.email, wasLocked };
+    }
     case 'temp-password': {
       const password = temporaryPassword();
       await db.update(admin).set({
@@ -218,7 +275,7 @@ export async function updateStaff(
         mustChangePassword: true,
         tokenVersion: sql`${admin.tokenVersion} + 1`,
       }).where(eq(admin.adminId, targetId));
-      await clearFailures(`staff-login:email:${target.email}`);
+      await clearLocks(signInLockKeys('staff', targetId, target.email));
       await sendEmail(temporaryPasswordEmail(target.email, target.firstName, 'staff'));
       return { email: target.email, password };
     }

@@ -7,9 +7,11 @@ export async function GET() {
     const booksService = new BooksService();
     const feed = await booksService.getHomepageFeed();
     return NextResponse.json({ status: 'success', data: feed });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    // Don't send database error text to the browser
+    console.error('[featured] failed', error instanceof Error ? error.message : error);
     return NextResponse.json(
-      { status: 'error', message: error.message || 'Failed to fetch homepage feeds' },
+      { status: 'error', message: 'Failed to fetch homepage feeds' },
       { status: 500 }
     );
   }
